@@ -25,15 +25,15 @@ impl Lexer {
 
         let character = match self.character {
             Some(v) => v,
-            None => return Token::Eof,
+            None => return Token::EndOfFile,
         };
 
         let token = match character {
             ';' => Token::Semicolon,
-            '(' => Token::LeftParen,
-            ')' => Token::RightParen,
-            '{' => Token::LeftBrace,
-            '}' => Token::RightBrace,
+            '(' => Token::OpenParen,
+            ')' => Token::CloseParen,
+            '{' => Token::OpenBrace,
+            '}' => Token::CloseBrace,
             ',' => Token::Comma,
             '+' => Token::Plus,
             '-' => Token::Minus,
@@ -41,8 +41,8 @@ impl Lexer {
             '*' => Token::Asterisk,
             '<' => Token::LessThan,
             '>' => Token::GreaterThan,
-            '[' => Token::LeftBracket,
-            ']' => Token::RightBracket,
+            '[' => Token::OpenBracket,
+            ']' => Token::CloseBracket,
             '=' => {
                 if self.peek_character() == Some('=') {
                     self.read_character();
@@ -77,7 +77,7 @@ impl Lexer {
 
             c if Lexer::is_digit(c) => {
                 let number = self.read_number();
-                return Token::Number(number);
+                return Token::NumericLiteral(number);
             }
 
             _ => Token::Illegal,

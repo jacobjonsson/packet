@@ -26,12 +26,12 @@ token_tests! {
     asterisk_token: ("*", Token::Asterisk),
     equals_token: ("=", Token::Equals),
 
-    left_paren_token: ("(", Token::LeftParen),
-    right_paren_token: (")", Token::RightParen),
-    left_brace_token: ("{{", Token::LeftBrace),
-    right_brace_token: ("}}", Token::RightBrace),
-    left_bracket_token: ("[", Token::LeftBracket),
-    right_bracket_token: ("]", Token::RightBracket),
+    open_paren_token: ("(", Token::OpenParen),
+    close_paren_token: (")", Token::CloseParen),
+    open_brace_token: ("{{", Token::OpenBrace),
+    close_brace_token: ("}}", Token::CloseBrace),
+    open_bracket_token: ("[", Token::OpenBracket),
+    close_bracket_token: ("]", Token::CloseBracket),
     equals_equals_token: ("==", Token::EqualsEquals),
     equals_equals_equals_token: ("===", Token::EqualsEqualsEquals),
     exclamation_token: ("!", Token::Exclamation),
@@ -43,6 +43,11 @@ token_tests! {
 token_tests! {
     hello_identifier: ("hello", Token::Identifier("hello".into())),
     hello_world_identifier: ("hello_world", Token::Identifier("hello_world".into())),
+}
+
+// Literals
+token_tests! {
+    numeric_literal: ("123", Token::NumericLiteral("123".into())),
 }
 
 // Keywords
