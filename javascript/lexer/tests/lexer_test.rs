@@ -25,7 +25,6 @@ token_tests! {
     slash_token: ("/", Token::Slash),
     asterisk_token: ("*", Token::Asterisk),
     equals_token: ("=", Token::Equals),
-
     open_paren_token: ("(", Token::OpenParen),
     close_paren_token: (")", Token::CloseParen),
     open_brace_token: ("{{", Token::OpenBrace),
