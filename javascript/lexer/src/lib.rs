@@ -231,6 +231,40 @@ impl Lexer {
                 }
             }
 
+            '"' => {
+                let mut literal = String::new();
+                while self.peek_character() != Some('"') {
+                    self.read_character();
+                    let character = match self.character {
+                        Some(c) => c,
+                        None => break, // Means we failed to read the character, prob because of EndOfFile. (We should ideally return an error here)
+                    };
+
+                    literal.push(character);
+                }
+                // Consume the ending "
+                self.read_character();
+
+                return Token::StringLiteral(literal);
+            }
+
+            '\'' => {
+                let mut literal = String::new();
+                while self.peek_character() != Some('\'') {
+                    self.read_character();
+                    let character = match self.character {
+                        Some(c) => c,
+                        None => break, // Means we failed to read the character, prob because of EndOfFile. (We should ideally return an error here)
+                    };
+
+                    literal.push(character);
+                }
+                // Consume the ending '
+                self.read_character();
+
+                return Token::StringLiteral(literal);
+            }
+
             c if Lexer::is_letter(c) => {
                 let identifier = self.read_identifier();
                 return lookup_identifer(&identifier);

@@ -88,6 +88,8 @@ token_tests! {
 // Literals
 token_tests! {
     numeric_literal: ("123", Token::NumericLiteral("123".into())),
+    string_literal: ("\"hello world\"", Token::StringLiteral("hello world".into())),
+    single_quote_string_literal: ("'hello world'", Token::StringLiteral("hello world".into())),
 }
 
 // Keywords
