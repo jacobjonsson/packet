@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "javascript/token",
+    "javascript/lexer"
+]
