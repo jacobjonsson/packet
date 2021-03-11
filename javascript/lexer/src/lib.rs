@@ -41,6 +41,8 @@ impl Lexer {
             '*' => Token::Asterisk,
             '<' => Token::LessThan,
             '>' => Token::GreaterThan,
+            '[' => Token::LeftBracket,
+            ']' => Token::RightBracket,
             '=' => {
                 if self.peek_character() == Some('=') {
                     self.read_character();
@@ -48,7 +50,7 @@ impl Lexer {
                         self.read_character();
                         Token::EqualsEqualsEquals
                     } else {
-                        Token::Equals
+                        Token::EqualsEquals
                     }
                 } else {
                     Token::Equals

@@ -29,6 +29,8 @@ pub enum Token {
     RightParen,
     LeftBrace,
     RightBrace,
+    LeftBracket,
+    RightBracket,
 
     Continue,
     Break,
@@ -69,6 +71,8 @@ impl std::fmt::Display for Token {
             Token::LeftParen => write!(f, "("),
             Token::RightBrace => write!(f, "}}"),
             Token::RightParen => write!(f, ")"),
+            Token::LeftBracket => write!(f, "["),
+            Token::RightBracket => write!(f, "]"),
 
             Token::Continue => write!(f, "continue"),
             Token::Break => write!(f, "break"),
@@ -111,6 +115,8 @@ impl TokenLiteral for Token {
             Token::LeftParen => "(".into(),
             Token::RightBrace => "}".into(),
             Token::RightParen => ")".into(),
+            Token::LeftBracket => "[".into(),
+            Token::RightBracket => "]".into(),
 
             Token::Continue => "continue".into(),
             Token::Break => "break".into(),
