@@ -8,5 +8,3 @@ jobs:
         - cargo build --verbose --workspace
         - cargo test --verbose --workspace
       language: rust
-      rust:
-        - stable
