@@ -1,0 +1,12 @@
+group: vm.large
+language: rust
+services: docker
+jobs:
+  include:
+    - stage: Build
+      script:
+        - cargo build --verbose --workspace
+        - cargo test --verbose --workspace
+      language: rust
+      node_js:
+        - stable
