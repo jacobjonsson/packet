@@ -2,5 +2,7 @@
 
 members = [
     "javascript/token",
-    "javascript/lexer"
+    "javascript/lexer",
+    "javascript/ast",
+    "javascript/parser",
 ]

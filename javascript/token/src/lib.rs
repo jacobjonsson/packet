@@ -2,7 +2,7 @@ pub trait TokenLiteral {
     fn token_literal(&self) -> String;
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     Illegal,
     EndOfFile,
@@ -353,11 +353,43 @@ impl TokenLiteral for Token {
 
 pub fn lookup_identifer(identifier: &str) -> Token {
     match identifier {
-        "function" => Token::Function,
-        "continue" => Token::Continue,
         "break" => Token::Break,
-        "if" => Token::If,
+        "case" => Token::Case,
+        "catch" => Token::Catch,
+        "class" => Token::Class,
+        "const" => Token::Const,
+        "continue" => Token::Continue,
+        "debugger" => Token::Debugger,
+        "default" => Token::Default,
+        "delete" => Token::Delete,
+        "do" => Token::Do,
         "else" => Token::Else,
+        "enum" => Token::Enum,
+        "export" => Token::Export,
+        "extends" => Token::Extends,
+        "false" => Token::False,
+        "finally" => Token::Finally,
+        "for" => Token::For,
+        "function" => Token::Function,
+        "let" => Token::Let,
+        "if" => Token::If,
+        "import" => Token::Import,
+        "in" => Token::In,
+        "instanceof" => Token::Instanceof,
+        "new" => Token::New,
+        "null" => Token::Null,
+        "return" => Token::Return,
+        "super" => Token::Super,
+        "switch" => Token::Switch,
+        "this" => Token::This,
+        "throw" => Token::Throw,
+        "true" => Token::True,
+        "try" => Token::Try,
+        "typeof" => Token::Typeof,
+        "var" => Token::Var,
+        "void" => Token::Void,
+        "while" => Token::While,
+        "with" => Token::With,
         _ => Token::Identifier(identifier.into()),
     }
 }
