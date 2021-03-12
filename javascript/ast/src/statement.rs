@@ -3,6 +3,7 @@ use crate::expression::{Expression, Identifier};
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     VariableDeclaration(VariableDeclaration),
+    Expression(ExpressionStatement),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -22,4 +23,9 @@ pub struct VariableDeclarator {
 pub struct VariableDeclaration {
     pub kind: VariableDeclarationKind,
     pub declarations: Vec<VariableDeclarator>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ExpressionStatement {
+    pub expression: Expression,
 }

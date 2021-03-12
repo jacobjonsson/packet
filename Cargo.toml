@@ -5,4 +5,5 @@ members = [
     "javascript/lexer",
     "javascript/ast",
     "javascript/parser",
+    "javascript/printer",
 ]

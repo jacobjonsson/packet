@@ -1,10 +1,41 @@
 use javascript_ast::{
-    expression::{Expression, Identifier, IntegerLiteral},
+    expression::{
+        BooleanExpression, Expression, Identifier, InfixExpression, IntegerLiteral,
+        PrefixExpression,
+    },
     statement::*,
     Program,
 };
 use javascript_lexer::Lexer;
 use javascript_token::{Token, TokenLiteral};
+
+#[derive(Debug, PartialEq, PartialOrd)]
+enum OperatorPrecedence {
+    Lowest = 1,
+    Equals = 2,
+    LessGreater = 3,
+    Sum = 4,
+    Product = 6,
+    Prefix = 7,
+    Call = 8,
+}
+
+fn token_to_precedence(token: &Token) -> OperatorPrecedence {
+    match token {
+        Token::EqualsEquals => OperatorPrecedence::Equals,
+        Token::EqualsEqualsEquals => OperatorPrecedence::Equals,
+        Token::ExclamationEquals => OperatorPrecedence::Equals,
+        Token::ExclamationEqualsEquals => OperatorPrecedence::Equals,
+        Token::LessThan => OperatorPrecedence::LessGreater,
+        Token::GreaterThan => OperatorPrecedence::LessGreater,
+        Token::Plus => OperatorPrecedence::Sum,
+        Token::Minus => OperatorPrecedence::Sum,
+        Token::Slash => OperatorPrecedence::Product,
+        Token::Asterisk => OperatorPrecedence::Product,
+        Token::OpenParen => OperatorPrecedence::Call,
+        _ => OperatorPrecedence::Lowest,
+    }
+}
 
 pub struct ParserError(String);
 pub type ParseResult<T> = Result<T, ParserError>;
@@ -59,13 +90,26 @@ impl Parser {
     }
 
     fn parse_expression_statement(&mut self) -> ParseResult<Statement> {
-        todo!()
+        let expression = self.parse_expression(OperatorPrecedence::Lowest)?;
+        if self.peek_token == Token::Semicolon {
+            self.next_token();
+        }
+
+        Ok(Statement::Expression(ExpressionStatement { expression }))
     }
 
-    fn parse_expression(&mut self) -> ParseResult<Expression> {
-        let left = self.parse_prefix()?;
+    fn parse_expression(&mut self, precedence: OperatorPrecedence) -> ParseResult<Expression> {
+        let mut left = self.parse_prefix()?;
 
-        // TODO: Add infix parsing
+        while self.peek_token != Token::Semicolon && precedence < self.peek_precedence() {
+            self.next_token();
+
+            if let Ok(s) = self.parse_infix(left.clone()) {
+                left = s;
+            } else {
+                return Ok(left);
+            }
+        }
 
         Ok(left)
     }
@@ -73,8 +117,88 @@ impl Parser {
     fn parse_prefix(&mut self) -> ParseResult<Expression> {
         match &self.current_token {
             Token::NumericLiteral(_) => self.parse_numeric_literal(),
+            Token::Identifier(_) => self.parse_identifer(),
+            Token::Exclamation => self.parse_prefix_expression(),
+            Token::Plus => self.parse_prefix_expression(),
+            Token::Minus => self.parse_prefix_expression(),
+            Token::True => self.parse_boolean(),
+            Token::False => self.parse_boolean(),
+            Token::OpenParen => self.parse_grouped_expression(),
             t => Err(ParserError(format!("No prefix parser for {:?} found", t))),
         }
+    }
+
+    fn parse_infix(&mut self, left: Expression) -> ParseResult<Expression> {
+        match &self.current_token {
+            Token::Plus => self.parse_infix_expression(left),
+            Token::Minus => self.parse_infix_expression(left),
+            Token::Slash => self.parse_infix_expression(left),
+            Token::Asterisk => self.parse_infix_expression(left),
+            Token::EqualsEquals => self.parse_infix_expression(left),
+            Token::EqualsEqualsEquals => self.parse_infix_expression(left),
+            Token::ExclamationEquals => self.parse_infix_expression(left),
+            Token::ExclamationEqualsEquals => self.parse_infix_expression(left),
+            Token::LessThan => self.parse_infix_expression(left),
+            Token::GreaterThan => self.parse_infix_expression(left),
+            // Token::OpenParen => self.parse_call_expression(left),
+            t => Err(ParserError(format!(
+                "No infix parse function for {} found",
+                t.token_literal()
+            ))),
+        }
+    }
+
+    fn parse_prefix_expression(&mut self) -> Result<Expression, ParserError> {
+        let operator = self.current_token.token_literal();
+        self.next_token();
+        let right = self.parse_expression(OperatorPrecedence::Prefix)?;
+        Ok(Expression::PrefixExpression(PrefixExpression {
+            operator,
+            right: Box::new(right),
+        }))
+    }
+
+    fn parse_grouped_expression(&mut self) -> Result<Expression, ParserError> {
+        self.next_token();
+
+        let expression = self.parse_expression(OperatorPrecedence::Lowest);
+
+        self.expect_peek_token(Token::CloseParen)?;
+
+        return expression;
+    }
+
+    fn parse_identifer(&mut self) -> ParseResult<Expression> {
+        Ok(Expression::Identifier(Identifier {
+            name: self.current_token.token_literal(),
+        }))
+    }
+
+    fn parse_boolean(&mut self) -> ParseResult<Expression> {
+        Ok(Expression::BooleanExpression(BooleanExpression {
+            value: match &self.current_token {
+                Token::True => true,
+                Token::False => false,
+                c => {
+                    return Err(ParserError(format!(
+                        "Expected to get true or false but got {:?}",
+                        c
+                    )));
+                }
+            },
+        }))
+    }
+
+    fn parse_infix_expression(&mut self, left: Expression) -> ParseResult<Expression> {
+        let operator = self.current_token.token_literal();
+        let precedence = self.current_precedence();
+        self.next_token();
+        let right = self.parse_expression(precedence)?;
+        Ok(Expression::InfixExpression(InfixExpression {
+            left: Box::new(left),
+            operator,
+            right: Box::new(right),
+        }))
     }
 
     fn parse_numeric_literal(&mut self) -> ParseResult<Expression> {
@@ -113,7 +237,7 @@ impl Parser {
         self.expect_peek_token(Token::Equals)?;
         self.next_token();
 
-        let init = Some(self.parse_expression()?);
+        let init = Some(self.parse_expression(OperatorPrecedence::Lowest)?);
         // We can't expect a semicolon here since they are optional in JS.
         // But we should insert semicolons instead of just skipping when they are missing,
         // it will make printing easier.
@@ -130,6 +254,14 @@ impl Parser {
     fn next_token(&mut self) {
         self.current_token = self.peek_token.clone();
         self.peek_token = self.lexer.next_token();
+    }
+
+    fn peek_precedence(&self) -> OperatorPrecedence {
+        token_to_precedence(&self.peek_token)
+    }
+
+    fn current_precedence(&self) -> OperatorPrecedence {
+        token_to_precedence(&self.current_token)
     }
 
     fn expect_peek_token(&mut self, token: Token) -> ParseResult<()> {

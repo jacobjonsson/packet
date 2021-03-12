@@ -273,7 +273,7 @@ impl TokenLiteral for Token {
             Token::GreaterThanEquals => ">=".into(),
             Token::GreaterThanGreaterThan => ">>".into(),
             Token::GreaterThanGreaterThanGreaterThan => ">>>".into(),
-            Token::LessThan => "<<".into(),
+            Token::LessThan => "<".into(),
             Token::LessThanEquals => "<=".into(),
             Token::LessThanLessThan => "<<".into(),
             Token::Minus => "-".into(),
