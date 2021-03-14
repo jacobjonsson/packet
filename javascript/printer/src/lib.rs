@@ -113,7 +113,34 @@ impl Printer {
                 self.print(&i.source.value);
                 self.print("\"");
             }
+
+            Statement::Block(b) => self.print_block_statement(b),
+            Statement::FunctionDeclaration(f) => self.print_function_declaration(f),
         };
+    }
+
+    fn print_block_statement(&mut self, block_statement: &BlockStatement) {
+        self.print("{");
+        for statement in &block_statement.statements {
+            self.print_statement(statement);
+        }
+        self.print("}");
+    }
+
+    fn print_function_declaration(&mut self, function_declaration: &FunctionDeclaration) {
+        self.print("function ");
+        self.print_identifier(&function_declaration.id);
+        self.print("(");
+        for (idx, argument) in function_declaration.parameters.iter().enumerate() {
+            if idx != 0 {
+                self.print(",");
+                self.print_space();
+            }
+            self.print_identifier(argument);
+        }
+        self.print(")");
+        self.print_space();
+        self.print_block_statement(&function_declaration.body);
     }
 
     fn print_declaration_statement(

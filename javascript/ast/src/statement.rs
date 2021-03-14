@@ -2,10 +2,32 @@ use crate::expression::{Expression, Identifier, StringLiteral};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
+    Block(BlockStatement),
+    FunctionDeclaration(FunctionDeclaration),
     VariableDeclaration(VariableDeclaration),
     Expression(ExpressionStatement),
     ImportDeclaration(ImportDeclaration),
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct BlockStatement {
+    pub statements: Vec<Statement>,
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                  Function                                  */
+/* -------------------------------------------------------------------------- */
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct FunctionDeclaration {
+    pub id: Identifier,
+    pub parameters: Vec<Identifier>, // TODO: es6 and upwards supports more patterns, see here: https://github.com/estree/estree/blob/master/es5.md#patterns
+    pub body: BlockStatement,
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                  Variables                                 */
+/* -------------------------------------------------------------------------- */
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum VariableDeclarationKind {
@@ -30,6 +52,10 @@ pub struct VariableDeclaration {
 pub struct ExpressionStatement {
     pub expression: Expression,
 }
+
+/* -------------------------------------------------------------------------- */
+/*                                   Import                                   */
+/* -------------------------------------------------------------------------- */
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ImportDeclaration {

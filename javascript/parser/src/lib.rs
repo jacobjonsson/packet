@@ -1,4 +1,5 @@
 mod import;
+mod statement;
 
 use javascript_ast::{
     expression::{
@@ -92,6 +93,9 @@ impl Parser {
             Token::Var => self.parse_var_statement(VariableDeclarationKind::Var),
             Token::Let => self.parse_var_statement(VariableDeclarationKind::Let),
             Token::Import => self.parse_import_statement(),
+            Token::Function => self
+                .parse_function_declaration()
+                .map(Statement::FunctionDeclaration),
             _ => self.parse_expression_statement(),
         }
     }
@@ -132,7 +136,7 @@ impl Parser {
     fn parse_prefix(&mut self) -> ParseResult<Expression> {
         match &self.current_token {
             Token::NumericLiteral(_) => self.parse_numeric_literal(),
-            Token::Identifier(_) => self.parse_identifer().map(|i| Expression::Identifier(i)),
+            Token::Identifier(_) => self.parse_identifer().map(Expression::Identifier),
             Token::Exclamation => self.parse_prefix_expression(),
             Token::Plus => self.parse_prefix_expression(),
             Token::Minus => self.parse_prefix_expression(),
@@ -280,6 +284,8 @@ impl Parser {
         token_to_precedence(&self.current_token)
     }
 
+    /// Asserts that the peek token is the given one and increments the lexer.
+    /// If the peek token is not the given one it returns an error and does not increment the lexer.
     fn expect_peek_token(&mut self, token: Token) -> ParseResult<()> {
         if self.peek_token != token {
             return Err(ParserError(format!(

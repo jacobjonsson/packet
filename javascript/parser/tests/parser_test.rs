@@ -1,10 +1,4 @@
-use javascript_ast::{
-    expression::{Expression, Identifier, IntegerLiteral, StringLiteral},
-    statement::{
-        ImportClause, ImportDefaultSpecifier, ImportNamespaceSpecifier, ImportSpecifier, Statement,
-        VariableDeclarationKind,
-    },
-};
+use javascript_ast::{expression::*, statement::*};
 use javascript_lexer::Lexer;
 use javascript_parser::Parser;
 use javascript_printer::Printer;
@@ -430,5 +424,75 @@ fn test_import_statement() {
             StringLiteral { value: "b".into() }
         );
         assert_eq!(import_declaration.specifiers, test.1);
+    }
+}
+
+#[test]
+fn parse_function_declaration() {
+    let tests: Vec<(&str, &str, Vec<Identifier>, Vec<Statement>)> = vec![
+        ("function a() {}", "a", vec![], vec![]),
+        (
+            "function a(b) {}",
+            "a",
+            vec![Identifier { name: "b".into() }],
+            vec![],
+        ),
+        (
+            "function a(b,c) {}",
+            "a",
+            vec![
+                Identifier { name: "b".into() },
+                Identifier { name: "c".into() },
+            ],
+            vec![],
+        ),
+        (
+            "function a(b,c) {}",
+            "a",
+            vec![
+                Identifier { name: "b".into() },
+                Identifier { name: "c".into() },
+            ],
+            vec![],
+        ),
+        (
+            "function a(b,c) { b + c; }",
+            "a",
+            vec![
+                Identifier { name: "b".into() },
+                Identifier { name: "c".into() },
+            ],
+            vec![Statement::Expression(ExpressionStatement {
+                expression: Expression::InfixExpression(InfixExpression {
+                    left: Box::new(Expression::Identifier(Identifier { name: "b".into() })),
+                    operator: "+".into(),
+                    right: Box::new(Expression::Identifier(Identifier { name: "c".into() })),
+                }),
+            })],
+        ),
+    ];
+
+    for test in tests {
+        let lexer = Lexer::new(test.0);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        check_parser_errors(&parser);
+        assert_eq!(program.statements.len(), 1);
+        let function_declaration = match &program.statements[0] {
+            Statement::FunctionDeclaration(f) => f,
+            s => panic!("Expected function declaration but got {:?}", s),
+        };
+
+        assert_eq!(
+            function_declaration.id,
+            Identifier {
+                name: test.1.into()
+            }
+        );
+        assert_eq!(function_declaration.parameters, test.2);
+        assert_eq!(
+            function_declaration.body,
+            BlockStatement { statements: test.3 }
+        );
     }
 }
