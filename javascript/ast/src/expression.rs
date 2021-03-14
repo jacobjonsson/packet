@@ -5,11 +5,17 @@ pub enum Expression {
     InfixExpression(InfixExpression),
     BooleanExpression(BooleanExpression),
     PrefixExpression(PrefixExpression),
+    StringLiteral(StringLiteral),
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Identifier {
     pub name: String,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct StringLiteral {
+    pub value: String,
 }
 
 #[derive(Debug, PartialEq, Clone)]

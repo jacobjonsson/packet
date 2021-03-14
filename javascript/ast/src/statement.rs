@@ -1,9 +1,10 @@
-use crate::expression::{Expression, Identifier};
+use crate::expression::{Expression, Identifier, StringLiteral};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     VariableDeclaration(VariableDeclaration),
     Expression(ExpressionStatement),
+    ImportDeclaration(ImportDeclaration),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -28,4 +29,33 @@ pub struct VariableDeclaration {
 #[derive(Debug, PartialEq, Clone)]
 pub struct ExpressionStatement {
     pub expression: Expression,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ImportDeclaration {
+    pub source: StringLiteral,
+    pub specifiers: Vec<ImportClause>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum ImportClause {
+    Import(ImportSpecifier),
+    ImportDefault(ImportDefaultSpecifier),
+    ImportNamespace(ImportNamespaceSpecifier),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ImportSpecifier {
+    pub local: Identifier,
+    pub imported: Identifier,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ImportDefaultSpecifier {
+    pub local: Identifier,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ImportNamespaceSpecifier {
+    pub local: Identifier,
 }

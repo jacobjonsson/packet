@@ -41,7 +41,78 @@ impl Printer {
                 self.print_expression(&e.expression);
             }
 
-            s => panic!("Does not know how to print {:?}", s),
+            Statement::ImportDeclaration(i) => {
+                let mut items = 0;
+
+                self.print("import");
+                self.print_space();
+
+                let default_import = &i.specifiers.iter().find_map(|i| match i {
+                    ImportClause::ImportDefault(i) => Some(i),
+                    _ => None,
+                });
+
+                let namespace_import = &i.specifiers.iter().find_map(|i| match i {
+                    ImportClause::ImportNamespace(i) => Some(i),
+                    _ => None,
+                });
+
+                let named_imports: &Vec<&ImportSpecifier> = &i
+                    .specifiers
+                    .iter()
+                    .filter_map(|i| match i {
+                        ImportClause::Import(i) => Some(i),
+                        _ => None,
+                    })
+                    .collect();
+
+                if let Some(i) = default_import {
+                    self.print(&i.local.name);
+                    items += 1;
+                }
+
+                if named_imports.len() > 0 {
+                    if items > 0 {
+                        self.print(",");
+                        self.print_space();
+                    }
+                    self.print("{");
+                    self.print_space();
+                    for (idx, named_import) in named_imports.iter().enumerate() {
+                        if idx != 0 {
+                            self.print(",");
+                            self.print_space();
+                        }
+
+                        self.print(&named_import.imported.name);
+                        if named_import.imported.name != named_import.local.name {
+                            self.print(" as ");
+                            self.print(&named_import.local.name);
+                        }
+                    }
+                    self.print_space();
+                    self.print("}");
+                }
+
+                if let Some(i) = namespace_import {
+                    if items > 0 {
+                        self.print(",");
+                        self.print_space();
+                    }
+
+                    self.print("*");
+                    self.print_space();
+                    self.print("as ");
+                    self.print(&i.local.name);
+                }
+
+                self.print_space();
+                self.print("from");
+                self.print_space();
+                self.print("\"");
+                self.print(&i.source.value);
+                self.print("\"");
+            }
         };
     }
 
@@ -52,7 +123,7 @@ impl Printer {
     ) {
         self.print(keyword);
         self.print_space();
-        // TODO: We currently only handle on declaration.
+        // TODO: We currently only handle one declaration.
         for declaration in declarations {
             self.print_identifier(&declaration.id);
             self.print_space();
@@ -88,13 +159,19 @@ impl Printer {
                 self.print_expression(e.right.as_ref());
                 self.print(")");
             }
+
             Expression::PrefixExpression(e) => {
                 self.print("(");
                 self.print(&e.operator);
                 self.print_expression(e.right.as_ref());
                 self.print(")");
             }
-            e => panic!("Does not know how to print {:?}", e),
+
+            Expression::StringLiteral(e) => {
+                self.print("\"");
+                self.print(&e.value);
+                self.print("\"");
+            }
         }
     }
 

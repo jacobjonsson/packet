@@ -1,10 +1,24 @@
 use javascript_ast::{
-    expression::{Expression, Identifier, IntegerLiteral},
-    statement::*,
+    expression::{Expression, Identifier, IntegerLiteral, StringLiteral},
+    statement::{
+        ImportClause, ImportDefaultSpecifier, ImportNamespaceSpecifier, ImportSpecifier, Statement,
+        VariableDeclarationKind,
+    },
 };
 use javascript_lexer::Lexer;
 use javascript_parser::Parser;
 use javascript_printer::Printer;
+
+fn check_parser_errors(parser: &Parser) {
+    let errors = parser.errors();
+    if errors.len() > 0 {
+        println!("Parser has parser errors:");
+        for error in errors {
+            println!("parser error: {}", error);
+        }
+        panic!("PARSER ERROR");
+    }
+}
 
 fn expect_integer_literal(expression: &Expression, value: i64) {
     assert_eq!(
@@ -295,5 +309,126 @@ fn test_operator_precedence_parsing() {
 
         let text = Printer::new().print_program(&program);
         assert_eq!(text, test.1);
+    }
+}
+
+#[test]
+fn test_import_statement() {
+    let tests: Vec<(&str, Vec<ImportClause>)> = vec![
+        (
+            "import a from \"b\"",
+            vec![ImportClause::ImportDefault(ImportDefaultSpecifier {
+                local: Identifier { name: "a".into() },
+            })],
+        ),
+        (
+            "import { a } from \"b\"",
+            vec![ImportClause::Import(ImportSpecifier {
+                local: Identifier { name: "a".into() },
+                imported: Identifier { name: "a".into() },
+            })],
+        ),
+        (
+            "import { a as b } from \"b\"",
+            vec![ImportClause::Import(ImportSpecifier {
+                local: Identifier { name: "b".into() },
+                imported: Identifier { name: "a".into() },
+            })],
+        ),
+        (
+            "import { a, b } from \"b\"",
+            vec![
+                ImportClause::Import(ImportSpecifier {
+                    local: Identifier { name: "a".into() },
+                    imported: Identifier { name: "a".into() },
+                }),
+                ImportClause::Import(ImportSpecifier {
+                    local: Identifier { name: "b".into() },
+                    imported: Identifier { name: "b".into() },
+                }),
+            ],
+        ),
+        (
+            "import { a as b, b as c } from \"b\"",
+            vec![
+                ImportClause::Import(ImportSpecifier {
+                    local: Identifier { name: "b".into() },
+                    imported: Identifier { name: "a".into() },
+                }),
+                ImportClause::Import(ImportSpecifier {
+                    local: Identifier { name: "c".into() },
+                    imported: Identifier { name: "b".into() },
+                }),
+            ],
+        ),
+        (
+            "import a, { b, c } from \"b\"",
+            vec![
+                ImportClause::ImportDefault(ImportDefaultSpecifier {
+                    local: Identifier { name: "a".into() },
+                }),
+                ImportClause::Import(ImportSpecifier {
+                    local: Identifier { name: "b".into() },
+                    imported: Identifier { name: "b".into() },
+                }),
+                ImportClause::Import(ImportSpecifier {
+                    local: Identifier { name: "c".into() },
+                    imported: Identifier { name: "c".into() },
+                }),
+            ],
+        ),
+        (
+            "import a, { b as c } from \"b\"",
+            vec![
+                ImportClause::ImportDefault(ImportDefaultSpecifier {
+                    local: Identifier { name: "a".into() },
+                }),
+                ImportClause::Import(ImportSpecifier {
+                    local: Identifier { name: "c".into() },
+                    imported: Identifier { name: "b".into() },
+                }),
+            ],
+        ),
+        (
+            "import a, * as b from \"b\"",
+            vec![
+                ImportClause::ImportDefault(ImportDefaultSpecifier {
+                    local: Identifier { name: "a".into() },
+                }),
+                ImportClause::ImportNamespace(ImportNamespaceSpecifier {
+                    local: Identifier { name: "b".into() },
+                }),
+            ],
+        ),
+        (
+            "import * as a from \"b\"",
+            vec![ImportClause::ImportNamespace(ImportNamespaceSpecifier {
+                local: Identifier { name: "a".into() },
+            })],
+        ),
+        ("import \"b\"", Vec::new()),
+    ];
+
+    for test in tests {
+        let lexer = Lexer::new(test.0);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        check_parser_errors(&parser);
+        assert_eq!(
+            program.statements.len(),
+            1,
+            "Program should contain 1 statement"
+        );
+
+        let import_declaration = match &program.statements[0] {
+            Statement::ImportDeclaration(i) => i,
+            t => panic!("Expected import declaration but {:?}", t),
+        };
+
+        assert_eq!(
+            import_declaration.source,
+            StringLiteral { value: "b".into() }
+        );
+        assert_eq!(import_declaration.specifiers, test.1);
     }
 }

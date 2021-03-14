@@ -1,7 +1,9 @@
+mod import;
+
 use javascript_ast::{
     expression::{
         BooleanExpression, Expression, Identifier, InfixExpression, IntegerLiteral,
-        PrefixExpression,
+        PrefixExpression, StringLiteral,
     },
     statement::*,
     Program,
@@ -63,6 +65,10 @@ impl Parser {
         return parser;
     }
 
+    pub fn errors(&self) -> Vec<String> {
+        return self.errors.clone();
+    }
+
     pub fn parse_program(&mut self) -> Program {
         let mut statements = Vec::<Statement>::new();
 
@@ -85,8 +91,17 @@ impl Parser {
             Token::Const => self.parse_var_statement(VariableDeclarationKind::Const),
             Token::Var => self.parse_var_statement(VariableDeclarationKind::Var),
             Token::Let => self.parse_var_statement(VariableDeclarationKind::Let),
+            Token::Import => self.parse_import_statement(),
             _ => self.parse_expression_statement(),
         }
+    }
+
+    fn parse_string_literal(&mut self) -> ParseResult<StringLiteral> {
+        let string_literal = StringLiteral {
+            value: self.current_token.token_literal(),
+        };
+        self.next_token();
+        Ok(string_literal)
     }
 
     fn parse_expression_statement(&mut self) -> ParseResult<Statement> {
@@ -117,7 +132,7 @@ impl Parser {
     fn parse_prefix(&mut self) -> ParseResult<Expression> {
         match &self.current_token {
             Token::NumericLiteral(_) => self.parse_numeric_literal(),
-            Token::Identifier(_) => self.parse_identifer(),
+            Token::Identifier(_) => self.parse_identifer().map(|i| Expression::Identifier(i)),
             Token::Exclamation => self.parse_prefix_expression(),
             Token::Plus => self.parse_prefix_expression(),
             Token::Minus => self.parse_prefix_expression(),
@@ -168,10 +183,11 @@ impl Parser {
         return expression;
     }
 
-    fn parse_identifer(&mut self) -> ParseResult<Expression> {
-        Ok(Expression::Identifier(Identifier {
-            name: self.current_token.token_literal(),
-        }))
+    fn parse_identifer(&mut self) -> ParseResult<Identifier> {
+        match &self.current_token {
+            Token::Identifier(i) => Ok(Identifier { name: i.clone() }),
+            t => Err(ParserError(format!("Expected identifier but got {}", t))),
+        }
     }
 
     fn parse_boolean(&mut self) -> ParseResult<Expression> {

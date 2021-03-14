@@ -79,6 +79,7 @@ pub enum Token {
     SlashEquals,
 
     // Keywords
+    As,
     Break,
     Case,
     Catch,
@@ -194,6 +195,7 @@ impl std::fmt::Display for Token {
             Token::SlashEquals => write!(f, "/="),
 
             // Keywords
+            Token::As => write!(f, "as"),
             Token::Break => write!(f, "break"),
             Token::Case => write!(f, "case"),
             Token::Catch => write!(f, "catch"),
@@ -310,6 +312,7 @@ impl TokenLiteral for Token {
             Token::SlashEquals => "/=".into(),
 
             // Keywords
+            Token::As => "as".into(),
             Token::Break => "break".into(),
             Token::Case => "case".into(),
             Token::Catch => "catch".into(),
@@ -353,6 +356,7 @@ impl TokenLiteral for Token {
 
 pub fn lookup_identifer(identifier: &str) -> Token {
     match identifier {
+        "as" => Token::As,
         "break" => Token::Break,
         "case" => Token::Case,
         "catch" => Token::Catch,
