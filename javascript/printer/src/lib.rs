@@ -207,6 +207,15 @@ impl Printer {
                 self.print(&e.value);
                 self.print("\"");
             }
+
+            Expression::CallExpression(c) => {
+                self.print_identifier(&c.function);
+                self.print("(");
+                for argument in &c.arguments {
+                    self.print_expression(&argument);
+                }
+                self.print(")");
+            }
         }
     }
 

@@ -529,3 +529,56 @@ fn parse_return_statement() {
         assert_eq!(return_statement.expression, test.1);
     }
 }
+
+#[test]
+fn parse_call_expression() {
+    let tests: Vec<(&str, &str, Vec<Expression>)> = vec![
+        ("a();", "a", vec![]),
+        (
+            "a(b);",
+            "a",
+            vec![Expression::Identifier(Identifier { name: "b".into() })],
+        ),
+        (
+            "a(b, 3 + 3);",
+            "a",
+            vec![
+                Expression::Identifier(Identifier { name: "b".into() }),
+                Expression::InfixExpression(InfixExpression {
+                    left: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 3 })),
+                    operator: "+".into(),
+                    right: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 3 })),
+                }),
+            ],
+        ),
+    ];
+
+    for test in tests {
+        let lexer = Lexer::new(&test.0);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        check_parser_errors(&parser);
+        assert_eq!(program.statements.len(), 1);
+
+        let statement = match &program.statements[0] {
+            Statement::Expression(s) => s,
+            s => panic!("Expected call expression statement but {:?}", s),
+        };
+
+        let call_expression = match &statement.expression {
+            Expression::CallExpression(c) => c,
+            e => panic!("Expected call expression but {:?}", e),
+        };
+
+        assert_eq!(
+            call_expression.function,
+            Identifier {
+                name: test.1.into()
+            }
+        );
+
+        for (idx, argument) in call_expression.arguments.iter().enumerate() {
+            assert_eq!(argument.as_ref(), &test.2[idx]);
+        }
+    }
+}

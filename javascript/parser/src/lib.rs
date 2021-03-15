@@ -1,3 +1,4 @@
+mod expression;
 mod import;
 mod statement;
 
@@ -160,7 +161,9 @@ impl Parser {
             Token::ExclamationEqualsEquals => self.parse_infix_expression(left),
             Token::LessThan => self.parse_infix_expression(left),
             Token::GreaterThan => self.parse_infix_expression(left),
-            // Token::OpenParen => self.parse_call_expression(left),
+            Token::OpenParen => self
+                .parse_call_expression(left)
+                .map(Expression::CallExpression),
             t => Err(ParserError(format!(
                 "No infix parse function for {} found",
                 t.token_literal()

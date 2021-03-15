@@ -6,6 +6,7 @@ pub enum Expression {
     BooleanExpression(BooleanExpression),
     PrefixExpression(PrefixExpression),
     StringLiteral(StringLiteral),
+    CallExpression(CallExpression),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -38,4 +39,10 @@ pub struct InfixExpression {
 pub struct PrefixExpression {
     pub operator: String,
     pub right: Box<Expression>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct CallExpression {
+    pub function: Identifier, // TODO: Should support function expressions as well.
+    pub arguments: Vec<Box<Expression>>,
 }
