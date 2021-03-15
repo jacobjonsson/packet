@@ -496,3 +496,36 @@ fn parse_function_declaration() {
         );
     }
 }
+
+#[test]
+fn parse_return_statement() {
+    let tests: Vec<(&str, Option<Expression>)> = vec![
+        ("return;", None),
+        (
+            "return 5;",
+            Some(Expression::IntegerLiteral(IntegerLiteral { value: 5 })),
+        ),
+        (
+            "return 5 + 5;",
+            Some(Expression::InfixExpression(InfixExpression {
+                left: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 5 })),
+                operator: "+".into(),
+                right: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 5 })),
+            })),
+        ),
+    ];
+
+    for test in tests {
+        let lexer = Lexer::new(test.0);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        check_parser_errors(&parser);
+
+        assert_eq!(program.statements.len(), 1);
+        let return_statement = match &program.statements[0] {
+            Statement::Return(r) => r,
+            s => panic!("Expected return statement but got {:?}", s),
+        };
+        assert_eq!(return_statement.expression, test.1);
+    }
+}

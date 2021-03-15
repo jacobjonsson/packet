@@ -3,6 +3,7 @@ use crate::expression::{Expression, Identifier, StringLiteral};
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     Block(BlockStatement),
+    Return(ReturnStatement),
     FunctionDeclaration(FunctionDeclaration),
     VariableDeclaration(VariableDeclaration),
     Expression(ExpressionStatement),
@@ -12,6 +13,11 @@ pub enum Statement {
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlockStatement {
     pub statements: Vec<Statement>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ReturnStatement {
+    pub expression: Option<Expression>,
 }
 
 /* -------------------------------------------------------------------------- */

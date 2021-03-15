@@ -37,6 +37,14 @@ impl Printer {
                 };
             }
 
+            Statement::Return(r) => {
+                self.print("return ");
+                if let Some(expression) = &r.expression {
+                    self.print_expression(expression);
+                }
+                self.print(";");
+            }
+
             Statement::Expression(e) => {
                 self.print_expression(&e.expression);
             }

@@ -96,6 +96,7 @@ impl Parser {
             Token::Function => self
                 .parse_function_declaration()
                 .map(Statement::FunctionDeclaration),
+            Token::Return => self.parse_return_statement().map(Statement::Return),
             _ => self.parse_expression_statement(),
         }
     }

@@ -1,10 +1,10 @@
 use javascript_ast::{
     expression::Identifier,
-    statement::{BlockStatement, FunctionDeclaration, Statement},
+    statement::{BlockStatement, FunctionDeclaration, ReturnStatement, Statement},
 };
 use javascript_token::Token;
 
-use crate::{ParseResult, Parser};
+use crate::{OperatorPrecedence, ParseResult, Parser};
 
 impl Parser {
     /// Parses function declarations
@@ -60,5 +60,24 @@ impl Parser {
             self.next_token();
         }
         Ok(BlockStatement { statements })
+    }
+
+    /// Parse return statements
+    /// return;
+    /// return 1 + 1;
+    pub(crate) fn parse_return_statement(&mut self) -> ParseResult<ReturnStatement> {
+        if self.peek_token == Token::Semicolon {
+            self.next_token();
+            return Ok(ReturnStatement { expression: None });
+        }
+
+        self.next_token();
+        let expression = self.parse_expression(OperatorPrecedence::Lowest)?;
+        if self.peek_token == Token::Semicolon {
+            self.next_token();
+        }
+        Ok(ReturnStatement {
+            expression: Some(expression),
+        })
     }
 }
