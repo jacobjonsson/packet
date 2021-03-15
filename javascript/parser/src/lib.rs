@@ -112,9 +112,7 @@ impl Parser {
 
     fn parse_expression_statement(&mut self) -> ParseResult<Statement> {
         let expression = self.parse_expression(OperatorPrecedence::Lowest)?;
-        if self.peek_token == Token::Semicolon {
-            self.next_token();
-        }
+        self.consume_semicolon();
 
         Ok(Statement::Expression(ExpressionStatement { expression }))
     }
@@ -265,9 +263,7 @@ impl Parser {
         // We can't expect a semicolon here since they are optional in JS.
         // But we should insert semicolons instead of just skipping when they are missing,
         // it will make printing easier.
-        if self.peek_token == Token::Semicolon {
-            self.next_token();
-        }
+        self.consume_semicolon();
 
         Ok(Statement::VariableDeclaration(VariableDeclaration {
             declarations: vec![VariableDeclarator { id, init }],
@@ -286,6 +282,13 @@ impl Parser {
 
     fn current_precedence(&self) -> OperatorPrecedence {
         token_to_precedence(&self.current_token)
+    }
+
+    /// Consumes the next semicolon
+    fn consume_semicolon(&mut self) {
+        if self.peek_token == Token::Semicolon {
+            self.next_token();
+        }
     }
 
     /// Asserts that the peek token is the given one and increments the lexer.

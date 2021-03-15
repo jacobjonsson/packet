@@ -244,6 +244,7 @@ impl Lexer {
                 }
                 // Consume the ending "
                 self.read_character();
+                self.read_character();
 
                 return Token::StringLiteral(literal);
             }
@@ -302,9 +303,9 @@ impl Lexer {
 
     fn read_identifier(&mut self) -> String {
         let mut word = String::new();
-        while let Some(ch) = self.character {
-            if Lexer::is_letter(ch) {
-                word.push(ch);
+        while let Some(character) = self.character {
+            if Lexer::is_letter(character) || Lexer::is_digit(character) {
+                word.push(character);
                 self.read_character();
             } else {
                 break;

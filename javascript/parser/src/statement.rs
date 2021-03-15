@@ -73,9 +73,7 @@ impl Parser {
 
         self.next_token();
         let expression = self.parse_expression(OperatorPrecedence::Lowest)?;
-        if self.peek_token == Token::Semicolon {
-            self.next_token();
-        }
+        self.consume_semicolon();
         Ok(ReturnStatement {
             expression: Some(expression),
         })

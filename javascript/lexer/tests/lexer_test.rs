@@ -83,6 +83,7 @@ token_tests! {
 token_tests! {
     hello_identifier: ("hello", Token::Identifier("hello".into())),
     hello_world_identifier: ("hello_world", Token::Identifier("hello_world".into())),
+    arg1_identifer: ("arg1", Token::Identifier("arg1".into())),
 }
 
 // Literals
@@ -99,4 +100,36 @@ token_tests! {
     function_keyword: ("function", Token::Function),
     break_keyword: ("break", Token::Break),
     continue_keyword: ("continue", Token::Continue),
+}
+
+#[test]
+fn tokenize_multiple_lines() {
+    let input = "import a from \"a\";
+    
+    let b = 5;
+
+    5 + 5;
+";
+
+    let expected_tokens = vec![
+        Token::Import,
+        Token::Identifier("a".into()),
+        Token::From,
+        Token::StringLiteral("a".into()),
+        Token::Semicolon,
+        Token::Let,
+        Token::Identifier("b".into()),
+        Token::Equals,
+        Token::NumericLiteral("5".into()),
+        Token::Semicolon,
+        Token::NumericLiteral("5".into()),
+        Token::Plus,
+        Token::NumericLiteral("5".into()),
+        Token::Semicolon,
+    ];
+
+    let mut lexer = Lexer::new(input);
+    for token in expected_tokens {
+        assert_eq!(lexer.next_token(), token);
+    }
 }

@@ -211,7 +211,12 @@ impl Printer {
             Expression::CallExpression(c) => {
                 self.print_identifier(&c.function);
                 self.print("(");
-                for argument in &c.arguments {
+
+                for (idx, argument) in c.arguments.iter().enumerate() {
+                    if idx != 0 {
+                        self.print(",");
+                        self.print_space();
+                    }
                     self.print_expression(&argument);
                 }
                 self.print(")");
