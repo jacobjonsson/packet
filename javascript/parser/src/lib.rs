@@ -98,6 +98,8 @@ impl Parser {
                 .parse_function_declaration()
                 .map(Statement::FunctionDeclaration),
             Token::Return => self.parse_return_statement().map(Statement::Return),
+            Token::If => self.parse_if_statement().map(Statement::If),
+            Token::OpenBrace => self.parse_block_statement().map(Statement::Block),
             _ => self.parse_expression_statement(),
         }
     }

@@ -4,6 +4,7 @@ use crate::expression::{Expression, Identifier, StringLiteral};
 pub enum Statement {
     Block(BlockStatement),
     Return(ReturnStatement),
+    If(IfStatement),
     FunctionDeclaration(FunctionDeclaration),
     VariableDeclaration(VariableDeclaration),
     Expression(ExpressionStatement),
@@ -18,6 +19,12 @@ pub struct BlockStatement {
 #[derive(Debug, PartialEq, Clone)]
 pub struct ReturnStatement {
     pub expression: Option<Expression>,
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct IfStatement {
+    pub test: Expression,
+    pub consequent: Box<Statement>,
+    pub alternate: Option<Box<Statement>>,
 }
 
 /* -------------------------------------------------------------------------- */

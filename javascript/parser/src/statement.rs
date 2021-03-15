@@ -1,6 +1,6 @@
 use javascript_ast::{
     expression::Identifier,
-    statement::{BlockStatement, FunctionDeclaration, ReturnStatement, Statement},
+    statement::{BlockStatement, FunctionDeclaration, IfStatement, ReturnStatement, Statement},
 };
 use javascript_token::Token;
 
@@ -76,6 +76,31 @@ impl Parser {
         self.consume_semicolon();
         Ok(ReturnStatement {
             expression: Some(expression),
+        })
+    }
+
+    pub(crate) fn parse_if_statement(&mut self) -> ParseResult<IfStatement> {
+        self.expect_peek_token(Token::OpenParen)?;
+        self.next_token();
+        let test = self.parse_expression(OperatorPrecedence::Lowest)?;
+        self.expect_peek_token(Token::CloseParen)?;
+        self.next_token();
+        // TODO: Function declarations are not valid in strict mode.
+        let consequent = self.parse_statement()?;
+
+        let mut alternate: Option<Box<Statement>> = None;
+        if self.peek_token == Token::Else {
+            self.next_token();
+            self.next_token();
+
+            // TODO: Function declarations are not valid in strict mode.
+            alternate = Some(Box::new(self.parse_statement()?));
+        }
+
+        Ok(IfStatement {
+            alternate: alternate,
+            consequent: Box::new(consequent),
+            test,
         })
     }
 }

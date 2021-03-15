@@ -49,6 +49,8 @@ impl Printer {
                 self.print_expression(&e.expression);
             }
 
+            Statement::If(i) => self.print_if_statement(i),
+
             Statement::ImportDeclaration(i) => {
                 let mut items = 0;
 
@@ -128,11 +130,34 @@ impl Printer {
     }
 
     fn print_block_statement(&mut self, block_statement: &BlockStatement) {
+        if block_statement.statements.len() == 0 {
+            self.print("{}");
+            return;
+        }
+
         self.print("{");
+        self.print_space();
         for statement in &block_statement.statements {
             self.print_statement(statement);
         }
+        self.print_space();
         self.print("}");
+    }
+
+    fn print_if_statement(&mut self, if_statement: &IfStatement) {
+        self.print("if");
+        self.print_space();
+        self.print("(");
+        self.print_expression(&if_statement.test);
+        self.print(")");
+        self.print_space();
+        self.print_statement(&if_statement.consequent);
+        if let Some(alternate) = &if_statement.alternate {
+            self.print_space();
+            self.print("else");
+            self.print_space();
+            self.print_statement(alternate);
+        }
     }
 
     fn print_function_declaration(&mut self, function_declaration: &FunctionDeclaration) {

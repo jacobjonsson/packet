@@ -14,6 +14,15 @@ fn check_parser_errors(parser: &Parser) {
     }
 }
 
+fn expected_printed(content: &str, expected: &str) {
+    let lexer = Lexer::new(content);
+    let mut parser = Parser::new(lexer);
+    let program = parser.parse_program();
+    check_parser_errors(&parser);
+    let output = Printer::new().print_program(&program);
+    assert_eq!(output, expected);
+}
+
 fn expect_integer_literal(expression: &Expression, value: i64) {
     assert_eq!(
         expression,
@@ -581,4 +590,19 @@ fn parse_call_expression() {
             assert_eq!(argument.as_ref(), &test.2[idx]);
         }
     }
+}
+
+#[test]
+fn parse_if_statement() {
+    expected_printed("if (true) {}", "if (true) {}");
+    expected_printed("if (true) {} else {}", "if (true) {} else {}");
+    expected_printed("if (x < 10) { return 10; }", "if ((x < 10)) { return 10; }");
+    expected_printed(
+        "if (false) {} else if (true) {}",
+        "if (false) {} else if (true) {}",
+    );
+    expected_printed(
+        "if (false) {} function a() {}",
+        "if (false) {}function a() {}",
+    );
 }
