@@ -145,6 +145,7 @@ impl Parser {
             Token::True => self.parse_boolean(),
             Token::False => self.parse_boolean(),
             Token::OpenParen => self.parse_grouped_expression(),
+            Token::Function => self.parse_function_expression().map(Expression::FunctionExpression),
             t => Err(ParserError(format!("No prefix parser for {:?} found", t))),
         }
     }

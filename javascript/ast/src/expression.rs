@@ -1,9 +1,12 @@
+use crate::statement::BlockStatement;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
     InfixExpression(InfixExpression),
     BooleanExpression(BooleanExpression),
+    FunctionExpression(FunctionExpression),
     PrefixExpression(PrefixExpression),
     StringLiteral(StringLiteral),
     CallExpression(CallExpression),
@@ -26,6 +29,12 @@ pub struct IntegerLiteral {
 #[derive(Debug, PartialEq, Clone)]
 pub struct BooleanExpression {
     pub value: bool,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct FunctionExpression {
+    pub parameters: Vec<Identifier>, // TODO: es6 and upwards supports more patterns, see here: https://github.com/estree/estree/blob/master/es5.md#patterns
+    pub body: BlockStatement,
 }
 
 #[derive(Debug, PartialEq, Clone)]

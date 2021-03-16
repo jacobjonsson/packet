@@ -133,3 +133,9 @@ fn parse_if_statement() {
         "if (false) {}function a() {}",
     );
 }
+
+#[test]
+fn parse_function_expression() {
+    expected_printed("let a = function() {}", "let a = function() {};");
+    expected_printed("a(function() {})", "a(function() {})");
+}

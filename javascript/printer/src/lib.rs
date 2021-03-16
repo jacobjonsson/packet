@@ -247,6 +247,22 @@ impl Printer {
                 }
                 self.print(")");
             }
+
+            Expression::FunctionExpression(f) => {
+                self.print("function");
+                self.print("(");
+                for (idx, parameter) in f.parameters.iter().enumerate() {
+                    if idx != 0 {
+                        self.print(",");
+                        self.print_space();
+                    }
+
+                    self.print_identifier(&parameter);
+                }
+                self.print(")");
+                self.print_space();
+                self.print_block_statement(&f.body);
+            }
         }
     }
 
