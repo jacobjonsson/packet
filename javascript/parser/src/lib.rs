@@ -13,12 +13,15 @@ use javascript_ast::{
 use javascript_lexer::Lexer;
 use javascript_token::{Token, TokenLiteral};
 
+/// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_Precedence#table
+/// https://github.com/evanw/esbuild/blob/51b785f89933426afe675b4e633cf531d5a9890d/internal/js_ast/js_ast.go#L29
 #[derive(Debug, PartialEq, PartialOrd)]
 enum OperatorPrecedence {
     Lowest = 1,
-    Equals = 2,
-    LessGreater = 3,
-    Sum = 4,
+    Conditional = 2,
+    Equals = 3,
+    LessGreater = 4,
+    Sum = 5,
     Product = 6,
     Prefix = 7,
     Call = 8,
@@ -37,6 +40,7 @@ fn token_to_precedence(token: &Token) -> OperatorPrecedence {
         Token::Slash => OperatorPrecedence::Product,
         Token::Asterisk => OperatorPrecedence::Product,
         Token::OpenParen => OperatorPrecedence::Call,
+        Token::Question => OperatorPrecedence::Conditional,
         _ => OperatorPrecedence::Lowest,
     }
 }
@@ -145,12 +149,15 @@ impl Parser {
             Token::True => self.parse_boolean(),
             Token::False => self.parse_boolean(),
             Token::OpenParen => self.parse_grouped_expression(),
-            Token::Function => self.parse_function_expression().map(Expression::FunctionExpression),
+            Token::Function => self
+                .parse_function_expression()
+                .map(Expression::FunctionExpression),
             t => Err(ParserError(format!("No prefix parser for {:?} found", t))),
         }
     }
 
     fn parse_infix(&mut self, left: Expression) -> ParseResult<Expression> {
+        println!("{}", self.current_token);
         match &self.current_token {
             Token::Plus => self.parse_infix_expression(left),
             Token::Minus => self.parse_infix_expression(left),
@@ -165,6 +172,9 @@ impl Parser {
             Token::OpenParen => self
                 .parse_call_expression(left)
                 .map(Expression::CallExpression),
+            Token::Question => self
+                .parse_conditional_expression(left)
+                .map(Expression::ConditionalExpression),
             t => Err(ParserError(format!(
                 "No infix parse function for {} found",
                 t.token_literal()

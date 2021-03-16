@@ -263,6 +263,14 @@ impl Printer {
                 self.print_space();
                 self.print_block_statement(&f.body);
             }
+
+            Expression::ConditionalExpression(c) => {
+                self.print_expression(&c.test);
+                self.print(" ? ");
+                self.print_expression(&c.consequence);
+                self.print(" : ");
+                self.print_expression(&c.alternate);
+            }
         }
     }
 

@@ -1,4 +1,6 @@
-use javascript_ast::expression::{CallExpression, Expression, FunctionExpression, Identifier};
+use javascript_ast::expression::{
+    CallExpression, ConditionalExpression, Expression, FunctionExpression, Identifier,
+};
 use javascript_token::Token;
 
 use crate::{OperatorPrecedence, ParseResult, Parser, ParserError};
@@ -54,10 +56,7 @@ impl Parser {
         self.expect_peek_token(Token::OpenBrace)?;
         let body = self.parse_block_statement()?;
 
-        Ok(FunctionExpression{
-            parameters,
-            body,
-        })
+        Ok(FunctionExpression { parameters, body })
     }
 
     /// Parses function parameters
@@ -85,5 +84,23 @@ impl Parser {
         }
         self.expect_peek_token(Token::CloseParen)?;
         Ok(parameters)
+    }
+
+    pub(crate) fn parse_conditional_expression(
+        &mut self,
+        test: Expression,
+    ) -> ParseResult<ConditionalExpression> {
+        self.next_token();
+        let consequence = self.parse_expression(OperatorPrecedence::Lowest)?;
+        self.expect_peek_token(Token::Colon)?;
+        self.next_token();
+        let alternate = self.parse_expression(OperatorPrecedence::Lowest)?;
+        self.consume_semicolon();
+
+        Ok(ConditionalExpression {
+            test: Box::new(test),
+            consequence: Box::new(consequence),
+            alternate: Box::new(alternate),
+        })
     }
 }

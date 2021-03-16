@@ -139,3 +139,9 @@ fn parse_function_expression() {
     expected_printed("let a = function() {}", "let a = function() {};");
     expected_printed("a(function() {})", "a(function() {})");
 }
+
+#[test]
+fn parse_conditional_expression() {
+    expected_printed("true ? 1 : 2", "true ? 1 : 2");
+    expected_printed("3 > 2 ? 3 + 2 : 3 * 2", "(3 > 2) ? (3 + 2) : (3 * 2)");
+}
