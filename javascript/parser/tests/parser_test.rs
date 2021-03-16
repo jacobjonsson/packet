@@ -1,4 +1,3 @@
-use javascript_ast::{expression::*, statement::*};
 use javascript_lexer::Lexer;
 use javascript_parser::Parser;
 use javascript_printer::Printer;
@@ -23,573 +22,101 @@ fn expected_printed(content: &str, expected: &str) {
     assert_eq!(output, expected);
 }
 
-fn expect_integer_literal(expression: &Expression, value: i64) {
-    assert_eq!(
-        expression,
-        &Expression::IntegerLiteral(IntegerLiteral { value })
-    );
-}
-
 #[test]
-fn test_let_declaration() {
-    let input = "let a = 1;";
-
-    let lexer = Lexer::new(input);
-    let mut parser = Parser::new(lexer);
-    let program = parser.parse_program();
-    assert_eq!(
-        program.statements.len(),
-        1,
-        "Program should contain 1 statement"
-    );
-
-    let variable_declaration = match &program.statements[0] {
-        Statement::VariableDeclaration(v) => v,
-        s => panic!("Expected variable declaration but got {:?}", s),
-    };
-
-    assert_eq!(variable_declaration.kind, VariableDeclarationKind::Let);
-    for declaration in &variable_declaration.declarations {
-        assert_eq!(declaration.id, Identifier { name: "a".into() });
-        match &declaration.init {
-            Some(e) => expect_integer_literal(e, 1),
-            None => panic!("Expected declaration.init to be Some but got None"),
-        };
-    }
-}
-
-#[test]
-fn test_const_declaration() {
-    let input = "const a = 1;";
-
-    let lexer = Lexer::new(input);
-    let mut parser = Parser::new(lexer);
-    let program = parser.parse_program();
-    assert_eq!(
-        program.statements.len(),
-        1,
-        "Program should contain 1 statement"
-    );
-
-    let variable_declaration = match &program.statements[0] {
-        Statement::VariableDeclaration(v) => v,
-        s => panic!("Expected variable declaration but got {:?}", s),
-    };
-
-    assert_eq!(variable_declaration.kind, VariableDeclarationKind::Const);
-    for declaration in &variable_declaration.declarations {
-        assert_eq!(declaration.id, Identifier { name: "a".into() });
-        match &declaration.init {
-            Some(e) => expect_integer_literal(e, 1),
-            None => panic!("Expected declaration.init to be Some but got None"),
-        };
-    }
-}
-
-#[test]
-fn test_var_declaration() {
-    let input = "var a = 1;";
-
-    let lexer = Lexer::new(input);
-    let mut parser = Parser::new(lexer);
-    let program = parser.parse_program();
-    assert_eq!(
-        program.statements.len(),
-        1,
-        "Program should contain 1 statement"
-    );
-
-    let variable_declaration = match &program.statements[0] {
-        Statement::VariableDeclaration(v) => v,
-        s => panic!("Expected variable declaration but got {:?}", s),
-    };
-
-    assert_eq!(variable_declaration.kind, VariableDeclarationKind::Var);
-    for declaration in &variable_declaration.declarations {
-        assert_eq!(declaration.id, Identifier { name: "a".into() });
-        match &declaration.init {
-            Some(e) => expect_integer_literal(e, 1),
-            None => panic!("Expected declaration.init to be Some but got None"),
-        };
-    }
-}
-
-#[test]
-fn test_empty_variable_declaration() {
-    let input = "let a;";
-
-    let lexer = Lexer::new(input);
-    let mut parser = Parser::new(lexer);
-    let program = parser.parse_program();
-    assert_eq!(
-        program.statements.len(),
-        1,
-        "Program should contain 1 statement"
-    );
-
-    let variable_declaration = match &program.statements[0] {
-        Statement::VariableDeclaration(v) => v,
-        s => panic!("Expected variable declaration but got {:?}", s),
-    };
-
-    assert_eq!(variable_declaration.kind, VariableDeclarationKind::Let);
-    for declaration in &variable_declaration.declarations {
-        assert_eq!(declaration.id, Identifier { name: "a".into() });
-        assert_eq!(declaration.init, None);
-    }
-}
-
-enum Expected {
-    Integer(i64),
-    String(String),
-    Boolean(bool),
-}
-
-fn test_integer_literal(expression: &Expression, value: i64) {
-    let integer = match expression {
-        Expression::IntegerLiteral(v) => v,
-        e => panic!("Expected integer literal but got {:?}", e),
-    };
-
-    assert_eq!(integer.value, value, "Values should match");
-}
-
-fn test_boolean_literal(expression: &Expression, value: bool) {
-    let literal = match expression {
-        Expression::BooleanExpression(v) => v,
-        e => panic!("Expected boolean identifier but got {:?}", e),
-    };
-
-    assert_eq!(literal.value, value);
-}
-
-fn test_identifier(expression: &Expression, value: String) {
-    let identifier = match expression {
-        Expression::Identifier(v) => v,
-        e => panic!("Expected identifier but got {:?}", e),
-    };
-
-    assert_eq!(identifier.name, value);
-}
-
-fn test_literal_expression(expression: &Expression, value: Expected) {
-    match value {
-        Expected::String(v) => test_identifier(expression, v),
-        Expected::Integer(v) => test_integer_literal(expression, v),
-        Expected::Boolean(v) => test_boolean_literal(expression, v),
-    }
-}
-
-fn test_infix_expression(expression: &Expression, left: Expected, operator: &str, right: Expected) {
-    let infix_expression = match expression {
-        Expression::InfixExpression(e) => e,
-        e => panic!("Expected infix expression but got {:?}", e),
-    };
-
-    test_literal_expression(&infix_expression.left, left);
-    assert_eq!(
-        infix_expression.operator, operator,
-        "Operators should match"
-    );
-    test_literal_expression(&infix_expression.right, right);
+fn test_variable_declaration() {
+    expected_printed("var a = 1;", "var a = 1;");
+    expected_printed("let a = 1;", "let a = 1;");
+    expected_printed("const a = 1;", "const a = 1;");
+    expected_printed("var a;", "var a;");
+    expected_printed("let a;", "let a;");
+    expected_printed("const a;", "const a;");
 }
 
 #[test]
 fn test_infix_expressions() {
-    let tests = vec![
-        ("5 + 5;", Expected::Integer(5), "+", Expected::Integer(5)),
-        ("5 - 5;", Expected::Integer(5), "-", Expected::Integer(5)),
-        ("5 * 5;", Expected::Integer(5), "*", Expected::Integer(5)),
-        ("5 / 5;", Expected::Integer(5), "/", Expected::Integer(5)),
-        ("5 > 5;", Expected::Integer(5), ">", Expected::Integer(5)),
-        ("5 < 5;", Expected::Integer(5), "<", Expected::Integer(5)),
-        ("5 == 5;", Expected::Integer(5), "==", Expected::Integer(5)),
-        (
-            "5 === 5;",
-            Expected::Integer(5),
-            "===",
-            Expected::Integer(5),
-        ),
-        (
-            "5 !== 5;",
-            Expected::Integer(5),
-            "!==",
-            Expected::Integer(5),
-        ),
-        (
-            "a + b",
-            Expected::String("a".into()),
-            "+",
-            Expected::String("b".into()),
-        ),
-        (
-            "true == true;",
-            Expected::Boolean(true),
-            "==",
-            Expected::Boolean(true),
-        ),
-        (
-            "true === true;",
-            Expected::Boolean(true),
-            "===",
-            Expected::Boolean(true),
-        ),
-        (
-            "true != false;",
-            Expected::Boolean(true),
-            "!=",
-            Expected::Boolean(false),
-        ),
-        (
-            "true !== false;",
-            Expected::Boolean(true),
-            "!==",
-            Expected::Boolean(false),
-        ),
-        (
-            "false == false;",
-            Expected::Boolean(false),
-            "==",
-            Expected::Boolean(false),
-        ),
-        (
-            "false === false;",
-            Expected::Boolean(false),
-            "===",
-            Expected::Boolean(false),
-        ),
-    ];
-
-    for test in tests {
-        let lexer = Lexer::new(test.0);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-        assert_eq!(
-            program.statements.len(),
-            1,
-            "Program should contain 1 statement"
-        );
-        let statement = match &program.statements[0] {
-            Statement::Expression(s) => s,
-            s => panic!("Expected expression statement but got {:?}", s),
-        };
-
-        test_infix_expression(&statement.expression, test.1, test.2, test.3);
-    }
+    expected_printed("5 + 5", "(5 + 5)");
+    expected_printed("5 - 5", "(5 - 5)");
+    expected_printed("5 * 5", "(5 * 5)");
+    expected_printed("5 / 5", "(5 / 5)");
+    expected_printed("5 > 5", "(5 > 5)");
+    expected_printed("5 < 5", "(5 < 5)");
+    expected_printed("5 == 5", "(5 == 5)");
+    expected_printed("5 === 5", "(5 === 5)");
+    expected_printed("5 != 5", "(5 != 5)");
+    expected_printed("5 !== 5", "(5 !== 5)");
+    expected_printed("a + a", "(a + a)");
+    expected_printed("a === a", "(a === a)");
+    expected_printed("true === true", "(true === true)");
+    expected_printed("true !== false", "(true !== false)");
 }
 
 #[test]
 fn test_operator_precedence_parsing() {
-    let tests = vec![
-        ("5 + 5", "(5 + 5)"),
-        ("true", "true"),
-        ("false", "false"),
-        ("5 + 5 + 5", "((5 + 5) + 5)"),
-        ("3 > 5 == false", "((3 > 5) == false)"),
-        ("3 > 5 == false", "((3 > 5) == false)"),
-        ("a + b + c", "((a + b) + c)"),
-        ("a + b / c", "(a + (b / c))"),
-        (
-            "3 + 4 * 5 == 3 * 1 + 4 * 5",
-            "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
-        ),
-        ("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)"),
-        ("(5 + 5) * 2", "((5 + 5) * 2)"),
-        ("2 / (5 + 5)", "(2 / (5 + 5))"),
-        ("-(5 + 5)", "(-(5 + 5))"),
-        ("!(true == true)", "(!(true == true))"),
-    ];
-
-    for test in tests {
-        let lexer = Lexer::new(test.0);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-        assert_eq!(
-            program.statements.len(),
-            1,
-            "Program should contain 1 statement"
-        );
-
-        let text = Printer::new().print_program(&program);
-        assert_eq!(text, test.1);
-    }
+    expected_printed("5 + 5", "(5 + 5)");
+    expected_printed("true", "true");
+    expected_printed("false", "false");
+    expected_printed("5 + 5 + 5", "((5 + 5) + 5)");
+    expected_printed("3 > 5 == false", "((3 > 5) == false)");
+    expected_printed("3 > 5 == false", "((3 > 5) == false)");
+    expected_printed("a + b + c", "((a + b) + c)");
+    expected_printed("a + b / c", "(a + (b / c))");
+    expected_printed(
+        "3 + 4 * 5 == 3 * 1 + 4 * 5",
+        "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+    );
+    expected_printed("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)");
+    expected_printed("(5 + 5) * 2", "((5 + 5) * 2)");
+    expected_printed("2 / (5 + 5)", "(2 / (5 + 5))");
+    expected_printed("-(5 + 5)", "(-(5 + 5))");
+    expected_printed("!(true == true)", "(!(true == true))");
 }
 
 #[test]
 fn test_import_statement() {
-    let tests: Vec<(&str, Vec<ImportClause>)> = vec![
-        (
-            "import a from \"b\"",
-            vec![ImportClause::ImportDefault(ImportDefaultSpecifier {
-                local: Identifier { name: "a".into() },
-            })],
-        ),
-        (
-            "import { a } from \"b\"",
-            vec![ImportClause::Import(ImportSpecifier {
-                local: Identifier { name: "a".into() },
-                imported: Identifier { name: "a".into() },
-            })],
-        ),
-        (
-            "import { a as b } from \"b\"",
-            vec![ImportClause::Import(ImportSpecifier {
-                local: Identifier { name: "b".into() },
-                imported: Identifier { name: "a".into() },
-            })],
-        ),
-        (
-            "import { a, b } from \"b\"",
-            vec![
-                ImportClause::Import(ImportSpecifier {
-                    local: Identifier { name: "a".into() },
-                    imported: Identifier { name: "a".into() },
-                }),
-                ImportClause::Import(ImportSpecifier {
-                    local: Identifier { name: "b".into() },
-                    imported: Identifier { name: "b".into() },
-                }),
-            ],
-        ),
-        (
-            "import { a as b, b as c } from \"b\"",
-            vec![
-                ImportClause::Import(ImportSpecifier {
-                    local: Identifier { name: "b".into() },
-                    imported: Identifier { name: "a".into() },
-                }),
-                ImportClause::Import(ImportSpecifier {
-                    local: Identifier { name: "c".into() },
-                    imported: Identifier { name: "b".into() },
-                }),
-            ],
-        ),
-        (
-            "import a, { b, c } from \"b\"",
-            vec![
-                ImportClause::ImportDefault(ImportDefaultSpecifier {
-                    local: Identifier { name: "a".into() },
-                }),
-                ImportClause::Import(ImportSpecifier {
-                    local: Identifier { name: "b".into() },
-                    imported: Identifier { name: "b".into() },
-                }),
-                ImportClause::Import(ImportSpecifier {
-                    local: Identifier { name: "c".into() },
-                    imported: Identifier { name: "c".into() },
-                }),
-            ],
-        ),
-        (
-            "import a, { b as c } from \"b\"",
-            vec![
-                ImportClause::ImportDefault(ImportDefaultSpecifier {
-                    local: Identifier { name: "a".into() },
-                }),
-                ImportClause::Import(ImportSpecifier {
-                    local: Identifier { name: "c".into() },
-                    imported: Identifier { name: "b".into() },
-                }),
-            ],
-        ),
-        (
-            "import a, * as b from \"b\"",
-            vec![
-                ImportClause::ImportDefault(ImportDefaultSpecifier {
-                    local: Identifier { name: "a".into() },
-                }),
-                ImportClause::ImportNamespace(ImportNamespaceSpecifier {
-                    local: Identifier { name: "b".into() },
-                }),
-            ],
-        ),
-        (
-            "import * as a from \"b\"",
-            vec![ImportClause::ImportNamespace(ImportNamespaceSpecifier {
-                local: Identifier { name: "a".into() },
-            })],
-        ),
-        ("import \"b\"", Vec::new()),
-    ];
-
-    for test in tests {
-        let lexer = Lexer::new(test.0);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-        check_parser_errors(&parser);
-        assert_eq!(
-            program.statements.len(),
-            1,
-            "Program should contain 1 statement"
-        );
-
-        let import_declaration = match &program.statements[0] {
-            Statement::ImportDeclaration(i) => i,
-            t => panic!("Expected import declaration but {:?}", t),
-        };
-
-        assert_eq!(
-            import_declaration.source,
-            StringLiteral { value: "b".into() }
-        );
-        assert_eq!(import_declaration.specifiers, test.1);
-    }
+    expected_printed("import a from \"b\"", "import a from \"b\"");
+    expected_printed("import { a } from \"b\"", "import { a } from \"b\"");
+    expected_printed("import { a, b } from \"b\"", "import { a, b } from \"b\"");
+    expected_printed(
+        "import { a as b } from \"b\"",
+        "import { a as b } from \"b\"",
+    );
+    expected_printed("import { a, b } from \"b\"", "import { a, b } from \"b\"");
+    expected_printed(
+        "import { a as b, b as c } from \"b\"",
+        "import { a as b, b as c } from \"b\"",
+    );
+    expected_printed(
+        "import a, { b as c } from \"b\"",
+        "import a, { b as c } from \"b\"",
+    );
+    expected_printed("import a, { b } from \"b\"", "import a, { b } from \"b\"");
+    expected_printed("import * as a from \"b\"", "import * as a from \"b\"");
+    expected_printed("import a, * as b from \"b\"", "import a, * as b from \"b\"");
 }
 
 #[test]
 fn parse_function_declaration() {
-    let tests: Vec<(&str, &str, Vec<Identifier>, Vec<Statement>)> = vec![
-        ("function a() {}", "a", vec![], vec![]),
-        (
-            "function a(b) {}",
-            "a",
-            vec![Identifier { name: "b".into() }],
-            vec![],
-        ),
-        (
-            "function a(b,c) {}",
-            "a",
-            vec![
-                Identifier { name: "b".into() },
-                Identifier { name: "c".into() },
-            ],
-            vec![],
-        ),
-        (
-            "function a(b,c) {}",
-            "a",
-            vec![
-                Identifier { name: "b".into() },
-                Identifier { name: "c".into() },
-            ],
-            vec![],
-        ),
-        (
-            "function a(b,c) { b + c; }",
-            "a",
-            vec![
-                Identifier { name: "b".into() },
-                Identifier { name: "c".into() },
-            ],
-            vec![Statement::Expression(ExpressionStatement {
-                expression: Expression::InfixExpression(InfixExpression {
-                    left: Box::new(Expression::Identifier(Identifier { name: "b".into() })),
-                    operator: "+".into(),
-                    right: Box::new(Expression::Identifier(Identifier { name: "c".into() })),
-                }),
-            })],
-        ),
-    ];
-
-    for test in tests {
-        let lexer = Lexer::new(test.0);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-        check_parser_errors(&parser);
-        assert_eq!(program.statements.len(), 1);
-        let function_declaration = match &program.statements[0] {
-            Statement::FunctionDeclaration(f) => f,
-            s => panic!("Expected function declaration but got {:?}", s),
-        };
-
-        assert_eq!(
-            function_declaration.id,
-            Identifier {
-                name: test.1.into()
-            }
-        );
-        assert_eq!(function_declaration.parameters, test.2);
-        assert_eq!(
-            function_declaration.body,
-            BlockStatement { statements: test.3 }
-        );
-    }
+    expected_printed("function a() {}", "function a() {}");
+    expected_printed("function a(b, c) {}", "function a(b, c) {}");
+    expected_printed(
+        "function a(b, c) { return b + c; }",
+        "function a(b, c) { return (b + c); }",
+    );
 }
 
 #[test]
 fn parse_return_statement() {
-    let tests: Vec<(&str, Option<Expression>)> = vec![
-        ("return;", None),
-        (
-            "return 5;",
-            Some(Expression::IntegerLiteral(IntegerLiteral { value: 5 })),
-        ),
-        (
-            "return 5 + 5;",
-            Some(Expression::InfixExpression(InfixExpression {
-                left: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 5 })),
-                operator: "+".into(),
-                right: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 5 })),
-            })),
-        ),
-    ];
-
-    for test in tests {
-        let lexer = Lexer::new(test.0);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-        check_parser_errors(&parser);
-
-        assert_eq!(program.statements.len(), 1);
-        let return_statement = match &program.statements[0] {
-            Statement::Return(r) => r,
-            s => panic!("Expected return statement but got {:?}", s),
-        };
-        assert_eq!(return_statement.expression, test.1);
-    }
+    expected_printed("return;", "return;");
+    expected_printed("return 5;", "return 5;");
+    expected_printed("return 5 + 5;", "return (5 + 5);");
 }
 
 #[test]
 fn parse_call_expression() {
-    let tests: Vec<(&str, &str, Vec<Expression>)> = vec![
-        ("a();", "a", vec![]),
-        (
-            "a(b);",
-            "a",
-            vec![Expression::Identifier(Identifier { name: "b".into() })],
-        ),
-        (
-            "a(b, 3 + 3);",
-            "a",
-            vec![
-                Expression::Identifier(Identifier { name: "b".into() }),
-                Expression::InfixExpression(InfixExpression {
-                    left: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 3 })),
-                    operator: "+".into(),
-                    right: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 3 })),
-                }),
-            ],
-        ),
-    ];
-
-    for test in tests {
-        let lexer = Lexer::new(&test.0);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-        check_parser_errors(&parser);
-        assert_eq!(program.statements.len(), 1);
-
-        let statement = match &program.statements[0] {
-            Statement::Expression(s) => s,
-            s => panic!("Expected call expression statement but {:?}", s),
-        };
-
-        let call_expression = match &statement.expression {
-            Expression::CallExpression(c) => c,
-            e => panic!("Expected call expression but {:?}", e),
-        };
-
-        assert_eq!(
-            call_expression.function,
-            Identifier {
-                name: test.1.into()
-            }
-        );
-
-        for (idx, argument) in call_expression.arguments.iter().enumerate() {
-            assert_eq!(argument.as_ref(), &test.2[idx]);
-        }
-    }
+    expected_printed("a()", "a()");
+    expected_printed("a(a)", "a(a)");
+    expected_printed("a(a, b)", "a(a, b)");
+    expected_printed("a(3 + 3)", "a((3 + 3))");
 }
 
 #[test]

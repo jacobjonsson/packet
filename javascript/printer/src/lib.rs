@@ -38,8 +38,9 @@ impl Printer {
             }
 
             Statement::Return(r) => {
-                self.print("return ");
+                self.print("return");
                 if let Some(expression) = &r.expression {
+                    self.print(" ");
                     self.print_expression(expression);
                 }
                 self.print(";");
@@ -186,10 +187,10 @@ impl Printer {
         // TODO: We currently only handle one declaration.
         for declaration in declarations {
             self.print_identifier(&declaration.id);
-            self.print_space();
-            self.print("=");
-            self.print_space();
             if let Some(expression) = &declaration.init {
+                self.print_space();
+                self.print("=");
+                self.print_space();
                 self.print_expression(expression);
             }
         }
