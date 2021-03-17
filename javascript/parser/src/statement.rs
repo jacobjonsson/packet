@@ -12,9 +12,9 @@ impl Parser {
     pub(crate) fn parse_function_declaration(&mut self) -> ParseResult<FunctionDeclaration> {
         self.lexer.next_token(); // Skip the function keyword.
         let identifier = self.parse_identifer()?;
-        self.expect_token(Token::OpenParen);
+        self.lexer.expect_token(Token::OpenParen);
         let parameters = self.parse_function_parameters()?;
-        self.expect_token(Token::OpenBrace);
+        self.lexer.expect_token(Token::OpenBrace);
         let body = self.parse_block_statement()?;
         Ok(FunctionDeclaration {
             id: identifier,
@@ -31,7 +31,7 @@ impl Parser {
         while self.lexer.token != Token::CloseBrace {
             statements.push(self.parse_statement()?);
         }
-        self.expect_token(Token::CloseBrace);
+        self.lexer.expect_token(Token::CloseBrace);
         self.lexer.next_token();
         Ok(BlockStatement { statements })
     }
@@ -58,10 +58,10 @@ impl Parser {
     /// if (test) { consequent } else alternate
     pub(crate) fn parse_if_statement(&mut self) -> ParseResult<IfStatement> {
         self.lexer.next_token();
-        self.expect_token(Token::OpenParen);
+        self.lexer.expect_token(Token::OpenParen);
         self.lexer.next_token();
         let test = self.parse_expression(OperatorPrecedence::Lowest)?;
-        self.expect_token(Token::CloseParen);
+        self.lexer.expect_token(Token::CloseParen);
         self.lexer.next_token();
         // TODO: Function declarations are not valid in strict mode.
         let consequent = self.parse_statement()?;

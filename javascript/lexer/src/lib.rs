@@ -27,6 +27,14 @@ impl Lexer {
         return lexer;
     }
 
+    /// Asserts that the current token matches the provided one
+    pub fn expect_token(&mut self, token: Token) {
+        if self.token != token {
+            // TODO: We should build a better error message here by providing more context (source code, line/column numbers, etc.)
+            panic!("Expected {} but got {}", token, self.token);
+        }
+    }
+
     pub fn next_token(&mut self) {
         self.skip_whitespace();
 

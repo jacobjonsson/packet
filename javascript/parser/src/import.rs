@@ -30,21 +30,21 @@ impl Parser {
             // import * as abc from "module";
             Token::Asterisk => {
                 specifiers.push(self.parse_namespace_import_clause()?);
-                self.expect_token(Token::From);
+                self.lexer.expect_token(Token::From);
                 self.lexer.next_token();
                 source = self.parse_string_literal()?;
             }
             // import { a } from "module";
             Token::OpenBrace => {
                 specifiers.append(&mut self.parse_named_import_clause()?);
-                self.expect_token(Token::From);
+                self.lexer.expect_token(Token::From);
                 self.lexer.next_token();
                 source = self.parse_string_literal()?;
             }
             // import a from "module";
             Token::Identifier(_) => {
                 specifiers.append(&mut self.parse_default_import_clause()?);
-                self.expect_token(Token::From);
+                self.lexer.expect_token(Token::From);
                 self.lexer.next_token();
                 source = self.parse_string_literal()?;
             }
@@ -61,7 +61,7 @@ impl Parser {
 
     fn parse_namespace_import_clause(&mut self) -> ParseResult<ImportClause> {
         self.lexer.next_token();
-        self.expect_token(Token::As);
+        self.lexer.expect_token(Token::As);
         self.lexer.next_token();
         let identifier = self.parse_identifer()?;
         Ok(ImportClause::ImportNamespace(ImportNamespaceSpecifier {
@@ -97,7 +97,7 @@ impl Parser {
             }));
         }
 
-        self.expect_token(Token::CloseBrace);
+        self.lexer.expect_token(Token::CloseBrace);
         self.lexer.next_token();
 
         Ok(specifiers)

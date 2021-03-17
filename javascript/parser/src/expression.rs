@@ -42,7 +42,7 @@ impl Parser {
             self.lexer.next_token();
             arguments.push(Box::new(self.parse_expression(OperatorPrecedence::Lowest)?));
         }
-        self.expect_token(Token::CloseParen);
+        self.lexer.expect_token(Token::CloseParen);
         self.lexer.next_token();
         Ok(arguments)
     }
@@ -52,9 +52,9 @@ impl Parser {
     /// a(function() {})
     pub(crate) fn parse_function_expression(&mut self) -> ParseResult<FunctionExpression> {
         self.lexer.next_token();
-        self.expect_token(Token::OpenParen);
+        self.lexer.expect_token(Token::OpenParen);
         let parameters = self.parse_function_parameters()?;
-        self.expect_token(Token::OpenBrace);
+        self.lexer.expect_token(Token::OpenBrace);
         let body = self.parse_block_statement()?;
 
         Ok(FunctionExpression { parameters, body })
@@ -81,7 +81,7 @@ impl Parser {
             self.lexer.next_token();
             parameters.push(self.parse_identifer()?);
         }
-        self.expect_token(Token::CloseParen);
+        self.lexer.expect_token(Token::CloseParen);
         self.lexer.next_token();
         Ok(parameters)
     }
@@ -92,7 +92,7 @@ impl Parser {
     ) -> ParseResult<ConditionalExpression> {
         self.lexer.next_token();
         let consequence = self.parse_expression(OperatorPrecedence::Lowest)?;
-        self.expect_token(Token::Colon);
+        self.lexer.expect_token(Token::Colon);
         self.lexer.next_token();
         let alternate = self.parse_expression(OperatorPrecedence::Lowest)?;
         self.consume_semicolon();

@@ -195,7 +195,7 @@ impl Parser {
     fn parse_grouped_expression(&mut self) -> Result<Expression, ParserError> {
         self.lexer.next_token();
         let expression = self.parse_expression(OperatorPrecedence::Lowest)?;
-        self.expect_token(Token::CloseParen);
+        self.lexer.expect_token(Token::CloseParen);
         self.lexer.next_token();
         Ok(expression)
     }
@@ -253,7 +253,7 @@ impl Parser {
             }));
         }
 
-        self.expect_token(Token::Equals);
+        self.lexer.expect_token(Token::Equals);
         self.lexer.next_token();
 
         let init = Some(self.parse_expression(OperatorPrecedence::Lowest)?);
@@ -276,12 +276,6 @@ impl Parser {
     fn consume_semicolon(&mut self) {
         if self.lexer.token == Token::Semicolon {
             self.lexer.next_token();
-        }
-    }
-
-    fn expect_token(&mut self, token: Token) {
-        if self.lexer.token != token {
-            panic!("Expected {} but got {}", token, self.lexer.token);
         }
     }
 }
