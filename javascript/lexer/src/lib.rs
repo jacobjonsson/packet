@@ -2,9 +2,14 @@ use javascript_token::{lookup_identifer, Token};
 
 pub struct Lexer {
     input: String,
-    position: usize,
-    read_position: usize,
+    /// The position of the current character
+    current: usize,
+    /// The end position of current token
+    end: usize,
+    /// The next character to parsed
     character: Option<char>,
+    /// The currently parsed token
+    pub token: Token,
 }
 
 /// Public
@@ -12,290 +17,341 @@ impl Lexer {
     pub fn new(input: &str) -> Lexer {
         let mut lexer = Lexer {
             input: input.into(),
-            position: 0,
-            read_position: 0,
+            token: Token::EndOfFile,
+            current: 0,
+            end: 0,
             character: input.chars().nth(0),
         };
-        lexer.read_character();
+
+        lexer.next_token();
         return lexer;
     }
 
-    pub fn next_token(&mut self) -> Token {
+    pub fn next_token(&mut self) {
         self.skip_whitespace();
 
         let character = match self.character {
             Some(v) => v,
-            None => return Token::EndOfFile,
+            None => {
+                self.token = Token::EndOfFile;
+                return;
+            }
         };
 
-        let token = match character {
-            '~' => Token::Tilde,
+        match character {
+            '~' => {
+                self.step();
+                self.token = Token::Tilde;
+            }
             '/' => {
-                if self.peek_character() == Some('=') {
-                    self.read_character();
-                    Token::SlashEquals
+                self.step();
+                if self.character == Some('=') {
+                    self.step();
+                    self.token = Token::SlashEquals;
                 } else {
-                    Token::Slash
+                    self.token = Token::Slash;
                 }
             }
             '.' => {
-                if self.peek_character() == Some('.') {
-                    self.read_character();
-                    if self.peek_character() == Some('.') {
-                        self.read_character();
-                        Token::DotDotDot
+                self.step();
+                if self.character == Some('.') {
+                    self.step();
+                    if self.character == Some('.') {
+                        self.step();
+                        self.token = Token::DotDotDot;
                     } else {
                         // Means we hit ".." but not "...",
                         // should this be an error?
-                        Token::Dot
+                        self.token = Token::Dot;
                     }
                 } else {
-                    Token::Dot
+                    self.token = Token::Dot;
                 }
             }
             '?' => {
-                if self.peek_character() == Some('.') {
-                    self.read_character();
-                    Token::QuestionDot
-                } else if self.peek_character() == Some('?') {
-                    self.read_character();
-                    if self.peek_character() == Some('=') {
-                        self.read_character();
-                        Token::QuestionQuestionEquals
+                self.step();
+                if self.character == Some('.') {
+                    self.step();
+                    self.token = Token::QuestionDot;
+                } else if self.character == Some('?') {
+                    self.step();
+                    if self.character == Some('=') {
+                        self.step();
+                        self.token = Token::QuestionQuestionEquals;
                     } else {
-                        Token::QuestionQuestion
+                        self.token = Token::QuestionQuestion;
                     }
                 } else {
-                    Token::Question
+                    self.token = Token::Question;
                 }
             }
-            ';' => Token::Semicolon,
-            '(' => Token::OpenParen,
-            ')' => Token::CloseParen,
-            '{' => Token::OpenBrace,
-            '}' => Token::CloseBrace,
-            ',' => Token::Comma,
+            ';' => {
+                self.step();
+                self.token = Token::Semicolon;
+            }
+            '(' => {
+                self.step();
+                self.token = Token::OpenParen;
+            }
+            ')' => {
+                self.step();
+                self.token = Token::CloseParen;
+            }
+            '{' => {
+                self.step();
+                self.token = Token::OpenBrace;
+            }
+            '}' => {
+                self.step();
+                self.token = Token::CloseBrace;
+            }
+            ',' => {
+                self.step();
+                self.token = Token::Comma;
+            }
             '+' => {
-                if self.peek_character() == Some('+') {
-                    self.read_character();
-                    Token::PlusPlus
-                } else if self.peek_character() == Some('=') {
-                    self.read_character();
-                    Token::PlusEquals
+                self.step();
+                if self.character == Some('+') {
+                    self.step();
+                    self.token = Token::PlusPlus;
+                } else if self.character == Some('=') {
+                    self.step();
+                    self.token = Token::PlusEquals;
                 } else {
-                    Token::Plus
+                    self.token = Token::Plus;
                 }
             }
             '-' => {
-                if self.peek_character() == Some('-') {
-                    self.read_character();
-                    Token::MinusMinus
-                } else if self.peek_character() == Some('=') {
-                    self.read_character();
-                    Token::MinusEquals
+                self.step();
+                if self.character == Some('-') {
+                    self.step();
+                    self.token = Token::MinusMinus;
+                } else if self.character == Some('=') {
+                    self.step();
+                    self.token = Token::MinusEquals;
                 } else {
-                    Token::Minus
+                    self.token = Token::Minus;
                 }
             }
             '*' => {
-                if self.peek_character() == Some('*') {
-                    self.read_character();
-                    if self.peek_character() == Some('=') {
-                        self.read_character();
-                        Token::AsteriskAsteriskEquals
+                self.step();
+                if self.character == Some('*') {
+                    self.step();
+                    if self.character == Some('=') {
+                        self.step();
+                        self.token = Token::AsteriskAsteriskEquals;
                     } else {
-                        Token::AsteriskAsterisk
+                        self.token = Token::AsteriskAsterisk;
                     }
                 } else {
-                    Token::Asterisk
+                    self.token = Token::Asterisk;
                 }
             }
             '<' => {
-                if self.peek_character() == Some('<') {
-                    self.read_character();
-                    if self.peek_character() == Some('=') {
-                        self.read_character();
-                        Token::LessThanLessThanEquals
+                self.step();
+                if self.character == Some('<') {
+                    self.step();
+                    if self.character == Some('=') {
+                        self.step();
+                        self.token = Token::LessThanLessThanEquals;
                     } else {
-                        Token::LessThanLessThan
+                        self.token = Token::LessThanLessThan;
                     }
-                } else if self.peek_character() == Some('=') {
-                    Token::LessThanEquals
+                } else if self.character == Some('=') {
+                    self.token = Token::LessThanEquals;
                 } else {
-                    Token::LessThan
+                    self.token = Token::LessThan;
                 }
             }
             '>' => {
-                if self.peek_character() == Some('>') {
-                    self.read_character();
-                    if self.peek_character() == Some('>') {
-                        self.read_character();
-                        if self.peek_character() == Some('=') {
-                            self.read_character();
-                            Token::GreaterThanGreaterThanGreaterThanEquals
+                self.step();
+                if self.character == Some('>') {
+                    self.step();
+                    if self.character == Some('>') {
+                        self.step();
+                        if self.character == Some('=') {
+                            self.step();
+                            self.token = Token::GreaterThanGreaterThanGreaterThanEquals;
                         } else {
-                            Token::GreaterThanGreaterThanGreaterThan
+                            self.token = Token::GreaterThanGreaterThanGreaterThan;
                         }
-                    } else if self.peek_character() == Some('=') {
-                        self.read_character();
-                        Token::GreaterThanGreaterThanEquals
+                    } else if self.character == Some('=') {
+                        self.step();
+                        self.token = Token::GreaterThanGreaterThanEquals;
                     } else {
-                        Token::GreaterThanGreaterThan
+                        self.token = Token::GreaterThanGreaterThan;
                     }
-                } else if self.peek_character() == Some('=') {
-                    self.read_character();
-                    Token::GreaterThanEquals
+                } else if self.character == Some('=') {
+                    self.step();
+                    self.token = Token::GreaterThanEquals;
                 } else {
-                    Token::GreaterThan
+                    self.token = Token::GreaterThan;
                 }
             }
-            '[' => Token::OpenBracket,
-            ']' => Token::CloseBracket,
+            '[' => {
+                self.step();
+                self.token = Token::OpenBracket;
+            }
+            ']' => {
+                self.step();
+                self.token = Token::CloseBracket;
+            }
             '=' => {
-                if self.peek_character() == Some('=') {
-                    self.read_character();
-                    if self.peek_character() == Some('=') {
-                        self.read_character();
-                        Token::EqualsEqualsEquals
+                self.step();
+                if self.character == Some('=') {
+                    self.step();
+                    if self.character == Some('=') {
+                        self.step();
+                        self.token = Token::EqualsEqualsEquals;
                     } else {
-                        Token::EqualsEquals
+                        self.token = Token::EqualsEquals;
                     }
-                } else if self.peek_character() == Some('>') {
-                    self.read_character();
-                    Token::EqualsGreaterThan
+                } else if self.character == Some('>') {
+                    self.step();
+                    self.token = Token::EqualsGreaterThan;
                 } else {
-                    Token::Equals
+                    self.token = Token::Equals;
                 }
             }
             '!' => {
-                if self.peek_character() == Some('=') {
-                    self.read_character();
-                    if self.peek_character() == Some('=') {
-                        self.read_character();
-                        Token::ExclamationEqualsEquals
+                self.step();
+                if self.character == Some('=') {
+                    self.step();
+                    if self.character == Some('=') {
+                        self.step();
+                        self.token = Token::ExclamationEqualsEquals;
                     } else {
-                        Token::ExclamationEquals
+                        self.token = Token::ExclamationEquals;
                     }
                 } else {
-                    Token::Exclamation
+                    self.token = Token::Exclamation;
                 }
             }
             '%' => {
-                if self.peek_character() == Some('=') {
-                    self.read_character();
-                    Token::PercentEquals
+                self.step();
+                if self.character == Some('=') {
+                    self.step();
+                    self.token = Token::PercentEquals;
                 } else {
-                    Token::Percent
+                    self.token = Token::Percent;
                 }
             }
-            ':' => Token::Colon,
+            ':' => {
+                self.step();
+                self.token = Token::Colon;
+            }
             '|' => {
-                if self.peek_character() == Some('|') {
-                    self.read_character();
-                    if self.peek_character() == Some('=') {
-                        self.read_character();
-                        Token::BarBarEquals
+                self.step();
+                if self.character == Some('|') {
+                    self.step();
+                    if self.character == Some('=') {
+                        self.step();
+                        self.token = Token::BarBarEquals;
                     } else {
-                        Token::BarBar
+                        self.token = Token::BarBar;
                     }
-                } else if self.peek_character() == Some('=') {
-                    self.read_character();
-                    Token::BarEquals
+                } else if self.character == Some('=') {
+                    self.step();
+                    self.token = Token::BarEquals;
                 } else {
-                    Token::Bar
+                    self.token = Token::Bar;
                 }
             }
-            '@' => Token::At,
+            '@' => {
+                self.step();
+                self.token = Token::At;
+            }
             '^' => {
-                if self.peek_character() == Some('=') {
-                    self.read_character();
-                    Token::CaretEquals
+                self.step();
+                if self.character == Some('=') {
+                    self.step();
+                    self.token = Token::CaretEquals;
                 } else {
-                    Token::Caret
+                    self.token = Token::Caret;
                 }
             }
             '&' => {
-                if self.peek_character() == Some('&') {
-                    self.read_character();
-                    if self.peek_character() == Some('=') {
-                        self.read_character();
-                        Token::AmpersandAmpersandEquals
+                self.step();
+                if self.character == Some('&') {
+                    self.step();
+                    if self.character == Some('=') {
+                        self.step();
+                        self.token = Token::AmpersandAmpersandEquals;
                     } else {
-                        Token::AmpersandAmpersand
+                        self.token = Token::AmpersandAmpersand;
                     }
-                } else if self.peek_character() == Some('=') {
-                    self.read_character();
-                    Token::AmpersandEquals
+                } else if self.character == Some('=') {
+                    self.step();
+                    self.token = Token::AmpersandEquals;
                 } else {
-                    Token::Ampersand
+                    self.token = Token::Ampersand;
                 }
             }
 
             '"' => {
+                self.step();
                 let mut literal = String::new();
-                while self.peek_character() != Some('"') {
-                    self.read_character();
-                    let character = match self.character {
-                        Some(c) => c,
-                        None => break, // Means we failed to read the character, prob because of EndOfFile. (We should ideally return an error here)
-                    };
-
-                    literal.push(character);
+                while self.character != Some('"') {
+                    if let Some(character) = self.character {
+                        literal.push(character);
+                        self.step();
+                    } else {
+                        break;
+                    }
                 }
                 // Consume the ending "
-                self.read_character();
-                self.read_character();
+                self.step();
 
-                return Token::StringLiteral(literal);
+                self.token = Token::StringLiteral(literal);
             }
 
             '\'' => {
+                self.step();
                 let mut literal = String::new();
-                while self.peek_character() != Some('\'') {
-                    self.read_character();
-                    let character = match self.character {
-                        Some(c) => c,
-                        None => break, // Means we failed to read the character, prob because of EndOfFile. (We should ideally return an error here)
-                    };
-
-                    literal.push(character);
+                while self.character != Some('\'') {
+                    if let Some(character) = self.character {
+                        literal.push(character);
+                        self.step();
+                    } else {
+                        break;
+                    }
                 }
                 // Consume the ending '
-                self.read_character();
+                self.step();
 
-                return Token::StringLiteral(literal);
+                self.token = Token::StringLiteral(literal);
             }
 
             c if Lexer::is_letter(c) => {
                 let identifier = self.read_identifier();
-                return lookup_identifer(&identifier);
+                self.token = lookup_identifer(&identifier);
             }
 
             c if Lexer::is_digit(c) => {
                 let number = self.read_number();
-                return Token::NumericLiteral(number);
+                self.token = Token::NumericLiteral(number);
             }
 
-            _ => Token::Illegal,
+            _ => {
+                self.step();
+                self.token = Token::Illegal;
+            }
         };
-
-        self.read_character();
-        return token;
     }
 }
 
 /// Internal
 impl Lexer {
-    fn read_character(&mut self) {
-        self.character = self.input.chars().nth(self.read_position);
-        self.position = self.read_position;
-        self.read_position += 1;
+    fn step(&mut self) {
+        self.end = self.current;
+        self.current += 1;
+        self.character = self.input.chars().nth(self.current);
     }
 
     fn skip_whitespace(&mut self) {
         while let Some(character) = self.character {
             match character {
-                ' ' | '\t' | '\n' | '\r' => self.read_character(),
+                ' ' | '\t' | '\n' | '\r' => self.step(),
                 _ => break,
             }
         }
@@ -306,7 +362,7 @@ impl Lexer {
         while let Some(character) = self.character {
             if Lexer::is_letter(character) || Lexer::is_digit(character) {
                 word.push(character);
-                self.read_character();
+                self.step();
             } else {
                 break;
             }
@@ -319,16 +375,12 @@ impl Lexer {
         while let Some(ch) = self.character {
             if Lexer::is_digit(ch) {
                 number.push(ch);
-                self.read_character();
+                self.step();
             } else {
                 break;
             }
         }
         return number;
-    }
-
-    fn peek_character(&self) -> Option<char> {
-        return self.input.chars().nth(self.read_position);
     }
 
     fn is_letter(character: char) -> bool {

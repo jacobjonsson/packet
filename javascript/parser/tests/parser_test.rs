@@ -95,7 +95,7 @@ fn test_import_statement() {
 }
 
 #[test]
-fn parse_function_declaration() {
+fn test_function_declaration() {
     expected_printed("function a() {}", "function a() {}");
     expected_printed("function a(b, c) {}", "function a(b, c) {}");
     expected_printed(
@@ -112,7 +112,7 @@ fn parse_return_statement() {
 }
 
 #[test]
-fn parse_call_expression() {
+fn test_call_expression() {
     expected_printed("a()", "a()");
     expected_printed("a(a)", "a(a)");
     expected_printed("a(a, b)", "a(a, b)");
@@ -120,7 +120,7 @@ fn parse_call_expression() {
 }
 
 #[test]
-fn parse_if_statement() {
+fn test_if_statement() {
     expected_printed("if (true) {}", "if (true) {}");
     expected_printed("if (true) {} else {}", "if (true) {} else {}");
     expected_printed("if (x < 10) { return 10; }", "if ((x < 10)) { return 10; }");
@@ -135,13 +135,13 @@ fn parse_if_statement() {
 }
 
 #[test]
-fn parse_function_expression() {
+fn test_function_expression() {
     expected_printed("let a = function() {}", "let a = function() {};");
     expected_printed("a(function() {})", "a(function() {})");
 }
 
 #[test]
-fn parse_conditional_expression() {
+fn test_conditional_expression() {
     expected_printed("true ? 1 : 2", "true ? 1 : 2");
     expected_printed("3 > 2 ? 3 + 2 : 3 * 2", "(3 > 2) ? (3 + 2) : (3 * 2)");
 }

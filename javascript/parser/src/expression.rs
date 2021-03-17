@@ -32,18 +32,18 @@ impl Parser {
 
     fn parse_call_expression_arguments(&mut self) -> ParseResult<Vec<Box<Expression>>> {
         let mut arguments: Vec<Box<Expression>> = Vec::new();
-        if self.peek_token == Token::CloseParen {
-            self.next_token();
+        self.lexer.next_token();
+        if self.lexer.token == Token::CloseParen {
+            self.lexer.next_token();
             return Ok(arguments);
         }
-        self.next_token();
         arguments.push(Box::new(self.parse_expression(OperatorPrecedence::Lowest)?));
-        while self.peek_token == Token::Comma {
-            self.next_token();
-            self.next_token();
+        while self.lexer.token == Token::Comma {
+            self.lexer.next_token();
             arguments.push(Box::new(self.parse_expression(OperatorPrecedence::Lowest)?));
         }
-        self.expect_peek_token(Token::CloseParen)?;
+        self.expect_token(Token::CloseParen);
+        self.lexer.next_token();
         Ok(arguments)
     }
 
@@ -51,9 +51,10 @@ impl Parser {
     /// let a = function() {}
     /// a(function() {})
     pub(crate) fn parse_function_expression(&mut self) -> ParseResult<FunctionExpression> {
-        self.expect_peek_token(Token::OpenParen)?;
+        self.lexer.next_token();
+        self.expect_token(Token::OpenParen);
         let parameters = self.parse_function_parameters()?;
-        self.expect_peek_token(Token::OpenBrace)?;
+        self.expect_token(Token::OpenBrace);
         let body = self.parse_block_statement()?;
 
         Ok(FunctionExpression { parameters, body })
@@ -66,23 +67,22 @@ impl Parser {
         let mut parameters: Vec<Identifier> = Vec::new();
 
         // Means there aren't any parameters to parse
-        if self.peek_token == Token::CloseParen {
-            self.next_token(); // Skip the closing paren
+        self.lexer.next_token();
+        if self.lexer.token == Token::CloseParen {
+            self.lexer.next_token(); // Skip the closing paren
             return Ok(Vec::new());
         }
-
-        self.next_token();
 
         // Parse the first parameter
         parameters.push(self.parse_identifer()?);
 
         // As long as the next token is a comma, we keep parsing identifiers.
-        while self.peek_token == Token::Comma {
-            self.next_token();
-            self.next_token();
+        while self.lexer.token == Token::Comma {
+            self.lexer.next_token();
             parameters.push(self.parse_identifer()?);
         }
-        self.expect_peek_token(Token::CloseParen)?;
+        self.expect_token(Token::CloseParen);
+        self.lexer.next_token();
         Ok(parameters)
     }
 
@@ -90,10 +90,10 @@ impl Parser {
         &mut self,
         test: Expression,
     ) -> ParseResult<ConditionalExpression> {
-        self.next_token();
+        self.lexer.next_token();
         let consequence = self.parse_expression(OperatorPrecedence::Lowest)?;
-        self.expect_peek_token(Token::Colon)?;
-        self.next_token();
+        self.expect_token(Token::Colon);
+        self.lexer.next_token();
         let alternate = self.parse_expression(OperatorPrecedence::Lowest)?;
         self.consume_semicolon();
 
