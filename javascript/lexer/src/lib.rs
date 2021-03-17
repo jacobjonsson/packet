@@ -1,10 +1,13 @@
+use javascript_reporter::report_unexpected_token;
 use javascript_token::{lookup_identifer, Token};
 
 pub struct Lexer {
     input: String,
     /// The position of the current character
     current: usize,
-    /// The end position of current token
+    /// The start position of the current token
+    start: usize,
+    /// The end position of the current token
     end: usize,
     /// The next character to parsed
     character: Option<char>,
@@ -18,6 +21,7 @@ impl Lexer {
         let mut lexer = Lexer {
             input: input.into(),
             token: Token::EndOfFile,
+            start: 0,
             current: 0,
             end: 0,
             character: input.chars().nth(0),
@@ -30,13 +34,19 @@ impl Lexer {
     /// Asserts that the current token matches the provided one
     pub fn expect_token(&mut self, token: Token) {
         if self.token != token {
-            // TODO: We should build a better error message here by providing more context (source code, line/column numbers, etc.)
-            panic!("Expected {} but got {}", token, self.token);
+            report_unexpected_token(
+                &self.input,
+                &format!("Expected \"{}\" but found \"{}\"", token, self.token),
+                self.start,
+                self.end,
+            );
         }
     }
 
     pub fn next_token(&mut self) {
         self.skip_whitespace();
+
+        self.start = self.end;
 
         let character = match self.character {
             Some(v) => v,
