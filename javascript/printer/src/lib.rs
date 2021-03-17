@@ -23,19 +23,7 @@ impl Printer {
 impl Printer {
     fn print_statement(&mut self, statement: &Statement) {
         match statement {
-            Statement::VariableDeclaration(v) => {
-                match v.kind {
-                    VariableDeclarationKind::Const => {
-                        self.print_declaration_statement("const", &v.declarations)
-                    }
-                    VariableDeclarationKind::Let => {
-                        self.print_declaration_statement("let", &v.declarations)
-                    }
-                    VariableDeclarationKind::Var => {
-                        self.print_declaration_statement("var", &v.declarations)
-                    }
-                };
-            }
+            Statement::VariableDeclaration(v) => self.print_variable_declaration(v),
 
             Statement::Return(r) => {
                 self.print("return");
@@ -51,6 +39,34 @@ impl Printer {
             }
 
             Statement::If(i) => self.print_if_statement(i),
+
+            Statement::For(f) => {
+                self.print("for");
+                self.print_space();
+                self.print("(");
+                if let Some(init) = &f.init {
+                    match init {
+                        ForStatementInit::Expression(e) => self.print_expression(e),
+                        ForStatementInit::VariableDeclaration(v) => {
+                            self.print_variable_declaration(v)
+                        }
+                    }
+                }
+                // We currently auto print semicolons for variable declarations,
+                // hence why we don't print anything here.
+                self.print_space();
+                if let Some(test) = &f.test {
+                    self.print_expression(test);
+                }
+                self.print(";");
+                self.print_space();
+                if let Some(update) = &f.update {
+                    self.print_expression(update);
+                }
+                self.print(")");
+                self.print_space();
+                self.print_statement(&f.body);
+            }
 
             Statement::ImportDeclaration(i) => {
                 let mut items = 0;
@@ -130,6 +146,40 @@ impl Printer {
         };
     }
 
+    fn print_variable_declaration(&mut self, variable_declaration: &VariableDeclaration) {
+        match variable_declaration.kind {
+            VariableDeclarationKind::Const => {
+                self.print_declaration_statement("const", &variable_declaration.declarations)
+            }
+            VariableDeclarationKind::Let => {
+                self.print_declaration_statement("let", &variable_declaration.declarations)
+            }
+            VariableDeclarationKind::Var => {
+                self.print_declaration_statement("var", &variable_declaration.declarations)
+            }
+        };
+    }
+
+    fn print_declaration_statement(
+        &mut self,
+        keyword: &str,
+        declarations: &Vec<VariableDeclarator>,
+    ) {
+        self.print(keyword);
+        self.print_space();
+        // TODO: We currently only handle one declaration.
+        for declaration in declarations {
+            self.print_identifier(&declaration.id);
+            if let Some(expression) = &declaration.init {
+                self.print_space();
+                self.print("=");
+                self.print_space();
+                self.print_expression(expression);
+            }
+        }
+        self.print(";");
+    }
+
     fn print_block_statement(&mut self, block_statement: &BlockStatement) {
         if block_statement.statements.len() == 0 {
             self.print("{}");
@@ -177,26 +227,6 @@ impl Printer {
         self.print_block_statement(&function_declaration.body);
     }
 
-    fn print_declaration_statement(
-        &mut self,
-        keyword: &str,
-        declarations: &Vec<VariableDeclarator>,
-    ) {
-        self.print(keyword);
-        self.print_space();
-        // TODO: We currently only handle one declaration.
-        for declaration in declarations {
-            self.print_identifier(&declaration.id);
-            if let Some(expression) = &declaration.init {
-                self.print_space();
-                self.print("=");
-                self.print_space();
-                self.print_expression(expression);
-            }
-        }
-        self.print(";");
-    }
-
     fn print_expression(&mut self, expression: &Expression) {
         match &expression {
             Expression::BooleanExpression(e) => {
@@ -211,6 +241,7 @@ impl Printer {
             Expression::IntegerLiteral(e) => {
                 self.print(&e.value.to_string());
             }
+            Expression::UpdateExpression(u) => self.print_update_expression(u),
             Expression::InfixExpression(e) => {
                 self.print("(");
                 self.print_expression(e.left.as_ref());
@@ -271,6 +302,24 @@ impl Printer {
                 self.print(" : ");
                 self.print_expression(&c.alternate);
             }
+        }
+    }
+
+    fn print_update_expression(&mut self, update_expression: &UpdateExpression) {
+        if update_expression.prefix {
+            match update_expression.operator {
+                UpdateOperator::Increment => self.print("++"),
+                UpdateOperator::Decrement => self.print("--"),
+            };
+        }
+
+        self.print_expression(&update_expression.argument);
+
+        if update_expression.prefix == false {
+            match update_expression.operator {
+                UpdateOperator::Increment => self.print("++"),
+                UpdateOperator::Decrement => self.print("--"),
+            };
         }
     }
 

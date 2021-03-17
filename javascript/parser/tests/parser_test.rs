@@ -2,22 +2,10 @@ use javascript_lexer::Lexer;
 use javascript_parser::Parser;
 use javascript_printer::Printer;
 
-fn check_parser_errors(parser: &Parser) {
-    let errors = parser.errors();
-    if errors.len() > 0 {
-        println!("Parser has parser errors:");
-        for error in errors {
-            println!("parser error: {}", error);
-        }
-        panic!("PARSER ERROR");
-    }
-}
-
 fn expected_printed(content: &str, expected: &str) {
     let lexer = Lexer::new(content);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
-    check_parser_errors(&parser);
     let output = Printer::new().print_program(&program);
     assert_eq!(output, expected);
 }
@@ -144,4 +132,20 @@ fn test_function_expression() {
 fn test_conditional_expression() {
     expected_printed("true ? 1 : 2", "true ? 1 : 2");
     expected_printed("3 > 2 ? 3 + 2 : 3 * 2", "(3 > 2) ? (3 + 2) : (3 * 2)");
+}
+
+#[test]
+fn test_for_statement() {
+    expected_printed(
+        "for (let a = 1; a < 10; a++) {}",
+        "for (let a = 1; (a < 10); a++) {}",
+    );
+}
+
+#[test]
+fn test_update_expression() {
+    expected_printed("++a", "++a");
+    expected_printed("a++", "a++");
+    expected_printed("--a", "--a");
+    expected_printed("a--", "a--");
 }

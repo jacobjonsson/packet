@@ -40,7 +40,7 @@ fn report_message(message: Message) {
 fn compute_line_and_column(content: &str, offset: usize) -> (usize, usize, usize, usize) {
     let mut line_count: usize = 0;
     let mut line_start: usize = 0;
-    let mut line_end: usize = 0;
+    let mut line_end: usize = content.len();
 
     let mut prev_char: Option<char> = None;
 

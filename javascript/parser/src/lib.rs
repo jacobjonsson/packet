@@ -5,7 +5,7 @@ mod statement;
 use javascript_ast::{
     expression::{
         BooleanExpression, Expression, Identifier, InfixExpression, IntegerLiteral,
-        PrefixExpression, StringLiteral,
+        PrefixExpression, StringLiteral, UpdateExpression, UpdateOperator,
     },
     statement::*,
     Program,
@@ -24,7 +24,8 @@ enum OperatorPrecedence {
     Sum = 5,
     Product = 6,
     Prefix = 7,
-    Call = 8,
+    Postfix = 8,
+    Call = 9,
 }
 
 fn token_to_precedence(token: &Token) -> OperatorPrecedence {
@@ -39,6 +40,8 @@ fn token_to_precedence(token: &Token) -> OperatorPrecedence {
         Token::Minus => OperatorPrecedence::Sum,
         Token::Slash => OperatorPrecedence::Product,
         Token::Asterisk => OperatorPrecedence::Product,
+        Token::PlusPlus => OperatorPrecedence::Postfix,
+        Token::MinusMinus => OperatorPrecedence::Postfix,
         Token::OpenParen => OperatorPrecedence::Call,
         Token::Question => OperatorPrecedence::Conditional,
         _ => OperatorPrecedence::Lowest,
@@ -50,20 +53,12 @@ pub type ParseResult<T> = Result<T, ParserError>;
 
 pub struct Parser {
     lexer: Lexer,
-    errors: Vec<String>,
 }
 
 /// Public
 impl Parser {
     pub fn new(lexer: Lexer) -> Parser {
-        Parser {
-            lexer: lexer,
-            errors: Vec::new(),
-        }
-    }
-
-    pub fn errors(&self) -> Vec<String> {
-        return self.errors.clone();
+        Parser { lexer: lexer }
     }
 
     pub fn parse_program(&mut self) -> Program {
@@ -72,7 +67,7 @@ impl Parser {
         while &self.lexer.token != &Token::EndOfFile {
             match self.parse_statement() {
                 Ok(s) => statements.push(s),
-                Err(err) => self.errors.push(err.0),
+                Err(err) => panic!(err.0),
             }
         }
 
@@ -84,9 +79,15 @@ impl Parser {
 impl Parser {
     fn parse_statement(&mut self) -> ParseResult<Statement> {
         match &self.lexer.token {
-            Token::Const => self.parse_var_statement(VariableDeclarationKind::Const),
-            Token::Var => self.parse_var_statement(VariableDeclarationKind::Var),
-            Token::Let => self.parse_var_statement(VariableDeclarationKind::Let),
+            Token::Const => self
+                .parse_var_statement(VariableDeclarationKind::Const)
+                .map(Statement::VariableDeclaration),
+            Token::Var => self
+                .parse_var_statement(VariableDeclarationKind::Var)
+                .map(Statement::VariableDeclaration),
+            Token::Let => self
+                .parse_var_statement(VariableDeclarationKind::Let)
+                .map(Statement::VariableDeclaration),
             Token::Import => self.parse_import_statement(),
             Token::Function => self
                 .parse_function_declaration()
@@ -94,6 +95,7 @@ impl Parser {
             Token::Return => self.parse_return_statement().map(Statement::Return),
             Token::If => self.parse_if_statement().map(Statement::If),
             Token::OpenBrace => self.parse_block_statement().map(Statement::Block),
+            Token::For => self.parse_for_statement().map(Statement::For),
             _ => self.parse_expression_statement(),
         }
     }
@@ -140,7 +142,32 @@ impl Parser {
             Token::Function => self
                 .parse_function_expression()
                 .map(Expression::FunctionExpression),
-            t => Err(ParserError(format!("No prefix parser for {:?} found", t))),
+            Token::PlusPlus => {
+                self.lexer.next_token();
+                self.parse_expression(OperatorPrecedence::Prefix)
+                    .map(|e| UpdateExpression {
+                        operator: UpdateOperator::Increment,
+                        argument: Box::new(e),
+                        prefix: true,
+                    })
+                    .map(Expression::UpdateExpression)
+                    .map(Ok)?
+            }
+            Token::MinusMinus => {
+                self.lexer.next_token();
+                self.parse_expression(OperatorPrecedence::Prefix)
+                    .map(|e| UpdateExpression {
+                        operator: UpdateOperator::Decrement,
+                        argument: Box::new(e),
+                        prefix: true,
+                    })
+                    .map(Expression::UpdateExpression)
+                    .map(Ok)?
+            }
+            _ => {
+                self.lexer.unexpected();
+                return Err(ParserError("".into()));
+            }
         }
     }
 
@@ -156,6 +183,7 @@ impl Parser {
     }
 
     fn parse_infix(&mut self, left: Expression) -> ParseResult<Expression> {
+        println!("{}", self.lexer.token);
         match &self.lexer.token {
             Token::Plus => self.parse_infix_expression(left),
             Token::Minus => self.parse_infix_expression(left),
@@ -173,10 +201,26 @@ impl Parser {
             Token::Question => self
                 .parse_conditional_expression(left)
                 .map(Expression::ConditionalExpression),
-            t => Err(ParserError(format!(
-                "No infix parse function for {} found",
-                t.token_literal()
-            ))),
+            Token::PlusPlus => {
+                self.lexer.next_token();
+                Ok(Expression::UpdateExpression(UpdateExpression {
+                    operator: UpdateOperator::Increment,
+                    argument: Box::new(left),
+                    prefix: false,
+                }))
+            }
+            Token::MinusMinus => {
+                self.lexer.next_token();
+                Ok(Expression::UpdateExpression(UpdateExpression {
+                    operator: UpdateOperator::Decrement,
+                    argument: Box::new(left),
+                    prefix: false,
+                }))
+            }
+            _ => {
+                self.lexer.unexpected();
+                return Err(ParserError("".into()));
+            }
         }
     }
 
@@ -241,16 +285,19 @@ impl Parser {
         Ok(Expression::IntegerLiteral(IntegerLiteral { value }))
     }
 
-    fn parse_var_statement(&mut self, kind: VariableDeclarationKind) -> ParseResult<Statement> {
+    fn parse_var_statement(
+        &mut self,
+        kind: VariableDeclarationKind,
+    ) -> ParseResult<VariableDeclaration> {
         self.lexer.next_token();
         let id = self.parse_identifer()?;
         // Means we hit a variable declaration without an assignment (eg: let a;)
         if self.lexer.token == Token::Semicolon {
             self.lexer.next_token();
-            return Ok(Statement::VariableDeclaration(VariableDeclaration {
+            return Ok(VariableDeclaration {
                 declarations: vec![VariableDeclarator { id, init: None }],
                 kind,
-            }));
+            });
         }
 
         self.lexer.expect_token(Token::Equals);
@@ -262,10 +309,10 @@ impl Parser {
         // it will make printing easier.
         self.consume_semicolon();
 
-        Ok(Statement::VariableDeclaration(VariableDeclaration {
+        Ok(VariableDeclaration {
             declarations: vec![VariableDeclarator { id, init }],
             kind: kind,
-        }))
+        })
     }
 
     fn current_precedence(&self) -> OperatorPrecedence {

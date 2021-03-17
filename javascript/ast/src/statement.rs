@@ -5,6 +5,7 @@ pub enum Statement {
     Block(BlockStatement),
     Return(ReturnStatement),
     If(IfStatement),
+    For(ForStatement),
     FunctionDeclaration(FunctionDeclaration),
     VariableDeclaration(VariableDeclaration),
     Expression(ExpressionStatement),
@@ -25,6 +26,20 @@ pub struct IfStatement {
     pub test: Expression,
     pub consequent: Box<Statement>,
     pub alternate: Option<Box<Statement>>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum ForStatementInit {
+    VariableDeclaration(VariableDeclaration),
+    Expression(Expression),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ForStatement {
+    pub init: Option<ForStatementInit>,
+    pub test: Option<Expression>,
+    pub update: Option<Expression>,
+    pub body: Box<Statement>,
 }
 
 /* -------------------------------------------------------------------------- */

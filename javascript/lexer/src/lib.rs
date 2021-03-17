@@ -43,6 +43,16 @@ impl Lexer {
         }
     }
 
+    /// Reports the current token as unexpected
+    pub fn unexpected(&mut self) {
+        report_unexpected_token(
+            &self.input,
+            &format!("Unexpected token \"{}\"", self.token),
+            self.start,
+            self.end,
+        );
+    }
+
     pub fn next_token(&mut self) {
         self.skip_whitespace();
 

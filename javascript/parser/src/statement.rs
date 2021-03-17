@@ -1,5 +1,9 @@
-use javascript_ast::statement::{
-    BlockStatement, FunctionDeclaration, IfStatement, ReturnStatement, Statement,
+use javascript_ast::{
+    expression::Expression,
+    statement::{
+        BlockStatement, ForStatement, ForStatementInit, FunctionDeclaration, IfStatement,
+        ReturnStatement, Statement, VariableDeclarationKind,
+    },
 };
 use javascript_token::Token;
 
@@ -76,6 +80,82 @@ impl Parser {
             alternate: alternate,
             consequent: Box::new(consequent),
             test,
+        })
+    }
+
+    pub(crate) fn parse_for_statement(&mut self) -> ParseResult<ForStatement> {
+        self.lexer.next_token();
+
+        if self.lexer.token == Token::Await {
+            panic!("\"for await\" syntax is not yet supported");
+        }
+
+        self.lexer.expect_token(Token::OpenParen);
+        self.lexer.next_token();
+
+        let init: Option<ForStatementInit>;
+        let mut test: Option<Expression> = None;
+        let mut update: Option<Expression> = None;
+
+        match self.lexer.token {
+            Token::Let => {
+                init = self
+                    .parse_var_statement(VariableDeclarationKind::Let)
+                    .map(ForStatementInit::VariableDeclaration)
+                    .map(Some)?;
+            }
+            Token::Const => {
+                init = self
+                    .parse_var_statement(VariableDeclarationKind::Const)
+                    .map(ForStatementInit::VariableDeclaration)
+                    .map(Some)?;
+            }
+            Token::Var => {
+                init = self
+                    .parse_var_statement(VariableDeclarationKind::Var)
+                    .map(ForStatementInit::VariableDeclaration)
+                    .map(Some)?;
+            }
+            _ => {
+                init = self
+                    .parse_expression(OperatorPrecedence::Lowest)
+                    .map(ForStatementInit::Expression)
+                    .map(Some)?;
+            }
+        }
+
+        if self.lexer.token == Token::Of || self.lexer.token == Token::In {
+            self.lexer.unexpected();
+        }
+
+        if self.lexer.token == Token::Semicolon {
+            self.lexer.next_token();
+        }
+
+        if self.lexer.token != Token::Semicolon {
+            test = self
+                .parse_expression(OperatorPrecedence::Lowest)
+                .map(Some)?;
+        }
+
+        self.lexer.expect_token(Token::Semicolon);
+        self.lexer.next_token();
+
+        if self.lexer.token != Token::CloseParen {
+            update = self
+                .parse_expression(OperatorPrecedence::Lowest)
+                .map(Some)?;
+        }
+
+        self.lexer.expect_token(Token::CloseParen);
+        self.lexer.next_token();
+
+        let body = self.parse_statement().map(Box::new)?;
+        Ok(ForStatement {
+            body,
+            init,
+            test,
+            update,
         })
     }
 }

@@ -11,6 +11,7 @@ pub enum Expression {
     StringLiteral(StringLiteral),
     CallExpression(CallExpression),
     ConditionalExpression(ConditionalExpression),
+    UpdateExpression(UpdateExpression),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -62,4 +63,17 @@ pub struct ConditionalExpression {
     pub test: Box<Expression>,
     pub consequence: Box<Expression>,
     pub alternate: Box<Expression>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum UpdateOperator {
+    Increment,
+    Decrement,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct UpdateExpression {
+    pub prefix: bool,
+    pub argument: Box<Expression>,
+    pub operator: UpdateOperator,
 }

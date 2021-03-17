@@ -79,6 +79,7 @@ pub enum Token {
     SlashEquals,
 
     // Keywords
+    Await,
     As,
     Break,
     Case,
@@ -106,6 +107,7 @@ pub enum Token {
     Instanceof,
     New,
     Null,
+    Of,
     Return,
     Super,
     Switch,
@@ -196,6 +198,7 @@ impl std::fmt::Display for Token {
             Token::SlashEquals => write!(f, "/="),
 
             // Keywords
+            Token::Await => write!(f, "await"),
             Token::As => write!(f, "as"),
             Token::Break => write!(f, "break"),
             Token::Case => write!(f, "case"),
@@ -223,6 +226,7 @@ impl std::fmt::Display for Token {
             Token::Instanceof => write!(f, "instanceof"),
             Token::New => write!(f, "new"),
             Token::Null => write!(f, "null"),
+            Token::Of => write!(f, "of"),
             Token::Return => write!(f, "return"),
             Token::Super => write!(f, "super"),
             Token::Switch => write!(f, "switch"),
@@ -314,6 +318,7 @@ impl TokenLiteral for Token {
             Token::SlashEquals => "/=".into(),
 
             // Keywords
+            Token::Await => "await".into(),
             Token::As => "as".into(),
             Token::Break => "break".into(),
             Token::Case => "case".into(),
@@ -341,6 +346,7 @@ impl TokenLiteral for Token {
             Token::Instanceof => "instanceof".into(),
             Token::New => "new".into(),
             Token::Null => "null".into(),
+            Token::Of => "of".into(),
             Token::Return => "return".into(),
             Token::Super => "super".into(),
             Token::Switch => "switch".into(),
@@ -359,6 +365,7 @@ impl TokenLiteral for Token {
 
 pub fn lookup_identifer(identifier: &str) -> Token {
     match identifier {
+        "await" => Token::Await,
         "as" => Token::As,
         "break" => Token::Break,
         "case" => Token::Case,
@@ -386,6 +393,7 @@ pub fn lookup_identifer(identifier: &str) -> Token {
         "instanceof" => Token::Instanceof,
         "new" => Token::New,
         "null" => Token::Null,
+        "of" => Token::Of,
         "return" => Token::Return,
         "super" => Token::Super,
         "switch" => Token::Switch,

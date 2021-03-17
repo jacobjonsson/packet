@@ -127,6 +127,8 @@ fn test_tokens() {
         ("/=", Token::SlashEquals),
         //
         // Keywords
+        ("await", Token::Await),
+        ("as", Token::As),
         ("break", Token::Break),
         ("case", Token::Case),
         ("catch", Token::Catch),
