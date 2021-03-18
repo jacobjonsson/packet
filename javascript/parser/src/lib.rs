@@ -135,6 +135,34 @@ impl Parser {
                 self.lexer.next_token();
                 Ok(Statement::EmptyStatement(EmptyStatement {}))
             }
+            Token::While => {
+                self.lexer.next_token();
+                self.lexer.expect_token(Token::OpenParen);
+                self.lexer.next_token();
+                let test = self.parse_expression(OperatorPrecedence::Lowest)?;
+                self.lexer.expect_token(Token::CloseParen);
+                self.lexer.next_token();
+                let body = self.parse_statement()?;
+                Ok(Statement::WhileStatement(WhileStatement {
+                    body: Box::new(body),
+                    test,
+                }))
+            }
+            Token::Do => {
+                self.lexer.next_token();
+                let body = self.parse_statement()?;
+                self.lexer.expect_token(Token::While);
+                self.lexer.next_token();
+                self.lexer.expect_token(Token::OpenParen);
+                self.lexer.next_token();
+                let test = self.parse_expression(OperatorPrecedence::Lowest)?;
+                self.lexer.expect_token(Token::CloseParen);
+                self.lexer.next_token();
+                Ok(Statement::DoWhileStatement(DoWhileStatement {
+                    body: Box::new(body),
+                    test,
+                }))
+            }
             _ => self.parse_expression_statement(),
         }
     }

@@ -118,6 +118,28 @@ impl Printer {
                 self.print_statement(&f.body);
             }
 
+            Statement::DoWhileStatement(d) => {
+                self.print("do");
+                self.print_space();
+                self.print_statement(&d.body);
+                self.print_space();
+                self.print("while");
+                self.print_space();
+                self.print("(");
+                self.print_expression(&d.test);
+                self.print(")");
+            }
+
+            Statement::WhileStatement(w) => {
+                self.print("while");
+                self.print_space();
+                self.print("(");
+                self.print_expression(&w.test);
+                self.print(")");
+                self.print_space();
+                self.print_statement(&w.body);
+            }
+
             Statement::ImportDeclaration(i) => {
                 let mut items = 0;
 

@@ -9,6 +9,8 @@ pub enum Statement {
     ForInStatement(ForInStatement),
     ForOfStatement(ForOfStatement),
     EmptyStatement(EmptyStatement),
+    WhileStatement(WhileStatement),
+    DoWhileStatement(DoWhileStatement),
     ContinueStatement(ContinueStatement),
     BreakStatement(BreakStatement),
     FunctionDeclaration(FunctionDeclaration),
@@ -72,6 +74,18 @@ pub struct ContinueStatement {
 #[derive(Debug, PartialEq, Clone)]
 pub struct BreakStatement {
     pub label: Option<Identifier>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct WhileStatement {
+    pub test: Expression,
+    pub body: Box<Statement>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct DoWhileStatement {
+    pub test: Expression,
+    pub body: Box<Statement>,
 }
 
 /* -------------------------------------------------------------------------- */

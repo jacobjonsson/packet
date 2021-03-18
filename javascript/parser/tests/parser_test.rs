@@ -260,3 +260,23 @@ fn test_break_statement() {
 fn test_empty_statement() {
     expected_printed(";", ";");
 }
+
+#[test]
+fn test_while_statement() {
+    expected_printed("while (true) {}", "while (true) {}");
+    expected_printed("while (1 < 10) {}", "while ((1 < 10)) {}");
+    expected_printed(
+        "while (1 < 10) { return 3; }",
+        "while ((1 < 10)) { return 3; }",
+    );
+}
+
+#[test]
+fn test_do_while_statement() {
+    expected_printed("do {} while (true)", "do {} while (true)");
+    expected_printed("do {} while (1 < 10)", "do {} while ((1 < 10))");
+    expected_printed(
+        "do { return 3; } while (1 < 10)",
+        "do { return 3; } while ((1 < 10))",
+    );
+}
