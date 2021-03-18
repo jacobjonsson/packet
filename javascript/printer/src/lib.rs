@@ -264,6 +264,16 @@ impl Printer {
                 self.print_space();
                 self.print_expression(&a.right);
             }
+            Expression::LogicalExpression(l) => {
+                self.print_expression(&l.left);
+                self.print_space();
+                match &l.operator {
+                    LogicalOperator::AmpersandAmpersand => self.print("&&"),
+                    LogicalOperator::BarBar => self.print("||"),
+                };
+                self.print_space();
+                self.print_expression(&l.right);
+            }
             Expression::BinaryExpression(e) => {
                 self.print("(");
                 self.print_expression(e.left.as_ref());

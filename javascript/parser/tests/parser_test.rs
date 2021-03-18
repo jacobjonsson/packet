@@ -1,3 +1,8 @@
+use javascript_ast::{
+    expression::{Expression, Identifier, LogicalExpression, LogicalOperator},
+    statement::{ExpressionStatement, Statement},
+    Program,
+};
 use javascript_lexer::Lexer;
 use javascript_parser::Parser;
 use javascript_printer::Printer;
@@ -8,6 +13,13 @@ fn expected_printed(content: &str, expected: &str) {
     let program = parser.parse_program();
     let output = Printer::new().print_program(&program);
     assert_eq!(output, expected);
+}
+
+fn expected_ast(content: &str, expected: Program) {
+    let lexer = Lexer::new(content);
+    let mut parser = Parser::new(lexer);
+    let program = parser.parse_program();
+    assert_eq!(program, expected);
 }
 
 #[test]
@@ -176,4 +188,26 @@ fn test_assignment_expression() {
     expected_printed("a ^= 3 * 3", "a ^= (3 * 3)");
     expected_printed("a &= 1", "a &= 1");
     expected_printed("a &= 3 * 3", "a &= (3 * 3)");
+}
+
+#[test]
+fn test_logical_expression() {
+    expected_printed("3 + 3 || 1 * 2", "(3 + 3) || (1 * 2)");
+    expected_printed("3 + 3 && 1 * 2", "(3 + 3) && (1 * 2)");
+    expected_ast(
+        "a || b && c",
+        Program {
+            statements: vec![Statement::Expression(ExpressionStatement {
+                expression: Expression::LogicalExpression(LogicalExpression {
+                    left: Box::new(Expression::Identifier(Identifier { name: "a".into() })),
+                    operator: LogicalOperator::BarBar,
+                    right: Box::new(Expression::LogicalExpression(LogicalExpression {
+                        left: Box::new(Expression::Identifier(Identifier { name: "b".into() })),
+                        operator: LogicalOperator::AmpersandAmpersand,
+                        right: Box::new(Expression::Identifier(Identifier { name: "c".into() })),
+                    })),
+                }),
+            })],
+        },
+    )
 }

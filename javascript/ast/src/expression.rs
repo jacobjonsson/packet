@@ -6,6 +6,7 @@ pub enum Expression {
     IntegerLiteral(IntegerLiteral),
     AssignmentExpression(AssignmentExpression),
     BinaryExpression(BinaryExpression),
+    LogicalExpression(LogicalExpression),
     BooleanExpression(BooleanExpression),
     FunctionExpression(FunctionExpression),
     PrefixExpression(PrefixExpression),
@@ -124,5 +125,18 @@ pub enum AssignmentOperator {
 pub struct AssignmentExpression {
     pub operator: AssignmentOperator,
     pub left: Box<Expression>,
+    pub right: Box<Expression>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum LogicalOperator {
+    BarBar,
+    AmpersandAmpersand,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct LogicalExpression {
+    pub left: Box<Expression>,
+    pub operator: LogicalOperator,
     pub right: Box<Expression>,
 }

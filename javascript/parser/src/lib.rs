@@ -13,6 +13,8 @@ enum OperatorPrecedence {
     Lowest = 0,
     Assignment,
     Conditional,
+    LogicalOr,
+    LogicalAnd,
     Equals,
     Compare,
     LessGreater,
@@ -30,7 +32,9 @@ impl OperatorPrecedence {
             OperatorPrecedence::Lowest => OperatorPrecedence::Lowest,
             OperatorPrecedence::Assignment => OperatorPrecedence::Lowest,
             OperatorPrecedence::Conditional => OperatorPrecedence::Assignment,
-            OperatorPrecedence::Equals => OperatorPrecedence::Conditional,
+            OperatorPrecedence::LogicalOr => OperatorPrecedence::Conditional,
+            OperatorPrecedence::LogicalAnd => OperatorPrecedence::LogicalOr,
+            OperatorPrecedence::Equals => OperatorPrecedence::LogicalAnd,
             OperatorPrecedence::Compare => OperatorPrecedence::Equals,
             OperatorPrecedence::LessGreater => OperatorPrecedence::LessGreater,
             OperatorPrecedence::Sum => OperatorPrecedence::Sum,
@@ -46,7 +50,9 @@ impl OperatorPrecedence {
         match &self {
             OperatorPrecedence::Lowest => OperatorPrecedence::Assignment,
             OperatorPrecedence::Assignment => OperatorPrecedence::Conditional,
-            OperatorPrecedence::Conditional => OperatorPrecedence::Equals,
+            OperatorPrecedence::Conditional => OperatorPrecedence::LogicalOr,
+            OperatorPrecedence::LogicalOr => OperatorPrecedence::LogicalAnd,
+            OperatorPrecedence::LogicalAnd => OperatorPrecedence::Equals,
             OperatorPrecedence::Equals => OperatorPrecedence::Compare,
             OperatorPrecedence::Compare => OperatorPrecedence::LessGreater,
             OperatorPrecedence::LessGreater => OperatorPrecedence::Sum,
@@ -564,6 +570,32 @@ impl Parser {
                         operator: UpdateOperator::Decrement,
                         prefix: false,
                     });
+                }
+
+                // a || b
+                Token::BarBar => {
+                    if level >= OperatorPrecedence::LogicalOr {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::LogicalExpression(LogicalExpression {
+                        left: Box::new(expression),
+                        operator: LogicalOperator::BarBar,
+                        right: Box::new(self.parse_expression(OperatorPrecedence::LogicalOr)?),
+                    })
+                }
+
+                // a && b
+                Token::AmpersandAmpersand => {
+                    if level >= OperatorPrecedence::LogicalAnd {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::LogicalExpression(LogicalExpression {
+                        left: Box::new(expression),
+                        operator: LogicalOperator::AmpersandAmpersand,
+                        right: Box::new(self.parse_expression(OperatorPrecedence::LogicalAnd)?),
+                    })
                 }
 
                 _ => {
