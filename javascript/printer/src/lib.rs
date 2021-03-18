@@ -23,7 +23,10 @@ impl Printer {
 impl Printer {
     fn print_statement(&mut self, statement: &Statement) {
         match statement {
-            Statement::VariableDeclaration(v) => self.print_variable_declaration(v),
+            Statement::VariableDeclaration(v) => {
+                self.print_variable_declaration(v);
+                self.print(";");
+            }
             Statement::EmptyStatement(_) => self.print(";"),
 
             Statement::Return(r) => {
@@ -64,7 +67,8 @@ impl Printer {
                     match init {
                         ForStatementInit::Expression(e) => self.print_expression(e),
                         ForStatementInit::VariableDeclaration(v) => {
-                            self.print_variable_declaration(v)
+                            self.print_variable_declaration(v);
+                            self.print(";");
                         }
                     }
                 }
@@ -79,6 +83,36 @@ impl Printer {
                 if let Some(update) = &f.update {
                     self.print_expression(update);
                 }
+                self.print(")");
+                self.print_space();
+                self.print_statement(&f.body);
+            }
+
+            Statement::ForInStatement(f) => {
+                self.print("for");
+                self.print_space();
+                self.print("(");
+                match &f.left {
+                    ForStatementInit::Expression(e) => self.print_expression(e),
+                    ForStatementInit::VariableDeclaration(v) => self.print_variable_declaration(v),
+                };
+                self.print(" in ");
+                self.print_expression(&f.right);
+                self.print(")");
+                self.print_space();
+                self.print_statement(&f.body);
+            }
+
+            Statement::ForOfStatement(f) => {
+                self.print("for");
+                self.print_space();
+                self.print("(");
+                match &f.left {
+                    ForStatementInit::Expression(e) => self.print_expression(e),
+                    ForStatementInit::VariableDeclaration(v) => self.print_variable_declaration(v),
+                };
+                self.print(" of ");
+                self.print_expression(&f.right);
                 self.print(")");
                 self.print_space();
                 self.print_statement(&f.body);
@@ -193,7 +227,6 @@ impl Printer {
                 self.print_expression(expression);
             }
         }
-        self.print(";");
     }
 
     fn print_block_statement(&mut self, block_statement: &BlockStatement) {

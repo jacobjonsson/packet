@@ -6,6 +6,8 @@ pub enum Statement {
     Return(ReturnStatement),
     If(IfStatement),
     For(ForStatement),
+    ForInStatement(ForInStatement),
+    ForOfStatement(ForOfStatement),
     EmptyStatement(EmptyStatement),
     ContinueStatement(ContinueStatement),
     BreakStatement(BreakStatement),
@@ -45,6 +47,20 @@ pub struct ForStatement {
     pub init: Option<ForStatementInit>,
     pub test: Option<Expression>,
     pub update: Option<Expression>,
+    pub body: Box<Statement>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ForInStatement {
+    pub left: ForStatementInit,
+    pub right: Expression,
+    pub body: Box<Statement>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ForOfStatement {
+    pub left: ForStatementInit,
+    pub right: Expression,
     pub body: Box<Statement>,
 }
 

@@ -1,10 +1,4 @@
-use javascript_ast::{
-    expression::Expression,
-    statement::{
-        BlockStatement, ForStatement, ForStatementInit, FunctionDeclaration, IfStatement,
-        ReturnStatement, Statement, VariableDeclarationKind,
-    },
-};
+use javascript_ast::{expression::*, statement::*};
 use javascript_token::Token;
 
 use crate::{OperatorPrecedence, ParseResult, Parser};
@@ -83,7 +77,7 @@ impl Parser {
         })
     }
 
-    pub(crate) fn parse_for_statement(&mut self) -> ParseResult<ForStatement> {
+    pub(crate) fn parse_for_statement(&mut self) -> ParseResult<Statement> {
         self.lexer.next_token();
 
         if self.lexer.token == Token::Await {
@@ -124,8 +118,44 @@ impl Parser {
             }
         }
 
-        if self.lexer.token == Token::Of || self.lexer.token == Token::In {
-            self.lexer.unexpected();
+        if self.lexer.token == Token::Of {
+            // TODO: We should check for declarations here and forbid them if they exist.
+            self.lexer.next_token();
+            let right = self.parse_expression(OperatorPrecedence::Lowest)?;
+            self.lexer.expect_token(Token::CloseParen);
+            self.lexer.next_token();
+            let body = self.parse_statement()?;
+            if let Some(left) = init {
+                return Ok(Statement::ForOfStatement(ForOfStatement {
+                    body: Box::new(body),
+                    left,
+                    right,
+                }));
+            } else {
+                // This essentially means we've somehow reached something like
+                // "for (in <expression>) {}"" which should be impossible to reach.
+                self.lexer.unexpected();
+            }
+        }
+
+        if self.lexer.token == Token::In {
+            // TODO: We should check for declarations here and forbid them if they exist.
+            self.lexer.next_token();
+            let right = self.parse_expression(OperatorPrecedence::Lowest)?;
+            self.lexer.expect_token(Token::CloseParen);
+            self.lexer.next_token();
+            let body = self.parse_statement()?;
+            if let Some(left) = init {
+                return Ok(Statement::ForInStatement(ForInStatement {
+                    body: Box::new(body),
+                    left,
+                    right,
+                }));
+            } else {
+                // This essentially means we've somehow reached something like
+                // "for (in <expression>) {}"" which should be impossible to reach.
+                self.lexer.unexpected();
+            }
         }
 
         if self.lexer.token == Token::Semicolon {
@@ -151,11 +181,11 @@ impl Parser {
         self.lexer.next_token();
 
         let body = self.parse_statement().map(Box::new)?;
-        Ok(ForStatement {
+        Ok(Statement::For(ForStatement {
             body,
             init,
             test,
             update,
-        })
+        }))
     }
 }

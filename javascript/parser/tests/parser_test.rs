@@ -30,6 +30,8 @@ fn test_variable_declaration() {
     expected_printed("var a;", "var a;");
     expected_printed("let a;", "let a;");
     expected_printed("const a;", "const a;");
+    expected_printed("const a", "const a;");
+    expected_printed("const a = 1", "const a = 1;");
 }
 
 #[test]
@@ -151,6 +153,36 @@ fn test_for_statement() {
     expected_printed(
         "for (let a = 1; a < 10; a++) {}",
         "for (let a = 1; (a < 10); a++) {}",
+    );
+    expected_printed(
+        "for (const a = 1; a < 10; a++) {}",
+        "for (const a = 1; (a < 10); a++) {}",
+    );
+    expected_printed(
+        "for (let a = 1; a < 10; a++) {}",
+        "for (let a = 1; (a < 10); a++) {}",
+    );
+}
+
+#[test]
+fn parse_for_in_statement() {
+    expected_printed("for (const a in items) {}", "for (const a in items) {}");
+    expected_printed("for (var a in items) {}", "for (var a in items) {}");
+    expected_printed("for (let a in items) {}", "for (let a in items) {}");
+    expected_printed(
+        "for (let a in items) { return 3 + 3; }",
+        "for (let a in items) { return (3 + 3); }",
+    );
+}
+
+#[test]
+fn parse_for_of_statement() {
+    expected_printed("for (const a of items) {}", "for (const a of items) {}");
+    expected_printed("for (var a of items) {}", "for (var a of items) {}");
+    expected_printed("for (let a of items) {}", "for (let a of items) {}");
+    expected_printed(
+        "for (let a of items) { return 3 + 3; }",
+        "for (let a of items) { return (3 + 3); }",
     );
 }
 

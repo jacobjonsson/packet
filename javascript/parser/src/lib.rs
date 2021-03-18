@@ -112,7 +112,7 @@ impl Parser {
             Token::Return => self.parse_return_statement().map(Statement::Return),
             Token::If => self.parse_if_statement().map(Statement::If),
             Token::OpenBrace => self.parse_block_statement().map(Statement::Block),
-            Token::For => self.parse_for_statement().map(Statement::For),
+            Token::For => self.parse_for_statement(),
             Token::Continue => {
                 self.lexer.next_token();
                 let mut label: Option<Identifier> = None;
@@ -683,22 +683,19 @@ impl Parser {
     ) -> ParseResult<VariableDeclaration> {
         self.lexer.next_token();
         let id = self.parse_identifer()?;
+
         // Means we hit a variable declaration without an assignment (eg: let a;)
-        if self.lexer.token == Token::Semicolon {
-            self.lexer.next_token();
+        if self.lexer.token != Token::Equals {
+            self.consume_semicolon();
             return Ok(VariableDeclaration {
                 declarations: vec![VariableDeclarator { id, init: None }],
                 kind,
             });
         }
 
-        self.lexer.expect_token(Token::Equals);
         self.lexer.next_token();
 
         let init = Some(self.parse_expression(OperatorPrecedence::Lowest)?);
-        // We can't expect a semicolon here since they are optional in JS.
-        // But we should insert semicolons instead of just skipping when they are missing,
-        // it will make printing easier.
         self.consume_semicolon();
 
         Ok(VariableDeclaration {
