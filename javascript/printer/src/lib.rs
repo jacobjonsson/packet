@@ -242,6 +242,28 @@ impl Printer {
                 self.print(&e.value.to_string());
             }
             Expression::UpdateExpression(u) => self.print_update_expression(u),
+            Expression::AssignmentExpression(a) => {
+                self.print_expression(&a.left);
+                self.print_space();
+                match &a.operator {
+                    AssignmentOperator::Equals => self.print("="),
+                    AssignmentOperator::PlusEquals => self.print("+="),
+                    AssignmentOperator::MinusEquals => self.print("-="),
+                    AssignmentOperator::AsteriskEquals => self.print("*="),
+                    AssignmentOperator::SlashEquals => self.print("/="),
+                    AssignmentOperator::PercentEquals => self.print("%="),
+                    AssignmentOperator::LessThanLessThanEquals => self.print("<<="),
+                    AssignmentOperator::GreaterThanGreaterThanEquals => self.print(">>="),
+                    AssignmentOperator::GreaterThanGreaterThanGreaterThanEquals => {
+                        self.print(">>>=")
+                    }
+                    AssignmentOperator::BarEquals => self.print("|="),
+                    AssignmentOperator::CaretEquals => self.print("^="),
+                    AssignmentOperator::AmpersandEquals => self.print("&="),
+                }
+                self.print_space();
+                self.print_expression(&a.right);
+            }
             Expression::BinaryExpression(e) => {
                 self.print("(");
                 self.print_expression(e.left.as_ref());

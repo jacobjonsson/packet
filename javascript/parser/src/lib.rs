@@ -2,33 +2,61 @@ mod expression;
 mod import;
 mod statement;
 
-use javascript_ast::{
-    expression::{
-        BinaryExpression, BinaryOperator, BooleanExpression, CallExpression, ConditionalExpression,
-        Expression, Identifier, IntegerLiteral, PrefixExpression, StringLiteral, UpdateExpression,
-        UpdateOperator,
-    },
-    statement::*,
-    Program,
-};
+use javascript_ast::{expression::*, statement::*, Program};
 use javascript_lexer::Lexer;
 use javascript_token::{Token, TokenLiteral};
 
 /// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_Precedence#table
 /// https://github.com/evanw/esbuild/blob/51b785f89933426afe675b4e633cf531d5a9890d/internal/js_ast/js_ast.go#L29
-#[allow(dead_code)]
 #[derive(Debug, PartialEq, PartialOrd)]
 enum OperatorPrecedence {
-    Lowest = 1,
-    Conditional = 2,
-    Equals = 3,
-    Compare = 4,
-    LessGreater = 5,
-    Sum = 6,
-    Product = 7,
-    Prefix = 8,
-    Postfix = 9,
-    Call = 10,
+    Lowest = 0,
+    Assignment,
+    Conditional,
+    Equals,
+    Compare,
+    LessGreater,
+    Sum,
+    Product,
+    Prefix,
+    Postfix,
+    Call,
+}
+
+// Keep these in sync with the above order
+impl OperatorPrecedence {
+    pub fn lower(&self) -> OperatorPrecedence {
+        match &self {
+            OperatorPrecedence::Lowest => OperatorPrecedence::Lowest,
+            OperatorPrecedence::Assignment => OperatorPrecedence::Lowest,
+            OperatorPrecedence::Conditional => OperatorPrecedence::Assignment,
+            OperatorPrecedence::Equals => OperatorPrecedence::Conditional,
+            OperatorPrecedence::Compare => OperatorPrecedence::Equals,
+            OperatorPrecedence::LessGreater => OperatorPrecedence::LessGreater,
+            OperatorPrecedence::Sum => OperatorPrecedence::Sum,
+            OperatorPrecedence::Product => OperatorPrecedence::Sum,
+            OperatorPrecedence::Prefix => OperatorPrecedence::Product,
+            OperatorPrecedence::Postfix => OperatorPrecedence::Prefix,
+            OperatorPrecedence::Call => OperatorPrecedence::Postfix,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn raise(&self) -> OperatorPrecedence {
+        match &self {
+            OperatorPrecedence::Lowest => OperatorPrecedence::Assignment,
+            OperatorPrecedence::Assignment => OperatorPrecedence::Conditional,
+            OperatorPrecedence::Conditional => OperatorPrecedence::Equals,
+            OperatorPrecedence::Equals => OperatorPrecedence::Compare,
+            OperatorPrecedence::Compare => OperatorPrecedence::LessGreater,
+            OperatorPrecedence::LessGreater => OperatorPrecedence::Sum,
+            OperatorPrecedence::Sum => OperatorPrecedence::Product,
+            OperatorPrecedence::Product => OperatorPrecedence::Prefix,
+            OperatorPrecedence::Prefix => OperatorPrecedence::Postfix,
+            OperatorPrecedence::Postfix => OperatorPrecedence::Call,
+            OperatorPrecedence::Call => OperatorPrecedence::Call,
+        }
+    }
 }
 
 pub struct ParserError(String);
@@ -166,6 +194,186 @@ impl Parser {
 
         loop {
             match &self.lexer.token {
+                // a = 1
+                Token::Equals => {
+                    if level >= OperatorPrecedence::Assignment {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::AssignmentExpression(AssignmentExpression {
+                        left: Box::new(expression),
+                        operator: AssignmentOperator::Equals,
+                        right: Box::new(
+                            self.parse_expression(OperatorPrecedence::Assignment.lower())?,
+                        ),
+                    })
+                }
+
+                // a += 1
+                Token::PlusEquals => {
+                    if level >= OperatorPrecedence::Assignment {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::AssignmentExpression(AssignmentExpression {
+                        left: Box::new(expression),
+                        operator: AssignmentOperator::PlusEquals,
+                        right: Box::new(
+                            self.parse_expression(OperatorPrecedence::Assignment.lower())?,
+                        ),
+                    })
+                }
+
+                // a -= 1
+                Token::MinusEquals => {
+                    if level >= OperatorPrecedence::Assignment {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::AssignmentExpression(AssignmentExpression {
+                        left: Box::new(expression),
+                        operator: AssignmentOperator::MinusEquals,
+                        right: Box::new(
+                            self.parse_expression(OperatorPrecedence::Assignment.lower())?,
+                        ),
+                    })
+                }
+
+                // a *= 1
+                Token::AsteriskEquals => {
+                    if level >= OperatorPrecedence::Assignment {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::AssignmentExpression(AssignmentExpression {
+                        left: Box::new(expression),
+                        operator: AssignmentOperator::AsteriskEquals,
+                        right: Box::new(
+                            self.parse_expression(OperatorPrecedence::Assignment.lower())?,
+                        ),
+                    })
+                }
+
+                // a /= 1
+                Token::SlashEquals => {
+                    if level >= OperatorPrecedence::Assignment {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::AssignmentExpression(AssignmentExpression {
+                        left: Box::new(expression),
+                        operator: AssignmentOperator::SlashEquals,
+                        right: Box::new(
+                            self.parse_expression(OperatorPrecedence::Assignment.lower())?,
+                        ),
+                    })
+                }
+
+                // a %= 1
+                Token::PercentEquals => {
+                    if level >= OperatorPrecedence::Assignment {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::AssignmentExpression(AssignmentExpression {
+                        left: Box::new(expression),
+                        operator: AssignmentOperator::PercentEquals,
+                        right: Box::new(
+                            self.parse_expression(OperatorPrecedence::Assignment.lower())?,
+                        ),
+                    })
+                }
+
+                // a <<= 1
+                Token::LessThanLessThanEquals => {
+                    if level >= OperatorPrecedence::Assignment {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::AssignmentExpression(AssignmentExpression {
+                        left: Box::new(expression),
+                        operator: AssignmentOperator::LessThanLessThanEquals,
+                        right: Box::new(
+                            self.parse_expression(OperatorPrecedence::Assignment.lower())?,
+                        ),
+                    })
+                }
+
+                // a >>= 1
+                Token::GreaterThanGreaterThanEquals => {
+                    if level >= OperatorPrecedence::Assignment {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::AssignmentExpression(AssignmentExpression {
+                        left: Box::new(expression),
+                        operator: AssignmentOperator::GreaterThanGreaterThanEquals,
+                        right: Box::new(
+                            self.parse_expression(OperatorPrecedence::Assignment.lower())?,
+                        ),
+                    })
+                }
+
+                // a >>>= 1
+                Token::GreaterThanGreaterThanGreaterThanEquals => {
+                    if level >= OperatorPrecedence::Assignment {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::AssignmentExpression(AssignmentExpression {
+                        left: Box::new(expression),
+                        operator: AssignmentOperator::GreaterThanGreaterThanGreaterThanEquals,
+                        right: Box::new(
+                            self.parse_expression(OperatorPrecedence::Assignment.lower())?,
+                        ),
+                    })
+                }
+
+                // a |= 1
+                Token::BarEquals => {
+                    if level >= OperatorPrecedence::Assignment {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::AssignmentExpression(AssignmentExpression {
+                        left: Box::new(expression),
+                        operator: AssignmentOperator::BarEquals,
+                        right: Box::new(
+                            self.parse_expression(OperatorPrecedence::Assignment.lower())?,
+                        ),
+                    })
+                }
+
+                // a ^= 1
+                Token::CaretEquals => {
+                    if level >= OperatorPrecedence::Assignment {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::AssignmentExpression(AssignmentExpression {
+                        left: Box::new(expression),
+                        operator: AssignmentOperator::CaretEquals,
+                        right: Box::new(
+                            self.parse_expression(OperatorPrecedence::Assignment.lower())?,
+                        ),
+                    })
+                }
+
+                // a &= 1
+                Token::AmpersandEquals => {
+                    if level >= OperatorPrecedence::Assignment {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::AssignmentExpression(AssignmentExpression {
+                        left: Box::new(expression),
+                        operator: AssignmentOperator::AmpersandEquals,
+                        right: Box::new(
+                            self.parse_expression(OperatorPrecedence::Assignment.lower())?,
+                        ),
+                    })
+                }
+
                 // 1 + 2
                 Token::Plus => {
                     if level >= OperatorPrecedence::Sum {

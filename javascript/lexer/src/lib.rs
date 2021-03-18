@@ -171,6 +171,9 @@ impl Lexer {
                     } else {
                         self.token = Token::AsteriskAsterisk;
                     }
+                } else if self.character == Some('=') {
+                    self.step();
+                    self.token = Token::AsteriskEquals;
                 } else {
                     self.token = Token::Asterisk;
                 }

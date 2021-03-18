@@ -112,6 +112,7 @@ fn test_tokens() {
         // Assignments
         ("&&=", Token::AmpersandAmpersandEquals),
         ("&=", Token::AmpersandEquals),
+        ("*=", Token::AsteriskEquals),
         ("**=", Token::AsteriskAsteriskEquals),
         ("||=", Token::BarBarEquals),
         ("|=", Token::BarEquals),

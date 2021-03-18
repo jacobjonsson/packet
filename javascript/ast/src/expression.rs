@@ -4,6 +4,7 @@ use crate::statement::BlockStatement;
 pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
+    AssignmentExpression(AssignmentExpression),
     BinaryExpression(BinaryExpression),
     BooleanExpression(BooleanExpression),
     FunctionExpression(FunctionExpression),
@@ -101,4 +102,27 @@ pub struct UpdateExpression {
     pub prefix: bool,
     pub argument: Box<Expression>,
     pub operator: UpdateOperator,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum AssignmentOperator {
+    Equals,
+    PlusEquals,
+    MinusEquals,
+    AsteriskEquals,
+    SlashEquals,
+    PercentEquals,
+    LessThanLessThanEquals,
+    GreaterThanGreaterThanEquals,
+    GreaterThanGreaterThanGreaterThanEquals,
+    BarEquals,
+    CaretEquals,
+    AmpersandEquals,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct AssignmentExpression {
+    pub operator: AssignmentOperator,
+    pub left: Box<Expression>,
+    pub right: Box<Expression>,
 }

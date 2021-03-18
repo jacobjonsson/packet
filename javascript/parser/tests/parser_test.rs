@@ -149,3 +149,31 @@ fn test_update_expression() {
     expected_printed("--a", "--a");
     expected_printed("a--", "a--");
 }
+
+#[test]
+fn test_assignment_expression() {
+    expected_printed("a = 1", "a = 1");
+    expected_printed("a = 3 * 3", "a = (3 * 3)");
+    expected_printed("a += 1", "a += 1");
+    expected_printed("a += 3 * 3", "a += (3 * 3)");
+    expected_printed("a -= 1", "a -= 1");
+    expected_printed("a -= 3 * 3", "a -= (3 * 3)");
+    expected_printed("a *= 1", "a *= 1");
+    expected_printed("a *= 3 * 3", "a *= (3 * 3)");
+    expected_printed("a /= 1", "a /= 1");
+    expected_printed("a /= 3 * 3", "a /= (3 * 3)");
+    expected_printed("a %= 1", "a %= 1");
+    expected_printed("a %= 3 * 3", "a %= (3 * 3)");
+    expected_printed("a <<= 1", "a <<= 1");
+    expected_printed("a <<= 3 * 3", "a <<= (3 * 3)");
+    expected_printed("a >>= 1", "a >>= 1");
+    expected_printed("a >>= 3 * 3", "a >>= (3 * 3)");
+    expected_printed("a >>>= 1", "a >>>= 1");
+    expected_printed("a >>>= 3 * 3", "a >>>= (3 * 3)");
+    expected_printed("a |= 1", "a |= 1");
+    expected_printed("a |= 3 * 3", "a |= (3 * 3)");
+    expected_printed("a ^= 1", "a ^= 1");
+    expected_printed("a ^= 3 * 3", "a ^= (3 * 3)");
+    expected_printed("a &= 1", "a &= 1");
+    expected_printed("a &= 3 * 3", "a &= (3 * 3)");
+}
