@@ -211,3 +211,9 @@ fn test_logical_expression() {
         },
     )
 }
+
+#[test]
+fn test_continue_statement() {
+    expected_printed("continue;", "continue");
+    expected_printed("continue label1;", "continue label1");
+}

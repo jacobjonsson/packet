@@ -113,6 +113,15 @@ impl Parser {
             Token::If => self.parse_if_statement().map(Statement::If),
             Token::OpenBrace => self.parse_block_statement().map(Statement::Block),
             Token::For => self.parse_for_statement().map(Statement::For),
+            Token::Continue => {
+                self.lexer.next_token();
+                let mut label: Option<Identifier> = None;
+                if self.lexer.token != Token::Semicolon {
+                    label = Some(self.parse_identifer()?);
+                }
+                self.consume_semicolon();
+                Ok(Statement::ContinueStatement(ContinueStatement { label }))
+            }
             _ => self.parse_expression_statement(),
         }
     }

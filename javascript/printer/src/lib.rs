@@ -40,6 +40,14 @@ impl Printer {
 
             Statement::If(i) => self.print_if_statement(i),
 
+            Statement::ContinueStatement(c) => {
+                self.print("continue");
+                if let Some(label) = &c.label {
+                    self.print_space();
+                    self.print_identifier(label);
+                }
+            }
+
             Statement::For(f) => {
                 self.print("for");
                 self.print_space();
