@@ -4,8 +4,9 @@ mod statement;
 
 use javascript_ast::{
     expression::{
-        BooleanExpression, Expression, Identifier, InfixExpression, IntegerLiteral,
-        PrefixExpression, StringLiteral, UpdateExpression, UpdateOperator,
+        BinaryExpression, BinaryOperator, BooleanExpression, CallExpression, ConditionalExpression,
+        Expression, Identifier, IntegerLiteral, PrefixExpression, StringLiteral, UpdateExpression,
+        UpdateOperator,
     },
     statement::*,
     Program,
@@ -15,37 +16,19 @@ use javascript_token::{Token, TokenLiteral};
 
 /// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_Precedence#table
 /// https://github.com/evanw/esbuild/blob/51b785f89933426afe675b4e633cf531d5a9890d/internal/js_ast/js_ast.go#L29
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, PartialOrd)]
 enum OperatorPrecedence {
     Lowest = 1,
     Conditional = 2,
     Equals = 3,
-    LessGreater = 4,
-    Sum = 5,
-    Product = 6,
-    Prefix = 7,
-    Postfix = 8,
-    Call = 9,
-}
-
-fn token_to_precedence(token: &Token) -> OperatorPrecedence {
-    match token {
-        Token::EqualsEquals => OperatorPrecedence::Equals,
-        Token::EqualsEqualsEquals => OperatorPrecedence::Equals,
-        Token::ExclamationEquals => OperatorPrecedence::Equals,
-        Token::ExclamationEqualsEquals => OperatorPrecedence::Equals,
-        Token::LessThan => OperatorPrecedence::LessGreater,
-        Token::GreaterThan => OperatorPrecedence::LessGreater,
-        Token::Plus => OperatorPrecedence::Sum,
-        Token::Minus => OperatorPrecedence::Sum,
-        Token::Slash => OperatorPrecedence::Product,
-        Token::Asterisk => OperatorPrecedence::Product,
-        Token::PlusPlus => OperatorPrecedence::Postfix,
-        Token::MinusMinus => OperatorPrecedence::Postfix,
-        Token::OpenParen => OperatorPrecedence::Call,
-        Token::Question => OperatorPrecedence::Conditional,
-        _ => OperatorPrecedence::Lowest,
-    }
+    Compare = 4,
+    LessGreater = 5,
+    Sum = 6,
+    Product = 7,
+    Prefix = 8,
+    Postfix = 9,
+    Call = 10,
 }
 
 pub struct ParserError(String);
@@ -116,17 +99,9 @@ impl Parser {
     }
 
     fn parse_expression(&mut self, precedence: OperatorPrecedence) -> ParseResult<Expression> {
-        let mut left = self.parse_prefix()?;
+        let left = self.parse_prefix()?;
 
-        while self.lexer.token != Token::Semicolon && precedence < self.current_precedence() {
-            if let Ok(s) = self.parse_infix(left.clone()) {
-                left = s;
-            } else {
-                return Ok(left);
-            }
-        }
-
-        Ok(left)
+        self.parse_suffix(precedence, left)
     }
 
     fn parse_prefix(&mut self) -> ParseResult<Expression> {
@@ -182,58 +157,213 @@ impl Parser {
         }))
     }
 
-    fn parse_infix(&mut self, left: Expression) -> ParseResult<Expression> {
-        println!("{}", self.lexer.token);
-        match &self.lexer.token {
-            Token::Plus => self.parse_infix_expression(left),
-            Token::Minus => self.parse_infix_expression(left),
-            Token::Slash => self.parse_infix_expression(left),
-            Token::Asterisk => self.parse_infix_expression(left),
-            Token::EqualsEquals => self.parse_infix_expression(left),
-            Token::EqualsEqualsEquals => self.parse_infix_expression(left),
-            Token::ExclamationEquals => self.parse_infix_expression(left),
-            Token::ExclamationEqualsEquals => self.parse_infix_expression(left),
-            Token::LessThan => self.parse_infix_expression(left),
-            Token::GreaterThan => self.parse_infix_expression(left),
-            Token::OpenParen => self
-                .parse_call_expression(left)
-                .map(Expression::CallExpression),
-            Token::Question => self
-                .parse_conditional_expression(left)
-                .map(Expression::ConditionalExpression),
-            Token::PlusPlus => {
-                self.lexer.next_token();
-                Ok(Expression::UpdateExpression(UpdateExpression {
-                    operator: UpdateOperator::Increment,
-                    argument: Box::new(left),
-                    prefix: false,
-                }))
-            }
-            Token::MinusMinus => {
-                self.lexer.next_token();
-                Ok(Expression::UpdateExpression(UpdateExpression {
-                    operator: UpdateOperator::Decrement,
-                    argument: Box::new(left),
-                    prefix: false,
-                }))
-            }
-            _ => {
-                self.lexer.unexpected();
-                return Err(ParserError("".into()));
-            }
-        }
-    }
+    fn parse_suffix(
+        &mut self,
+        level: OperatorPrecedence,
+        left: Expression,
+    ) -> ParseResult<Expression> {
+        let mut expression = left;
 
-    fn parse_infix_expression(&mut self, left: Expression) -> ParseResult<Expression> {
-        let operator = self.lexer.token.token_literal();
-        let precedence = self.current_precedence();
-        self.lexer.next_token();
-        let right = self.parse_expression(precedence)?;
-        Ok(Expression::InfixExpression(InfixExpression {
-            left: Box::new(left),
-            operator,
-            right: Box::new(right),
-        }))
+        loop {
+            match &self.lexer.token {
+                // 1 + 2
+                Token::Plus => {
+                    if level >= OperatorPrecedence::Sum {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression.clone()),
+                        operator: BinaryOperator::Plus,
+                        right: Box::new(self.parse_expression(OperatorPrecedence::Sum)?),
+                    });
+                }
+
+                // 1 - 2
+                Token::Minus => {
+                    if level >= OperatorPrecedence::Sum {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression.clone()),
+                        operator: BinaryOperator::Minus,
+                        right: Box::new(self.parse_expression(OperatorPrecedence::Sum)?),
+                    });
+                }
+
+                // 1 / 2
+                Token::Slash => {
+                    if level >= OperatorPrecedence::Product {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression.clone()),
+                        operator: BinaryOperator::Slash,
+                        right: Box::new(self.parse_expression(OperatorPrecedence::Product)?),
+                    });
+                }
+
+                // 1 * 2
+                Token::Asterisk => {
+                    if level >= OperatorPrecedence::Product {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression.clone()),
+                        operator: BinaryOperator::Asterisk,
+                        right: Box::new(self.parse_expression(OperatorPrecedence::Product)?),
+                    });
+                }
+
+                // 1 == 1
+                Token::EqualsEquals => {
+                    if level >= OperatorPrecedence::Equals {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression.clone()),
+                        operator: BinaryOperator::EqualsEquals,
+                        right: Box::new(self.parse_expression(OperatorPrecedence::Equals)?),
+                    });
+                }
+
+                // 1 === 1
+                Token::EqualsEqualsEquals => {
+                    if level >= OperatorPrecedence::Equals {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression.clone()),
+                        operator: BinaryOperator::EqualsEqualsEquals,
+                        right: Box::new(self.parse_expression(OperatorPrecedence::Equals)?),
+                    });
+                }
+
+                // 1 != 2
+                Token::ExclamationEquals => {
+                    if level >= OperatorPrecedence::Equals {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression.clone()),
+                        operator: BinaryOperator::ExclamationEquals,
+                        right: Box::new(self.parse_expression(OperatorPrecedence::Equals)?),
+                    });
+                }
+
+                // 1 !== 2
+                Token::ExclamationEqualsEquals => {
+                    if level >= OperatorPrecedence::Equals {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression.clone()),
+                        operator: BinaryOperator::ExclamationEqualsEquals,
+                        right: Box::new(self.parse_expression(OperatorPrecedence::Equals)?),
+                    });
+                }
+
+                // 1 < 2
+                Token::LessThan => {
+                    if level >= OperatorPrecedence::Compare {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression.clone()),
+                        operator: BinaryOperator::LessThan,
+                        right: Box::new(self.parse_expression(OperatorPrecedence::Compare)?),
+                    });
+                }
+
+                // 1 > 2
+                Token::GreaterThan => {
+                    if level >= OperatorPrecedence::Compare {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression.clone()),
+                        operator: BinaryOperator::GreaterThan,
+                        right: Box::new(self.parse_expression(OperatorPrecedence::Compare)?),
+                    });
+                }
+
+                Token::OpenParen => {
+                    if level >= OperatorPrecedence::Call {
+                        return Ok(expression);
+                    }
+
+                    let function = match expression {
+                        Expression::Identifier(i) => i,
+                        _ => {
+                            self.lexer.unexpected();
+                            panic!(); // We panic above, this is just to satisfy the compiler.
+                        }
+                    };
+                    let arguments = self.parse_call_expression_arguments()?;
+
+                    expression = Expression::CallExpression(CallExpression {
+                        arguments,
+                        function,
+                    });
+                }
+
+                Token::Question => {
+                    if level >= OperatorPrecedence::Conditional {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    let consequence = self.parse_expression(OperatorPrecedence::Lowest)?;
+                    self.lexer.expect_token(Token::Colon);
+                    self.lexer.next_token();
+                    let alternate = self.parse_expression(OperatorPrecedence::Lowest)?;
+                    expression = Expression::ConditionalExpression(ConditionalExpression {
+                        test: Box::new(expression),
+                        consequence: Box::new(consequence),
+                        alternate: Box::new(alternate),
+                    });
+                }
+
+                // 1++
+                Token::PlusPlus => {
+                    if level >= OperatorPrecedence::Postfix {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::UpdateExpression(UpdateExpression {
+                        argument: Box::new(expression),
+                        operator: UpdateOperator::Increment,
+                        prefix: false,
+                    });
+                }
+
+                // 1--
+                Token::MinusMinus => {
+                    if level >= OperatorPrecedence::Postfix {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::UpdateExpression(UpdateExpression {
+                        argument: Box::new(expression),
+                        operator: UpdateOperator::Decrement,
+                        prefix: false,
+                    });
+                }
+
+                _ => {
+                    //
+                    return Ok(expression);
+                }
+            };
+        }
     }
 
     fn parse_grouped_expression(&mut self) -> Result<Expression, ParserError> {
@@ -313,10 +443,6 @@ impl Parser {
             declarations: vec![VariableDeclarator { id, init }],
             kind: kind,
         })
-    }
-
-    fn current_precedence(&self) -> OperatorPrecedence {
-        token_to_precedence(&self.lexer.token)
     }
 
     /// Consumes the next semicolon

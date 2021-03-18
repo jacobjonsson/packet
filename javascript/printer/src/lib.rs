@@ -242,11 +242,33 @@ impl Printer {
                 self.print(&e.value.to_string());
             }
             Expression::UpdateExpression(u) => self.print_update_expression(u),
-            Expression::InfixExpression(e) => {
+            Expression::BinaryExpression(e) => {
                 self.print("(");
                 self.print_expression(e.left.as_ref());
                 self.print_space();
-                self.print(&e.operator);
+                match e.operator {
+                    BinaryOperator::Ampersand => self.print("&"),
+                    BinaryOperator::EqualsEquals => self.print("=="),
+                    BinaryOperator::EqualsEqualsEquals => self.print("==="),
+                    BinaryOperator::ExclamationEquals => self.print("!="),
+                    BinaryOperator::ExclamationEqualsEquals => self.print("!=="),
+                    BinaryOperator::LessThan => self.print("<"),
+                    BinaryOperator::LessThanLessThan => self.print("<<"),
+                    BinaryOperator::LessThanEquals => self.print("<="),
+                    BinaryOperator::GreaterThan => self.print(">"),
+                    BinaryOperator::GreaterThanEquals => self.print(">="),
+                    BinaryOperator::GreaterThanGreaterThan => self.print(">>"),
+                    BinaryOperator::GreaterThanGreaterThanGreaterThan => self.print(">>>"),
+                    BinaryOperator::Plus => self.print("+"),
+                    BinaryOperator::Minus => self.print("-"),
+                    BinaryOperator::Asterisk => self.print("*"),
+                    BinaryOperator::Slash => self.print("/"),
+                    BinaryOperator::Percent => self.print("%"),
+                    BinaryOperator::Bar => self.print("|"),
+                    BinaryOperator::Caret => self.print("^"),
+                    BinaryOperator::In => self.print("in"),
+                    BinaryOperator::Instanceof => self.print("instanceof"),
+                }
                 self.print_space();
                 self.print_expression(e.right.as_ref());
                 self.print(")");

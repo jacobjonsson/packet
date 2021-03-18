@@ -1,36 +1,10 @@
-use javascript_ast::expression::{
-    CallExpression, ConditionalExpression, Expression, FunctionExpression, Identifier,
-};
+use javascript_ast::expression::{Expression, FunctionExpression, Identifier};
 use javascript_token::Token;
 
-use crate::{OperatorPrecedence, ParseResult, Parser, ParserError};
+use crate::{OperatorPrecedence, ParseResult, Parser};
 
 impl Parser {
-    /// Parse call expression
-    /// a()
-    /// a(3 + 3)
-    pub(crate) fn parse_call_expression(
-        &mut self,
-        function: Expression,
-    ) -> ParseResult<CallExpression> {
-        let arguments = self.parse_call_expression_arguments()?;
-        let function = match function {
-            Expression::Identifier(i) => i,
-            e => {
-                return Err(ParserError(format!(
-                    "Expected a call expression but got {:?}",
-                    e
-                )))
-            }
-        };
-
-        Ok(CallExpression {
-            arguments,
-            function,
-        })
-    }
-
-    fn parse_call_expression_arguments(&mut self) -> ParseResult<Vec<Box<Expression>>> {
+    pub(crate) fn parse_call_expression_arguments(&mut self) -> ParseResult<Vec<Box<Expression>>> {
         let mut arguments: Vec<Box<Expression>> = Vec::new();
         self.lexer.next_token();
         if self.lexer.token == Token::CloseParen {
@@ -84,23 +58,5 @@ impl Parser {
         self.lexer.expect_token(Token::CloseParen);
         self.lexer.next_token();
         Ok(parameters)
-    }
-
-    pub(crate) fn parse_conditional_expression(
-        &mut self,
-        test: Expression,
-    ) -> ParseResult<ConditionalExpression> {
-        self.lexer.next_token();
-        let consequence = self.parse_expression(OperatorPrecedence::Lowest)?;
-        self.lexer.expect_token(Token::Colon);
-        self.lexer.next_token();
-        let alternate = self.parse_expression(OperatorPrecedence::Lowest)?;
-        self.consume_semicolon();
-
-        Ok(ConditionalExpression {
-            test: Box::new(test),
-            consequence: Box::new(consequence),
-            alternate: Box::new(alternate),
-        })
     }
 }

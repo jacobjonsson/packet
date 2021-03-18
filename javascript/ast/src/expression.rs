@@ -4,7 +4,7 @@ use crate::statement::BlockStatement;
 pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
-    InfixExpression(InfixExpression),
+    BinaryExpression(BinaryExpression),
     BooleanExpression(BooleanExpression),
     FunctionExpression(FunctionExpression),
     PrefixExpression(PrefixExpression),
@@ -40,13 +40,6 @@ pub struct FunctionExpression {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct InfixExpression {
-    pub left: Box<Expression>,
-    pub operator: String,
-    pub right: Box<Expression>,
-}
-
-#[derive(Debug, PartialEq, Clone)]
 pub struct PrefixExpression {
     pub operator: String,
     pub right: Box<Expression>,
@@ -63,6 +56,38 @@ pub struct ConditionalExpression {
     pub test: Box<Expression>,
     pub consequence: Box<Expression>,
     pub alternate: Box<Expression>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum BinaryOperator {
+    EqualsEquals,
+    EqualsEqualsEquals,
+    ExclamationEquals,
+    ExclamationEqualsEquals,
+    LessThan,
+    LessThanLessThan,
+    LessThanEquals,
+    GreaterThan,
+    GreaterThanEquals,
+    GreaterThanGreaterThan,
+    GreaterThanGreaterThanGreaterThan,
+    Plus,
+    Minus,
+    Asterisk,
+    Slash,
+    Percent,
+    Bar,
+    Caret,
+    Ampersand,
+    In,
+    Instanceof,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct BinaryExpression {
+    pub left: Box<Expression>,
+    pub operator: BinaryOperator,
+    pub right: Box<Expression>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
