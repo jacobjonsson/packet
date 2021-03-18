@@ -217,3 +217,9 @@ fn test_continue_statement() {
     expected_printed("continue;", "continue");
     expected_printed("continue label1;", "continue label1");
 }
+
+#[test]
+fn test_break_statement() {
+    expected_printed("break;", "break");
+    expected_printed("break label1;", "break label1");
+}

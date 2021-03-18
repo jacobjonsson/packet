@@ -122,6 +122,15 @@ impl Parser {
                 self.consume_semicolon();
                 Ok(Statement::ContinueStatement(ContinueStatement { label }))
             }
+            Token::Break => {
+                self.lexer.next_token();
+                let mut label: Option<Identifier> = None;
+                if self.lexer.token != Token::Semicolon {
+                    label = Some(self.parse_identifer()?);
+                }
+                self.consume_semicolon();
+                Ok(Statement::BreakStatement(BreakStatement { label }))
+            }
             _ => self.parse_expression_statement(),
         }
     }

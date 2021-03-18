@@ -7,6 +7,7 @@ pub enum Statement {
     If(IfStatement),
     For(ForStatement),
     ContinueStatement(ContinueStatement),
+    BreakStatement(BreakStatement),
     FunctionDeclaration(FunctionDeclaration),
     VariableDeclaration(VariableDeclaration),
     Expression(ExpressionStatement),
@@ -45,6 +46,11 @@ pub struct ForStatement {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ContinueStatement {
+    pub label: Option<Identifier>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct BreakStatement {
     pub label: Option<Identifier>,
 }
 

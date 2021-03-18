@@ -47,6 +47,13 @@ impl Printer {
                     self.print_identifier(label);
                 }
             }
+            Statement::BreakStatement(b) => {
+                self.print("break");
+                if let Some(label) = &b.label {
+                    self.print_space();
+                    self.print_identifier(label);
+                }
+            }
 
             Statement::For(f) => {
                 self.print("for");
