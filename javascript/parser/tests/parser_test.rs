@@ -223,3 +223,8 @@ fn test_break_statement() {
     expected_printed("break;", "break");
     expected_printed("break label1;", "break label1");
 }
+
+#[test]
+fn test_empty_statement() {
+    expected_printed(";", ";");
+}

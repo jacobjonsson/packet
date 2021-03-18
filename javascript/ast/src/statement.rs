@@ -6,6 +6,7 @@ pub enum Statement {
     Return(ReturnStatement),
     If(IfStatement),
     For(ForStatement),
+    EmptyStatement(EmptyStatement),
     ContinueStatement(ContinueStatement),
     BreakStatement(BreakStatement),
     FunctionDeclaration(FunctionDeclaration),
@@ -13,6 +14,9 @@ pub enum Statement {
     Expression(ExpressionStatement),
     ImportDeclaration(ImportDeclaration),
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct EmptyStatement {}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlockStatement {

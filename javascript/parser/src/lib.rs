@@ -131,6 +131,10 @@ impl Parser {
                 self.consume_semicolon();
                 Ok(Statement::BreakStatement(BreakStatement { label }))
             }
+            Token::Semicolon => {
+                self.lexer.next_token();
+                Ok(Statement::EmptyStatement(EmptyStatement {}))
+            }
             _ => self.parse_expression_statement(),
         }
     }

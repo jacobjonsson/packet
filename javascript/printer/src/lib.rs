@@ -24,6 +24,7 @@ impl Printer {
     fn print_statement(&mut self, statement: &Statement) {
         match statement {
             Statement::VariableDeclaration(v) => self.print_variable_declaration(v),
+            Statement::EmptyStatement(_) => self.print(";"),
 
             Statement::Return(r) => {
                 self.print("return");
