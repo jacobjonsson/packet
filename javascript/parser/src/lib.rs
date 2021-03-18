@@ -163,6 +163,54 @@ impl Parser {
                     test,
                 }))
             }
+            Token::Switch => {
+                self.lexer.next_token();
+                self.lexer.expect_token(Token::OpenParen);
+                self.lexer.next_token();
+                let discriminant = self.parse_expression(OperatorPrecedence::Lowest)?;
+                self.lexer.expect_token(Token::CloseParen);
+                self.lexer.next_token();
+                self.lexer.expect_token(Token::OpenBrace);
+                self.lexer.next_token();
+
+                let mut cases: Vec<SwitchCase> = Vec::new();
+                let mut found_default = false;
+                while self.lexer.token != Token::CloseBrace {
+                    let mut test: Option<Expression> = None;
+                    let mut consequent: Vec<Box<Statement>> = Vec::new();
+
+                    if self.lexer.token == Token::Default {
+                        if found_default {
+                            panic!("Multiple default clauses are not allowed");
+                        }
+                        self.lexer.next_token();
+                        self.lexer.expect_token(Token::Colon);
+                        self.lexer.next_token();
+                        found_default = true;
+                    } else {
+                        self.lexer.expect_token(Token::Case);
+                        self.lexer.next_token();
+                        test = Some(self.parse_expression(OperatorPrecedence::Lowest)?);
+                        self.lexer.expect_token(Token::Colon);
+                        self.lexer.next_token();
+                    }
+
+                    'case_body: loop {
+                        match &self.lexer.token {
+                            Token::CloseBrace | Token::Case | Token::Default => break 'case_body,
+                            _ => consequent.push(Box::new(self.parse_statement()?)),
+                        };
+                    }
+
+                    cases.push(SwitchCase { consequent, test })
+                }
+                self.lexer.expect_token(Token::CloseBrace);
+                self.lexer.next_token();
+                Ok(Statement::SwitchStatement(SwitchStatement {
+                    cases,
+                    discriminant,
+                }))
+            }
             _ => self.parse_expression_statement(),
         }
     }
@@ -192,6 +240,11 @@ impl Parser {
         match &self.lexer.token {
             Token::NumericLiteral(_) => self.parse_numeric_literal(),
             Token::Identifier(_) => self.parse_identifer().map(Expression::Identifier),
+            Token::StringLiteral(s) => {
+                let expression = Expression::StringLiteral(StringLiteral { value: s.clone() });
+                self.lexer.next_token();
+                Ok(expression)
+            }
             Token::Exclamation => self.parse_prefix_expression(),
             Token::Plus => self.parse_prefix_expression(),
             Token::Minus => self.parse_prefix_expression(),

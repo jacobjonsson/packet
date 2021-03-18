@@ -23,6 +23,12 @@ fn expected_ast(content: &str, expected: Program) {
 }
 
 #[test]
+fn test_string_literal() {
+    expected_printed("\"hello_world\"", "\"hello_world\"");
+    expected_printed("'hello_world'", "\"hello_world\"");
+}
+
+#[test]
 fn test_variable_declaration() {
     expected_printed("var a = 1;", "var a = 1;");
     expected_printed("let a = 1;", "let a = 1;");
@@ -279,4 +285,17 @@ fn test_do_while_statement() {
         "do { return 3; } while (1 < 10)",
         "do { return 3; } while ((1 < 10))",
     );
+}
+
+#[test]
+fn test_switch_statement() {
+    expected_printed(
+        "switch (a) { case \"1\": {} }",
+        "switch (a) { case \"1\": {} }",
+    );
+    expected_printed(
+        "switch (a) { case \"1\": {} default: {} }",
+        "switch (a) { case \"1\": {} default: {} }",
+    );
+    expected_printed("switch (a) { default: {} }", "switch (a) { default: {} }");
 }

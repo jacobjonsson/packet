@@ -17,6 +17,7 @@ pub enum Statement {
     VariableDeclaration(VariableDeclaration),
     Expression(ExpressionStatement),
     ImportDeclaration(ImportDeclaration),
+    SwitchStatement(SwitchStatement),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -86,6 +87,18 @@ pub struct WhileStatement {
 pub struct DoWhileStatement {
     pub test: Expression,
     pub body: Box<Statement>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct SwitchCase {
+    pub test: Option<Expression>,
+    pub consequent: Vec<Box<Statement>>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct SwitchStatement {
+    pub discriminant: Expression,
+    pub cases: Vec<SwitchCase>,
 }
 
 /* -------------------------------------------------------------------------- */

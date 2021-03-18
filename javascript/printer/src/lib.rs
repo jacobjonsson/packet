@@ -140,6 +140,49 @@ impl Printer {
                 self.print_statement(&w.body);
             }
 
+            Statement::SwitchStatement(s) => {
+                self.print("switch");
+                self.print_space();
+                self.print("(");
+                self.print_expression(&s.discriminant);
+                self.print(")");
+
+                self.print_space();
+                self.print("{");
+                if s.cases.len() == 0 {
+                    self.print("}");
+                    return;
+                }
+                self.print_space();
+                let cases: Vec<&SwitchCase> = s.cases.iter().filter(|c| c.test != None).collect();
+                for (idx, case) in cases.iter().enumerate() {
+                    if idx != 0 {
+                        self.print_space();
+                    }
+                    self.print("case ");
+                    // Cases needs to have a test, only the default case is allowed to be none.
+                    self.print_expression(case.test.as_ref().unwrap());
+                    self.print(":");
+                    self.print_space();
+                    for consequent in &case.consequent {
+                        self.print_statement(consequent.as_ref());
+                    }
+                }
+                let default: Option<&SwitchCase> = s.cases.iter().find(|c| c.test == None);
+                if let Some(case) = default {
+                    if cases.len() > 0 {
+                        self.print_space();
+                    }
+                    self.print("default:");
+                    self.print_space();
+                    for consequent in &case.consequent {
+                        self.print_statement(consequent.as_ref());
+                    }
+                }
+                self.print_space();
+                self.print("}");
+            }
+
             Statement::ImportDeclaration(i) => {
                 let mut items = 0;
 
