@@ -247,6 +247,44 @@ impl Parser {
                     return Ok(Statement::Expression(ExpressionStatement { expression }));
                 }
             }
+            Token::Throw => {
+                self.lexer.next_token();
+                let argument = self.parse_expression(OperatorPrecedence::Lowest)?;
+                Ok(Statement::ThrowStatement(ThrowStatement { argument }))
+            }
+            Token::Try => {
+                self.lexer.next_token();
+                let block = self.parse_block_statement()?;
+                let mut handler: Option<CatchClause> = None;
+                let mut finalizer: Option<BlockStatement> = None;
+                // Either catch or finally must be present.
+                if self.lexer.token != Token::Catch && self.lexer.token != Token::Finally {
+                    self.lexer.unexpected();
+                    panic!();
+                }
+                if self.lexer.token == Token::Catch {
+                    self.lexer.next_token();
+                    self.lexer.expect_token(Token::OpenParen);
+                    self.lexer.next_token();
+                    let param = self.parse_identifer()?;
+                    self.lexer.expect_token(Token::CloseParen);
+                    self.lexer.next_token();
+                    self.lexer.expect_token(Token::OpenBrace);
+                    let body = self.parse_block_statement()?;
+                    handler = Some(CatchClause { body, param });
+                }
+                if self.lexer.token == Token::Finally {
+                    self.lexer.next_token();
+                    self.lexer.expect_token(Token::OpenBrace);
+                    finalizer = Some(self.parse_block_statement()?);
+                }
+
+                Ok(Statement::TryStatement(TryStatement {
+                    block,
+                    handler,
+                    finalizer,
+                }))
+            }
             _ => self.parse_expression_statement(),
         }
     }

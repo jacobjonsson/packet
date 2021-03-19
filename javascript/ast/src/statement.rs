@@ -21,6 +21,8 @@ pub enum Statement {
     SwitchStatement(SwitchStatement),
     WithStatement(WithStatement),
     LabeledStatement(LabeledStatement),
+    ThrowStatement(ThrowStatement),
+    TryStatement(TryStatement),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -28,6 +30,24 @@ pub struct EmptyStatement {}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct DebuggerStatement {}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ThrowStatement {
+    pub argument: Expression,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct TryStatement {
+    pub block: BlockStatement,
+    pub handler: Option<CatchClause>,
+    pub finalizer: Option<BlockStatement>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct CatchClause {
+    pub param: Identifier, // TODO: Should be pattern.
+    pub body: BlockStatement,
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct WithStatement {

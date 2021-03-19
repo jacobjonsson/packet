@@ -319,3 +319,20 @@ fn test_labeled_statement() {
     expected_printed("label1: function a() {}", "label1: function a() {}");
     expected_printed("label1: while (true) {}", "label1: while (true) {}");
 }
+
+#[test]
+fn test_throw_statement() {
+    expected_printed("throw 3 + 3", "throw (3 + 3)");
+    expected_printed("throw err", "throw err");
+    // expected_printed("throw new Error()", "throw new Error()"); // TODO: We don't support the new statement yet
+}
+
+#[test]
+fn test_try_statement() {
+    expected_printed("try {} catch (err) {}", "try {} catch (err) {}");
+    expected_printed("try {} finally {}", "try {} finally {}");
+    expected_printed(
+        "try {} catch (err) {} finally {}",
+        "try {} catch (err) {} finally {}",
+    );
+}

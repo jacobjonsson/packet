@@ -192,6 +192,33 @@ impl Printer {
                 self.print_statement(&l.body);
             }
 
+            Statement::ThrowStatement(t) => {
+                self.print("throw ");
+                self.print_expression(&t.argument);
+            }
+
+            Statement::TryStatement(t) => {
+                self.print("try");
+                self.print_space();
+                self.print_block_statement(&t.block);
+                if let Some(handler) = &t.handler {
+                    self.print_space();
+                    self.print("catch");
+                    self.print_space();
+                    self.print("(");
+                    self.print_identifier(&handler.param);
+                    self.print(")");
+                    self.print_space();
+                    self.print_block_statement(&handler.body);
+                }
+                if let Some(finalizer) = &t.finalizer {
+                    self.print_space();
+                    self.print("finally");
+                    self.print_space();
+                    self.print_block_statement(finalizer);
+                }
+            }
+
             Statement::ImportDeclaration(i) => {
                 let mut items = 0;
 
