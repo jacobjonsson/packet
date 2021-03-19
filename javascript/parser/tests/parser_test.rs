@@ -38,6 +38,10 @@ fn test_variable_declaration() {
     expected_printed("const a;", "const a;");
     expected_printed("const a", "const a;");
     expected_printed("const a = 1", "const a = 1;");
+
+    expected_printed("let a = 1, b = 2, c = 3", "let a = 1, b = 2, c = 3;");
+    expected_printed("const a = 1, b = 2, c = 3", "const a = 1, b = 2, c = 3;");
+    expected_printed("var a = 1, b = 2, c = 3", "var a = 1, b = 2, c = 3;");
 }
 
 #[test]

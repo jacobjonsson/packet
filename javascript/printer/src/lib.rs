@@ -295,7 +295,11 @@ impl Printer {
         self.print(keyword);
         self.print_space();
         // TODO: We currently only handle one declaration.
-        for declaration in declarations {
+        for (idx, declaration) in declarations.iter().enumerate() {
+            if idx != 0 {
+                self.print(",");
+                self.print_space();
+            }
             self.print_identifier(&declaration.id);
             if let Some(expression) = &declaration.init {
                 self.print_space();

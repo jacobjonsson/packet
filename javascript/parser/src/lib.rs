@@ -780,24 +780,30 @@ impl Parser {
         kind: VariableDeclarationKind,
     ) -> ParseResult<VariableDeclaration> {
         self.lexer.next_token();
-        let id = self.parse_identifer()?;
 
-        // Means we hit a variable declaration without an assignment (eg: let a;)
-        if self.lexer.token != Token::Equals {
-            self.consume_semicolon();
-            return Ok(VariableDeclaration {
-                declarations: vec![VariableDeclarator { id, init: None }],
-                kind,
+        let mut declarations: Vec<VariableDeclarator> = Vec::new();
+        loop {
+            let mut value: Option<Expression> = None;
+            let identifier = self.parse_identifer()?;
+            if self.lexer.token == Token::Equals {
+                self.lexer.next_token();
+                value = Some(self.parse_expression(OperatorPrecedence::Lowest)?);
+            }
+            declarations.push(VariableDeclarator {
+                id: identifier,
+                init: value,
             });
+
+            if self.lexer.token != Token::Comma {
+                break;
+            }
+            self.lexer.next_token();
         }
 
-        self.lexer.next_token();
-
-        let init = Some(self.parse_expression(OperatorPrecedence::Lowest)?);
         self.consume_semicolon();
 
         Ok(VariableDeclaration {
-            declarations: vec![VariableDeclarator { id, init }],
+            declarations,
             kind: kind,
         })
     }
