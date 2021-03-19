@@ -185,6 +185,13 @@ impl Printer {
 
             Statement::DebuggerStatement(_) => self.print("debugger"),
 
+            Statement::LabeledStatement(l) => {
+                self.print_identifier(&l.identifier);
+                self.print(":");
+                self.print_space();
+                self.print_statement(&l.body);
+            }
+
             Statement::ImportDeclaration(i) => {
                 let mut items = 0;
 

@@ -20,6 +20,7 @@ pub enum Statement {
     ImportDeclaration(ImportDeclaration),
     SwitchStatement(SwitchStatement),
     WithStatement(WithStatement),
+    LabeledStatement(LabeledStatement),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -110,6 +111,12 @@ pub struct SwitchCase {
 pub struct SwitchStatement {
     pub discriminant: Expression,
     pub cases: Vec<SwitchCase>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct LabeledStatement {
+    pub identifier: Identifier,
+    pub body: Box<Statement>,
 }
 
 /* -------------------------------------------------------------------------- */

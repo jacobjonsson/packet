@@ -228,6 +228,25 @@ impl Parser {
                     object,
                 }))
             }
+            Token::Identifier(_) => {
+                let identifier = self.parse_identifer()?;
+                // Parse a labeled statement
+                if self.lexer.token == Token::Colon {
+                    self.lexer.next_token();
+                    let body = self.parse_statement()?;
+                    return Ok(Statement::LabeledStatement(LabeledStatement {
+                        body: Box::new(body),
+                        identifier,
+                    }));
+                } else {
+                    // Parse a normal expression
+                    let expression = self.parse_suffix(
+                        OperatorPrecedence::Lowest,
+                        Expression::Identifier(identifier),
+                    )?;
+                    return Ok(Statement::Expression(ExpressionStatement { expression }));
+                }
+            }
             _ => self.parse_expression_statement(),
         }
     }

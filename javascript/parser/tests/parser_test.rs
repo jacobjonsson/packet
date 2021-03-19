@@ -313,3 +313,9 @@ fn test_debugger_statement() {
 fn test_with_statement() {
     expected_printed("with (a) {}", "with (a) {}")
 }
+
+#[test]
+fn test_labeled_statement() {
+    expected_printed("label1: function a() {}", "label1: function a() {}");
+    expected_printed("label1: while (true) {}", "label1: while (true) {}");
+}
