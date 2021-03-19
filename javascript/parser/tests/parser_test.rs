@@ -342,3 +342,11 @@ fn test_this_expression() {
     expected_printed("this", "this");
     // expected_printed("this.hello()", "this.hello()"); TODO: We don't support member expressions yet
 }
+
+#[test]
+fn test_array_expression() {
+    expected_printed("[1, 2, 3, 4, 5]", "[1, 2, 3, 4, 5]");
+    expected_printed("[\"a\", 2]", "[\"a\", 2]");
+    expected_printed("let a = []", "let a = [];");
+    expected_printed("let a = [,,,]", "let a = [, , ,];");
+}

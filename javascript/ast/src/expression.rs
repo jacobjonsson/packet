@@ -15,6 +15,7 @@ pub enum Expression {
     ConditionalExpression(ConditionalExpression),
     UpdateExpression(UpdateExpression),
     ThisExpression(ThisExpression),
+    ArrayExpression(ArrayExpression),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -24,6 +25,11 @@ pub struct Identifier {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ThisExpression {}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ArrayExpression {
+    pub elements: Vec<Option<Box<Expression>>>,
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct StringLiteral {

@@ -429,6 +429,29 @@ impl Printer {
                 self.print_space();
                 self.print_expression(&a.right);
             }
+            Expression::ArrayExpression(a) => {
+                self.print("[");
+                for (idx, element) in a.elements.iter().enumerate() {
+                    let is_last_element = idx < a.elements.len() - 1;
+                    match element {
+                        Some(expression) => {
+                            self.print_expression(expression);
+                            if is_last_element {
+                                self.print(",");
+                            }
+                        }
+                        None => {
+                            self.print(",");
+                        }
+                    }
+
+                    // Do not print spaces for the last element
+                    if is_last_element {
+                        self.print_space();
+                    }
+                }
+                self.print("]");
+            }
             Expression::LogicalExpression(l) => {
                 self.print_expression(&l.left);
                 self.print_space();

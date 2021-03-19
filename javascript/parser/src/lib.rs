@@ -332,6 +332,29 @@ impl Parser {
                 self.lexer.next_token();
                 Ok(Expression::ThisExpression(ThisExpression {}))
             }
+            Token::OpenBracket => {
+                self.lexer.next_token();
+                let mut elements: Vec<Option<Box<Expression>>> = Vec::new();
+                while self.lexer.token != Token::CloseBracket {
+                    match self.lexer.token {
+                        Token::Comma => elements.push(None),
+                        Token::DotDotDot => self.lexer.unexpected(),
+                        _ => elements.push(Some(Box::new(
+                            self.parse_expression(OperatorPrecedence::Lowest)?,
+                        ))),
+                    };
+
+                    if self.lexer.token != Token::Comma {
+                        break;
+                    } else {
+                        self.lexer.next_token();
+                    }
+                }
+                self.lexer.expect_token(Token::CloseBracket);
+                self.lexer.next_token();
+
+                Ok(Expression::ArrayExpression(ArrayExpression { elements }))
+            }
             Token::PlusPlus => {
                 self.lexer.next_token();
                 self.parse_expression(OperatorPrecedence::Prefix)
