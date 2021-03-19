@@ -14,12 +14,16 @@ pub enum Expression {
     CallExpression(CallExpression),
     ConditionalExpression(ConditionalExpression),
     UpdateExpression(UpdateExpression),
+    ThisExpression(ThisExpression),
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Identifier {
     pub name: String,
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ThisExpression {}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct StringLiteral {

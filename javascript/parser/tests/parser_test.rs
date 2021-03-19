@@ -336,3 +336,9 @@ fn test_try_statement() {
         "try {} catch (err) {} finally {}",
     );
 }
+
+#[test]
+fn test_this_expression() {
+    expected_printed("this", "this");
+    // expected_printed("this.hello()", "this.hello()"); TODO: We don't support member expressions yet
+}

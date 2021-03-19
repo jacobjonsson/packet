@@ -328,6 +328,10 @@ impl Parser {
             Token::Function => self
                 .parse_function_expression()
                 .map(Expression::FunctionExpression),
+            Token::This => {
+                self.lexer.next_token();
+                Ok(Expression::ThisExpression(ThisExpression {}))
+            }
             Token::PlusPlus => {
                 self.lexer.next_token();
                 self.parse_expression(OperatorPrecedence::Prefix)
