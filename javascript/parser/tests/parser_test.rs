@@ -350,3 +350,24 @@ fn test_array_expression() {
     expected_printed("let a = []", "let a = [];");
     expected_printed("let a = [,,,]", "let a = [, , ,];");
 }
+
+#[test]
+fn test_object_expression() {
+    expected_printed("let a = { a: b }", "let a = { \"a\": b };");
+    expected_printed(
+        "let a = { \"a\": \"hello\" }",
+        "let a = { \"a\": \"hello\" };",
+    );
+    expected_printed("let a = {}", "let a = {};");
+    expected_printed("let a = { a: b, c: d }", "let a = { \"a\": b, \"c\": d };");
+    expected_printed("let a = { [a]: b, [c]: d }", "let a = { [a]: b, [c]: d };");
+
+    expected_printed(
+        "let a = { [a]: { [b]: { [c]: { [d]: {} } } } }",
+        "let a = { [a]: { [b]: { [c]: { [d]: {} } } } };",
+    );
+    expected_printed(
+        "let a = { [a]: 3 * 3 / 2 }",
+        "let a = { [a]: ((3 * 3) / 2) };",
+    );
+}

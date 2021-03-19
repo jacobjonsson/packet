@@ -16,6 +16,7 @@ pub enum Expression {
     UpdateExpression(UpdateExpression),
     ThisExpression(ThisExpression),
     ArrayExpression(ArrayExpression),
+    ObjectExpression(ObjectExpression),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -29,6 +30,31 @@ pub struct ThisExpression {}
 #[derive(Debug, PartialEq, Clone)]
 pub struct ArrayExpression {
     pub elements: Vec<Option<Box<Expression>>>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ObjectExpression {
+    pub properties: Vec<Property>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum PropertyKind {
+    Init,
+    Get,
+    Set,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum PropertyKey {
+    StringLiteral(StringLiteral),
+    Identifier(Identifier),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Property {
+    pub key: PropertyKey,
+    pub value: Expression,
+    pub kind: PropertyKind,
 }
 
 #[derive(Debug, PartialEq, Clone)]

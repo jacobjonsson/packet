@@ -325,6 +325,46 @@ impl Parser {
             Token::True => self.parse_boolean().map(Expression::BooleanExpression),
             Token::False => self.parse_boolean().map(Expression::BooleanExpression),
             Token::OpenParen => self.parse_grouped_expression(),
+
+            Token::OpenBrace => {
+                self.lexer.next_token();
+
+                let mut properties: Vec<Property> = Vec::new();
+
+                while self.lexer.token != Token::CloseBrace {
+                    let key: PropertyKey;
+                    if self.lexer.token == Token::OpenBracket {
+                        self.lexer.next_token();
+                        key = PropertyKey::Identifier(self.parse_identifer()?);
+                        self.lexer.expect_token(Token::CloseBracket);
+                        self.lexer.next_token();
+                    } else {
+                        key = PropertyKey::StringLiteral(self.parse_string_literal()?);
+                    }
+
+                    self.lexer.expect_token(Token::Colon);
+                    self.lexer.next_token();
+
+                    let value = self.parse_expression(OperatorPrecedence::Lowest)?;
+                    properties.push(Property {
+                        value,
+                        key,
+                        kind: PropertyKind::Init,
+                    });
+
+                    if self.lexer.token == Token::Comma {
+                        self.lexer.next_token();
+                    }
+                }
+
+                self.lexer.expect_token(Token::CloseBrace);
+                self.lexer.next_token();
+
+                Ok(Expression::ObjectExpression(ObjectExpression {
+                    properties,
+                }))
+            }
+
             Token::Function => self
                 .parse_function_expression()
                 .map(Expression::FunctionExpression),

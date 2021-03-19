@@ -544,6 +544,43 @@ impl Printer {
                 self.print(" : ");
                 self.print_expression(&c.alternate);
             }
+
+            Expression::ObjectExpression(o) => {
+                self.print("{");
+                for (idx, property) in o.properties.iter().enumerate() {
+                    if idx == 0 {
+                        self.print_space();
+                    }
+                    if idx != 0 {
+                        self.print(",");
+                        self.print_space();
+                    }
+                    // { [a]: b }
+                    // { "a": b, "c": d }
+                    match &property.key {
+                        PropertyKey::Identifier(i) => {
+                            // [a]
+                            self.print("[");
+                            self.print(&i.name);
+                            self.print("]");
+                        }
+                        PropertyKey::StringLiteral(s) => {
+                            // "a"
+                            self.print("\"");
+                            self.print(&s.value);
+                            self.print("\"");
+                        }
+                    }
+                    self.print(":");
+                    self.print_space();
+                    self.print_expression(&property.value);
+
+                    if idx == o.properties.len() - 1 {
+                        self.print_space();
+                    }
+                }
+                self.print("}");
+            }
         }
     }
 
