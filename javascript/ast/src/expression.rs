@@ -17,6 +17,13 @@ pub enum Expression {
     ThisExpression(ThisExpression),
     ArrayExpression(ArrayExpression),
     ObjectExpression(ObjectExpression),
+    NewExpression(NewExpression),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct NewExpression {
+    pub callee: Box<Expression>,
+    pub arguments: Vec<Expression>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

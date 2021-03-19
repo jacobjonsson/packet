@@ -545,6 +545,20 @@ impl Printer {
                 self.print_expression(&c.alternate);
             }
 
+            Expression::NewExpression(n) => {
+                self.print("new ");
+                self.print_expression(&n.callee);
+                self.print("(");
+                for (idx, argument) in n.arguments.iter().enumerate() {
+                    if idx != 0 {
+                        self.print(",");
+                        self.print_space();
+                    }
+                    self.print_expression(argument);
+                }
+                self.print(")");
+            }
+
             Expression::ObjectExpression(o) => {
                 self.print("{");
                 for (idx, property) in o.properties.iter().enumerate() {

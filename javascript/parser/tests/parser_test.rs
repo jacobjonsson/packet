@@ -371,3 +371,10 @@ fn test_object_expression() {
         "let a = { [a]: ((3 * 3) / 2) };",
     );
 }
+
+#[test]
+fn test_new_expression() {
+    expected_printed("new MyClass()", "new MyClass()");
+    expected_printed("new MyClass(a, b, c)", "new MyClass(a, b, c)");
+    expected_printed("new function() {}()", "new function() {}()");
+}

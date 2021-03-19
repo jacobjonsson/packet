@@ -23,6 +23,7 @@ enum OperatorPrecedence {
     Prefix,
     Postfix,
     Call,
+    Member,
 }
 
 // Keep these in sync with the above order
@@ -42,6 +43,7 @@ impl OperatorPrecedence {
             OperatorPrecedence::Prefix => OperatorPrecedence::Product,
             OperatorPrecedence::Postfix => OperatorPrecedence::Prefix,
             OperatorPrecedence::Call => OperatorPrecedence::Postfix,
+            OperatorPrecedence::Member => OperatorPrecedence::Call,
         }
     }
 
@@ -60,7 +62,8 @@ impl OperatorPrecedence {
             OperatorPrecedence::Product => OperatorPrecedence::Prefix,
             OperatorPrecedence::Prefix => OperatorPrecedence::Postfix,
             OperatorPrecedence::Postfix => OperatorPrecedence::Call,
-            OperatorPrecedence::Call => OperatorPrecedence::Call,
+            OperatorPrecedence::Call => OperatorPrecedence::Member,
+            OperatorPrecedence::Member => OperatorPrecedence::Member,
         }
     }
 }
@@ -325,6 +328,26 @@ impl Parser {
             Token::True => self.parse_boolean().map(Expression::BooleanExpression),
             Token::False => self.parse_boolean().map(Expression::BooleanExpression),
             Token::OpenParen => self.parse_grouped_expression(),
+
+            Token::New => {
+                self.lexer.next_token();
+                let callee = Box::new(self.parse_expression(OperatorPrecedence::Member)?);
+                self.lexer.expect_token(Token::OpenParen);
+                self.lexer.next_token();
+                let mut arguments: Vec<Expression> = Vec::new();
+                while self.lexer.token != Token::CloseParen {
+                    arguments.push(self.parse_expression(OperatorPrecedence::Lowest)?);
+                    if self.lexer.token == Token::Comma {
+                        self.lexer.next_token();
+                    }
+                }
+                self.lexer.expect_token(Token::CloseParen);
+                self.lexer.next_token();
+                Ok(Expression::NewExpression(NewExpression {
+                    arguments,
+                    callee,
+                }))
+            }
 
             Token::OpenBrace => {
                 self.lexer.next_token();
