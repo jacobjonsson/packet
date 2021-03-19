@@ -18,10 +18,17 @@ pub enum Statement {
     Expression(ExpressionStatement),
     ImportDeclaration(ImportDeclaration),
     SwitchStatement(SwitchStatement),
+    WithStatement(WithStatement),
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct EmptyStatement {}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct WithStatement {
+    pub object: Expression,
+    pub body: Box<Statement>,
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlockStatement {

@@ -256,6 +256,16 @@ impl Printer {
                 self.print("\"");
             }
 
+            Statement::WithStatement(w) => {
+                self.print("with");
+                self.print_space();
+                self.print("(");
+                self.print_expression(&w.object);
+                self.print(")");
+                self.print_space();
+                self.print_statement(&w.body);
+            }
+
             Statement::Block(b) => self.print_block_statement(b),
             Statement::FunctionDeclaration(f) => self.print_function_declaration(f),
         };

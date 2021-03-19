@@ -211,6 +211,19 @@ impl Parser {
                     discriminant,
                 }))
             }
+            Token::With => {
+                self.lexer.next_token();
+                self.lexer.expect_token(Token::OpenParen);
+                self.lexer.next_token();
+                let object = self.parse_expression(OperatorPrecedence::Lowest)?;
+                self.lexer.expect_token(Token::CloseParen);
+                self.lexer.next_token();
+                let body = self.parse_statement()?;
+                Ok(Statement::WithStatement(WithStatement {
+                    body: Box::new(body),
+                    object,
+                }))
+            }
             _ => self.parse_expression_statement(),
         }
     }

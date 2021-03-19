@@ -299,3 +299,8 @@ fn test_switch_statement() {
     );
     expected_printed("switch (a) { default: {} }", "switch (a) { default: {} }");
 }
+
+#[test]
+fn test_with_statement() {
+    expected_printed("with (a) {}", "with (a) {}")
+}

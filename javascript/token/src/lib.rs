@@ -238,7 +238,7 @@ impl std::fmt::Display for Token {
             Token::Var => write!(f, "var"),
             Token::Void => write!(f, "void"),
             Token::While => write!(f, "while"),
-            Token::With => write!(f, "white"),
+            Token::With => write!(f, "with"),
         }
     }
 }
@@ -358,7 +358,7 @@ impl TokenLiteral for Token {
             Token::Var => "var".into(),
             Token::Void => "void".into(),
             Token::While => "while".into(),
-            Token::With => "white".into(),
+            Token::With => "with".into(),
         }
     }
 }
