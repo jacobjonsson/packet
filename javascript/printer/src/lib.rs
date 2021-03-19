@@ -183,6 +183,8 @@ impl Printer {
                 self.print("}");
             }
 
+            Statement::DebuggerStatement(_) => self.print("debugger"),
+
             Statement::ImportDeclaration(i) => {
                 let mut items = 0;
 

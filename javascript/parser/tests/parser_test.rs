@@ -301,6 +301,11 @@ fn test_switch_statement() {
 }
 
 #[test]
+fn test_debugger_statement() {
+    expected_printed("debugger", "debugger");
+}
+
+#[test]
 fn test_with_statement() {
     expected_printed("with (a) {}", "with (a) {}")
 }

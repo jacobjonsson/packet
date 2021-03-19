@@ -211,6 +211,10 @@ impl Parser {
                     discriminant,
                 }))
             }
+            Token::Debugger => {
+                self.lexer.next_token();
+                Ok(Statement::DebuggerStatement(DebuggerStatement {}))
+            }
             Token::With => {
                 self.lexer.next_token();
                 self.lexer.expect_token(Token::OpenParen);

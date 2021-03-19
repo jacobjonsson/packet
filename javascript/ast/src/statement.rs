@@ -6,6 +6,7 @@ pub enum Statement {
     Return(ReturnStatement),
     If(IfStatement),
     For(ForStatement),
+    DebuggerStatement(DebuggerStatement),
     ForInStatement(ForInStatement),
     ForOfStatement(ForOfStatement),
     EmptyStatement(EmptyStatement),
@@ -23,6 +24,9 @@ pub enum Statement {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct EmptyStatement {}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct DebuggerStatement {}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct WithStatement {
