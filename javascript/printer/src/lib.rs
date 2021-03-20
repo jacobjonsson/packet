@@ -290,6 +290,7 @@ impl Printer {
                 self.print("\"");
                 self.print(&i.source.value);
                 self.print("\"");
+                self.print(";");
             }
 
             Statement::WithStatement(w) => {

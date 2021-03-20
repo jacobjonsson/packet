@@ -7,4 +7,5 @@ members = [
     "javascript/parser",
     "javascript/printer",
     "javascript/reporter",
+    "cli",
 ]

@@ -154,25 +154,28 @@ fn test_operator_precedence_parsing() {
 
 #[test]
 fn test_import_statement() {
-    expected_printed("import a from \"b\"", "import a from \"b\"");
-    expected_printed("import { a } from \"b\"", "import { a } from \"b\"");
-    expected_printed("import { a, b } from \"b\"", "import { a, b } from \"b\"");
+    expected_printed("import a from \"b\"", "import a from \"b\";");
+    expected_printed("import { a } from \"b\"", "import { a } from \"b\";");
+    expected_printed("import { a, b } from \"b\"", "import { a, b } from \"b\";");
     expected_printed(
-        "import { a as b } from \"b\"",
-        "import { a as b } from \"b\"",
+        "import { a as b } from \"b\";",
+        "import { a as b } from \"b\";",
     );
-    expected_printed("import { a, b } from \"b\"", "import { a, b } from \"b\"");
+    expected_printed("import { a, b } from \"b\"", "import { a, b } from \"b\";");
     expected_printed(
-        "import { a as b, b as c } from \"b\"",
-        "import { a as b, b as c } from \"b\"",
+        "import { a as b, b as c } from \"b\";",
+        "import { a as b, b as c } from \"b\";",
     );
     expected_printed(
-        "import a, { b as c } from \"b\"",
-        "import a, { b as c } from \"b\"",
+        "import a, { b as c } from \"b\";",
+        "import a, { b as c } from \"b\";",
     );
-    expected_printed("import a, { b } from \"b\"", "import a, { b } from \"b\"");
-    expected_printed("import * as a from \"b\"", "import * as a from \"b\"");
-    expected_printed("import a, * as b from \"b\"", "import a, * as b from \"b\"");
+    expected_printed("import a, { b } from \"b\"", "import a, { b } from \"b\";");
+    expected_printed("import * as a from \"b\"", "import * as a from \"b\";");
+    expected_printed(
+        "import a, * as b from \"b\"",
+        "import a, * as b from \"b\";",
+    );
 }
 
 #[test]
