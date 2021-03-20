@@ -1,5 +1,8 @@
 use javascript_ast::{
-    expression::{Expression, Identifier, LogicalExpression, LogicalOperator},
+    expression::{
+        BinaryExpression, BinaryOperator, BooleanExpression, Expression, Identifier,
+        IntegerLiteral, LogicalExpression, LogicalOperator,
+    },
     statement::{ExpressionStatement, Statement},
     Program,
 };
@@ -12,7 +15,6 @@ fn expected_printed(content: &str, expected: &str) {
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
     let output = Printer::new().print_program(&program);
-    println!("{:?}", program);
     assert_eq!(output, expected);
 }
 
@@ -47,41 +49,107 @@ fn test_variable_declaration() {
 
 #[test]
 fn test_infix_expressions() {
-    expected_printed("5 + 5", "(5 + 5)");
-    expected_printed("5 - 5", "(5 - 5)");
-    expected_printed("5 * 5", "(5 * 5)");
-    expected_printed("5 / 5", "(5 / 5)");
-    expected_printed("5 > 5", "(5 > 5)");
-    expected_printed("5 < 5", "(5 < 5)");
-    expected_printed("5 == 5", "(5 == 5)");
-    expected_printed("5 === 5", "(5 === 5)");
-    expected_printed("5 != 5", "(5 != 5)");
-    expected_printed("5 !== 5", "(5 !== 5)");
-    expected_printed("a + a", "(a + a)");
-    expected_printed("a === a", "(a === a)");
-    expected_printed("true === true", "(true === true)");
-    expected_printed("true !== false", "(true !== false)");
+    expected_printed("5 + 5", "5 + 5");
+    expected_printed("5 - 5", "5 - 5");
+    expected_printed("5 * 5", "5 * 5");
+    expected_printed("5 / 5", "5 / 5");
+    expected_printed("5 > 5", "5 > 5");
+    expected_printed("5 < 5", "5 < 5");
+    expected_printed("5 == 5", "5 == 5");
+    expected_printed("5 === 5", "5 === 5");
+    expected_printed("5 != 5", "5 != 5");
+    expected_printed("5 !== 5", "5 !== 5");
+    expected_printed("a + a", "a + a");
+    expected_printed("a === a", "a === a");
+    expected_printed("true === true", "true === true");
+    expected_printed("true !== false", "true !== false");
 }
 
 #[test]
 fn test_operator_precedence_parsing() {
-    expected_printed("5 + 5", "(5 + 5)");
-    expected_printed("true", "true");
-    expected_printed("false", "false");
-    expected_printed("5 + 5 + 5", "((5 + 5) + 5)");
-    expected_printed("3 > 5 == false", "((3 > 5) == false)");
-    expected_printed("3 > 5 == false", "((3 > 5) == false)");
-    expected_printed("a + b + c", "((a + b) + c)");
-    expected_printed("a + b / c", "(a + (b / c))");
-    expected_printed(
-        "3 + 4 * 5 == 3 * 1 + 4 * 5",
-        "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+    expected_ast(
+        "5 + 5",
+        Program {
+            statements: vec![Statement::Expression(ExpressionStatement {
+                expression: Expression::BinaryExpression(BinaryExpression {
+                    left: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 5 })),
+                    operator: BinaryOperator::Plus,
+                    right: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 5 })),
+                }),
+            })],
+        },
     );
-    expected_printed("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)");
-    expected_printed("(5 + 5) * 2", "((5 + 5) * 2)");
-    expected_printed("2 / (5 + 5)", "(2 / (5 + 5))");
-    expected_printed("-(5 + 5)", "(-(5 + 5))");
-    expected_printed("!(true == true)", "(!(true == true))");
+    expected_ast(
+        "true",
+        Program {
+            statements: vec![Statement::Expression(ExpressionStatement {
+                expression: Expression::BooleanExpression(BooleanExpression { value: true }),
+            })],
+        },
+    );
+    expected_ast(
+        "false",
+        Program {
+            statements: vec![Statement::Expression(ExpressionStatement {
+                expression: Expression::BooleanExpression(BooleanExpression { value: false }),
+            })],
+        },
+    );
+    expected_ast(
+        "5 + 5 + 5",
+        Program {
+            statements: vec![Statement::Expression(ExpressionStatement {
+                expression: Expression::BinaryExpression(BinaryExpression {
+                    left: Box::new(Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 5 })),
+                        operator: BinaryOperator::Plus,
+                        right: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 5 })),
+                    })),
+                    operator: BinaryOperator::Plus,
+                    right: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 5 })),
+                }),
+            })],
+        },
+    );
+
+    expected_ast(
+        "3 + 4 * 5 == 3 * (1 + 4) * 5",
+        Program {
+            statements: vec![Statement::Expression(ExpressionStatement {
+                expression: Expression::BinaryExpression(BinaryExpression {
+                    left: Box::new(Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 3 })),
+                        operator: BinaryOperator::Plus,
+                        right: Box::new(Expression::BinaryExpression(BinaryExpression {
+                            left: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 4 })),
+                            operator: BinaryOperator::Asterisk,
+                            right: Box::new(Expression::IntegerLiteral(IntegerLiteral {
+                                value: 5,
+                            })),
+                        })),
+                    })),
+                    operator: BinaryOperator::EqualsEquals,
+                    right: Box::new(Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(Expression::BinaryExpression(BinaryExpression {
+                            left: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 3 })),
+                            operator: BinaryOperator::Asterisk,
+                            right: Box::new(Expression::BinaryExpression(BinaryExpression {
+                                left: Box::new(Expression::IntegerLiteral(IntegerLiteral {
+                                    value: 1,
+                                })),
+                                operator: BinaryOperator::Plus,
+                                right: Box::new(Expression::IntegerLiteral(IntegerLiteral {
+                                    value: 4,
+                                })),
+                            })),
+                        })),
+                        operator: BinaryOperator::Asterisk,
+                        right: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 5 })),
+                    })),
+                }),
+            })],
+        },
+    );
 }
 
 #[test]
@@ -113,7 +181,7 @@ fn test_function_declaration() {
     expected_printed("function a(b, c) {}", "function a(b, c) {}");
     expected_printed(
         "function a(b, c) { return b + c; }",
-        "function a(b, c) { return (b + c); }",
+        "function a(b, c) { return b + c; }",
     );
 }
 
@@ -121,7 +189,7 @@ fn test_function_declaration() {
 fn parse_return_statement() {
     expected_printed("return;", "return;");
     expected_printed("return 5;", "return 5;");
-    expected_printed("return 5 + 5;", "return (5 + 5);");
+    expected_printed("return 5 + 5;", "return 5 + 5;");
 }
 
 #[test]
@@ -129,14 +197,14 @@ fn test_call_expression() {
     expected_printed("a()", "a()");
     expected_printed("a(a)", "a(a)");
     expected_printed("a(a, b)", "a(a, b)");
-    expected_printed("a(3 + 3)", "a((3 + 3))");
+    expected_printed("a(3 + 3)", "a(3 + 3)");
 }
 
 #[test]
 fn test_if_statement() {
     expected_printed("if (true) {}", "if (true) {}");
     expected_printed("if (true) {} else {}", "if (true) {} else {}");
-    expected_printed("if (x < 10) { return 10; }", "if ((x < 10)) { return 10; }");
+    expected_printed("if (x < 10) { return 10; }", "if (x < 10) { return 10; }");
     expected_printed(
         "if (false) {} else if (true) {}",
         "if (false) {} else if (true) {}",
@@ -156,22 +224,22 @@ fn test_function_expression() {
 #[test]
 fn test_conditional_expression() {
     expected_printed("true ? 1 : 2", "true ? 1 : 2");
-    expected_printed("3 > 2 ? 3 + 2 : 3 * 2", "(3 > 2) ? (3 + 2) : (3 * 2)");
+    expected_printed("3 > 2 ? 3 + 2 : 3 * 2", "3 > 2 ? 3 + 2 : 3 * 2");
 }
 
 #[test]
 fn test_for_statement() {
     expected_printed(
         "for (let a = 1; a < 10; a++) {}",
-        "for (let a = 1; (a < 10); a++) {}",
+        "for (let a = 1; a < 10; a++) {}",
     );
     expected_printed(
         "for (const a = 1; a < 10; a++) {}",
-        "for (const a = 1; (a < 10); a++) {}",
+        "for (const a = 1; a < 10; a++) {}",
     );
     expected_printed(
         "for (let a = 1; a < 10; a++) {}",
-        "for (let a = 1; (a < 10); a++) {}",
+        "for (let a = 1; a < 10; a++) {}",
     );
 }
 
@@ -182,7 +250,7 @@ fn parse_for_in_statement() {
     expected_printed("for (let a in items) {}", "for (let a in items) {}");
     expected_printed(
         "for (let a in items) { return 3 + 3; }",
-        "for (let a in items) { return (3 + 3); }",
+        "for (let a in items) { return 3 + 3; }",
     );
 }
 
@@ -193,7 +261,7 @@ fn parse_for_of_statement() {
     expected_printed("for (let a of items) {}", "for (let a of items) {}");
     expected_printed(
         "for (let a of items) { return 3 + 3; }",
-        "for (let a of items) { return (3 + 3); }",
+        "for (let a of items) { return 3 + 3; }",
     );
 }
 
@@ -208,35 +276,35 @@ fn test_update_expression() {
 #[test]
 fn test_assignment_expression() {
     expected_printed("a = 1", "a = 1");
-    expected_printed("a = 3 * 3", "a = (3 * 3)");
+    expected_printed("a = 3 * 3", "a = 3 * 3");
     expected_printed("a += 1", "a += 1");
-    expected_printed("a += 3 * 3", "a += (3 * 3)");
+    expected_printed("a += 3 * 3", "a += 3 * 3");
     expected_printed("a -= 1", "a -= 1");
-    expected_printed("a -= 3 * 3", "a -= (3 * 3)");
+    expected_printed("a -= 3 * 3", "a -= 3 * 3");
     expected_printed("a *= 1", "a *= 1");
-    expected_printed("a *= 3 * 3", "a *= (3 * 3)");
+    expected_printed("a *= 3 * 3", "a *= 3 * 3");
     expected_printed("a /= 1", "a /= 1");
-    expected_printed("a /= 3 * 3", "a /= (3 * 3)");
+    expected_printed("a /= 3 * 3", "a /= 3 * 3");
     expected_printed("a %= 1", "a %= 1");
-    expected_printed("a %= 3 * 3", "a %= (3 * 3)");
+    expected_printed("a %= 3 * 3", "a %= 3 * 3");
     expected_printed("a <<= 1", "a <<= 1");
-    expected_printed("a <<= 3 * 3", "a <<= (3 * 3)");
+    expected_printed("a <<= 3 * 3", "a <<= 3 * 3");
     expected_printed("a >>= 1", "a >>= 1");
-    expected_printed("a >>= 3 * 3", "a >>= (3 * 3)");
+    expected_printed("a >>= 3 * 3", "a >>= 3 * 3");
     expected_printed("a >>>= 1", "a >>>= 1");
-    expected_printed("a >>>= 3 * 3", "a >>>= (3 * 3)");
+    expected_printed("a >>>= 3 * 3", "a >>>= 3 * 3");
     expected_printed("a |= 1", "a |= 1");
-    expected_printed("a |= 3 * 3", "a |= (3 * 3)");
+    expected_printed("a |= 3 * 3", "a |= 3 * 3");
     expected_printed("a ^= 1", "a ^= 1");
-    expected_printed("a ^= 3 * 3", "a ^= (3 * 3)");
+    expected_printed("a ^= 3 * 3", "a ^= 3 * 3");
     expected_printed("a &= 1", "a &= 1");
-    expected_printed("a &= 3 * 3", "a &= (3 * 3)");
+    expected_printed("a &= 3 * 3", "a &= 3 * 3");
 }
 
 #[test]
 fn test_logical_expression() {
-    expected_printed("3 + 3 || 1 * 2", "(3 + 3) || (1 * 2)");
-    expected_printed("3 + 3 && 1 * 2", "(3 + 3) && (1 * 2)");
+    expected_printed("3 + 3 || 1 * 2", "3 + 3 || 1 * 2");
+    expected_printed("3 + 3 && 1 * 2", "3 + 3 && 1 * 2");
     expected_ast(
         "a || b && c",
         Program {
@@ -275,20 +343,20 @@ fn test_empty_statement() {
 #[test]
 fn test_while_statement() {
     expected_printed("while (true) {}", "while (true) {}");
-    expected_printed("while (1 < 10) {}", "while ((1 < 10)) {}");
+    expected_printed("while (1 < 10) {}", "while (1 < 10) {}");
     expected_printed(
         "while (1 < 10) { return 3; }",
-        "while ((1 < 10)) { return 3; }",
+        "while (1 < 10) { return 3; }",
     );
 }
 
 #[test]
 fn test_do_while_statement() {
     expected_printed("do {} while (true)", "do {} while (true)");
-    expected_printed("do {} while (1 < 10)", "do {} while ((1 < 10))");
+    expected_printed("do {} while (1 < 10)", "do {} while (1 < 10)");
     expected_printed(
         "do { return 3; } while (1 < 10)",
-        "do { return 3; } while ((1 < 10))",
+        "do { return 3; } while (1 < 10)",
     );
 }
 
@@ -323,9 +391,9 @@ fn test_labeled_statement() {
 
 #[test]
 fn test_throw_statement() {
-    expected_printed("throw 3 + 3", "throw (3 + 3)");
+    expected_printed("throw 3 + 3", "throw 3 + 3");
     expected_printed("throw err", "throw err");
-    // expected_printed("throw new Error()", "throw new Error()"); // TODO: We don't support the new statement yet
+    expected_printed("throw new Error()", "throw new Error()");
 }
 
 #[test]
@@ -341,7 +409,7 @@ fn test_try_statement() {
 #[test]
 fn test_this_expression() {
     expected_printed("this", "this");
-    // expected_printed("this.hello()", "this.hello()"); TODO: We don't support member expressions yet
+    expected_printed("this.hello()", "this.hello()");
 }
 
 #[test]
@@ -362,15 +430,11 @@ fn test_object_expression() {
     expected_printed("let a = {}", "let a = {};");
     expected_printed("let a = { a: b, c: d }", "let a = { \"a\": b, \"c\": d };");
     expected_printed("let a = { [a]: b, [c]: d }", "let a = { [a]: b, [c]: d };");
-
     expected_printed(
         "let a = { [a]: { [b]: { [c]: { [d]: {} } } } }",
         "let a = { [a]: { [b]: { [c]: { [d]: {} } } } };",
     );
-    expected_printed(
-        "let a = { [a]: 3 * 3 / 2 }",
-        "let a = { [a]: ((3 * 3) / 2) };",
-    );
+    expected_printed("let a = { [a]: 3 * 3 / 2 }", "let a = { [a]: 3 * 3 / 2 };");
 }
 
 #[test]
@@ -384,5 +448,5 @@ fn test_new_expression() {
 fn test_member_expression() {
     expected_printed("a.b.c", "a.b.c");
     expected_printed("a[b].d.[c]", "a[b].d.[c]");
-    expected_printed("a['a' + 'b'].d.[c]", "a[(\"a\" + \"b\")].d.[c]");
+    expected_printed("a['a' + 'b'].d.[c]", "a[\"a\" + \"b\"].d.[c]");
 }

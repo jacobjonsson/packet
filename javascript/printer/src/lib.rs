@@ -463,7 +463,6 @@ impl Printer {
                 self.print_expression(&l.right);
             }
             Expression::BinaryExpression(e) => {
-                self.print("(");
                 self.print_expression(e.left.as_ref());
                 self.print_space();
                 match e.operator {
@@ -491,14 +490,11 @@ impl Printer {
                 }
                 self.print_space();
                 self.print_expression(e.right.as_ref());
-                self.print(")");
             }
 
             Expression::PrefixExpression(e) => {
-                self.print("(");
                 self.print(&e.operator);
                 self.print_expression(e.right.as_ref());
-                self.print(")");
             }
 
             Expression::StringLiteral(e) => {
