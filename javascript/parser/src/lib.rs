@@ -467,6 +467,29 @@ impl Parser {
 
         loop {
             match &self.lexer.token {
+                // a[b][c]
+                Token::OpenBracket => {
+                    self.lexer.next_token();
+                    let property = self.parse_expression(OperatorPrecedence::Lowest)?;
+                    self.lexer.expect_token(Token::CloseBracket);
+                    self.lexer.next_token();
+                    expression = Expression::MemberExpression(MemberExpression {
+                        object: Box::new(expression),
+                        computed: true,
+                        property: Box::new(property),
+                    })
+                }
+                // a.b.c
+                Token::Dot => {
+                    self.lexer.next_token();
+                    let property = self.parse_expression(OperatorPrecedence::Lowest)?;
+                    expression = Expression::MemberExpression(MemberExpression {
+                        object: Box::new(expression),
+                        computed: false,
+                        property: Box::new(property),
+                    });
+                }
+
                 // a = 1
                 Token::Equals => {
                     if level >= OperatorPrecedence::Assignment {

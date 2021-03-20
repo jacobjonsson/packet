@@ -12,6 +12,7 @@ fn expected_printed(content: &str, expected: &str) {
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
     let output = Printer::new().print_program(&program);
+    println!("{:?}", program);
     assert_eq!(output, expected);
 }
 
@@ -377,4 +378,11 @@ fn test_new_expression() {
     expected_printed("new MyClass()", "new MyClass()");
     expected_printed("new MyClass(a, b, c)", "new MyClass(a, b, c)");
     expected_printed("new function() {}()", "new function() {}()");
+}
+
+#[test]
+fn test_member_expression() {
+    expected_printed("a.b.c", "a.b.c");
+    expected_printed("a[b].d.[c]", "a[b].d.[c]");
+    expected_printed("a['a' + 'b'].d.[c]", "a[(\"a\" + \"b\")].d.[c]");
 }

@@ -559,6 +559,19 @@ impl Printer {
                 self.print(")");
             }
 
+            Expression::MemberExpression(m) => {
+                self.print_expression(&m.object);
+                if m.computed {
+                    self.print("[");
+                } else {
+                    self.print(".");
+                }
+                self.print_expression(&m.property);
+                if m.computed {
+                    self.print("]");
+                }
+            }
+
             Expression::ObjectExpression(o) => {
                 self.print("{");
                 for (idx, property) in o.properties.iter().enumerate() {
