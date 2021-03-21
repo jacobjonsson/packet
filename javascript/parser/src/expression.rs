@@ -26,12 +26,20 @@ impl<'a> Parser<'a> {
     /// a(function() {})
     pub(crate) fn parse_function_expression(&mut self) -> ParseResult<FunctionExpression> {
         self.lexer.next_token();
+        let mut id: Option<Identifier> = None;
+        if self.lexer.token == TokenType::Identifier {
+            id = Some(self.parse_identifer()?);
+        }
         self.lexer.expect_token(TokenType::OpenParen);
         let parameters = self.parse_function_parameters()?;
         self.lexer.expect_token(TokenType::OpenBrace);
         let body = self.parse_block_statement()?;
 
-        Ok(FunctionExpression { parameters, body })
+        Ok(FunctionExpression {
+            parameters,
+            body,
+            id,
+        })
     }
 
     /// Parses function parameters

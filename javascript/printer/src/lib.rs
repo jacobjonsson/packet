@@ -527,6 +527,10 @@ impl Printer {
                     self.print("(");
                 }
                 self.print("function");
+                if let Some(identifier) = &f.id {
+                    self.print_space();
+                    self.print_identifier(identifier);
+                }
                 self.print("(");
                 for (idx, parameter) in f.parameters.iter().enumerate() {
                     if idx != 0 {

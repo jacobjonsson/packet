@@ -88,6 +88,7 @@ pub struct BooleanExpression {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FunctionExpression {
+    pub id: Option<Identifier>,
     pub parameters: Vec<Identifier>, // TODO: es6 and upwards supports more patterns, see here: https://github.com/estree/estree/blob/master/es5.md#patterns
     pub body: BlockStatement,
 }

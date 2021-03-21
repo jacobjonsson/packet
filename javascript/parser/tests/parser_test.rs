@@ -227,6 +227,8 @@ fn test_function_expression() {
     expected_printed("a(function() {})", "a(function() {})");
     expected_printed("(function() {})", "(function() {})");
     expected_printed("(function() {})()", "(function() {})()");
+    expected_printed("(function a() {})", "(function a() {})");
+    expected_printed("let a = function b() {}", "let a = function b() {};");
 }
 
 #[test]
