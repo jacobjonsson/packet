@@ -122,7 +122,10 @@ impl LoggerImpl {
 impl Logger for LoggerImpl {
     fn add_message(&self, message: Message) {
         let mut messages = self.messages.lock().unwrap();
-        println!("{}", message.to_string());
+        match message.kind {
+            MessageKind::Error => eprintln!("{}", message.to_string()),
+            MessageKind::Warning => println!("{}", message.to_string()),
+        }
         messages.push(message);
     }
 

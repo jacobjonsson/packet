@@ -1,5 +1,5 @@
 use javascript_lexer::Lexer;
-use javascript_token::Token;
+use javascript_token::TokenType;
 use logger::LoggerImpl;
 
 #[test]
@@ -12,20 +12,20 @@ fn tokenize_multiple_lines() {
 ";
 
     let expected_tokens = vec![
-        Token::Import,
-        Token::Identifier("a".into()),
-        Token::From,
-        Token::StringLiteral("a".into()),
-        Token::Semicolon,
-        Token::Let,
-        Token::Identifier("b".into()),
-        Token::Equals,
-        Token::NumericLiteral("5".into()),
-        Token::Semicolon,
-        Token::NumericLiteral("5".into()),
-        Token::Plus,
-        Token::NumericLiteral("5".into()),
-        Token::Semicolon,
+        (TokenType::Import, None),
+        (TokenType::Identifier, Some("a")),
+        (TokenType::From, None),
+        (TokenType::StringLiteral, Some("a")),
+        (TokenType::Semicolon, None),
+        (TokenType::Let, None),
+        (TokenType::Identifier, Some("b")),
+        (TokenType::Equals, None),
+        (TokenType::NumericLiteral, Some("5")),
+        (TokenType::Semicolon, None),
+        (TokenType::NumericLiteral, Some("5")),
+        (TokenType::Plus, None),
+        (TokenType::NumericLiteral, Some("5")),
+        (TokenType::Semicolon, None),
     ];
 
     let logger = LoggerImpl::new();
@@ -34,14 +34,18 @@ fn tokenize_multiple_lines() {
         if idx != 0 {
             lexer.next_token();
         }
-        assert_eq!(&lexer.token, token);
+        assert_eq!(&lexer.token, &token.0);
+        if let Some(value) = token.1 {
+            assert_eq!(lexer.token_value, value);
+        }
     }
 }
 
 fn expect_string_literal(content: &str, expected: &str) {
     let logger = LoggerImpl::new();
     let lexer = Lexer::new(content, &logger);
-    assert_eq!(lexer.token, Token::StringLiteral(expected.into()));
+    assert_eq!(lexer.token, TokenType::StringLiteral);
+    assert_eq!(lexer.token_value, expected);
 }
 
 #[test]
@@ -56,7 +60,8 @@ fn test_string_literal() {
 fn expect_identifier(content: &str, expected: &str) {
     let logger = LoggerImpl::new();
     let lexer = Lexer::new(content, &logger);
-    assert_eq!(lexer.token, Token::Identifier(expected.into()));
+    assert_eq!(lexer.token, TokenType::Identifier);
+    assert_eq!(lexer.token_value, expected);
 }
 
 #[test]
@@ -70,106 +75,106 @@ fn test_identifiers() {
 fn test_tokens() {
     let tests = vec![
         // Punctuations
-        ("&", Token::Ampersand),
-        ("&&", Token::AmpersandAmpersand),
-        ("*", Token::Asterisk),
-        ("**", Token::AsteriskAsterisk),
-        ("@", Token::At),
-        ("|", Token::Bar),
-        ("||", Token::BarBar),
-        ("^", Token::Caret),
-        ("}}", Token::CloseBrace),
-        ("]", Token::CloseBracket),
-        (")", Token::CloseParen),
-        (":", Token::Colon),
-        (",", Token::Comma),
-        (".", Token::Dot),
-        ("...", Token::DotDotDot),
-        ("==", Token::EqualsEquals),
-        ("===", Token::EqualsEqualsEquals),
-        ("=>", Token::EqualsGreaterThan),
-        ("!", Token::Exclamation),
-        ("!=", Token::ExclamationEquals),
-        ("!==", Token::ExclamationEqualsEquals),
-        (">", Token::GreaterThan),
-        (">=", Token::GreaterThanEquals),
-        (">>", Token::GreaterThanGreaterThan),
-        (">>>", Token::GreaterThanGreaterThanGreaterThan),
-        ("<", Token::LessThan),
-        ("<=", Token::LessThanEquals),
-        ("<<", Token::LessThanLessThan),
-        ("-", Token::Minus),
-        ("--", Token::MinusMinus),
-        ("{{", Token::OpenBrace),
-        ("[", Token::OpenBracket),
-        ("(", Token::OpenParen),
-        ("%", Token::Percent),
-        ("+", Token::Plus),
-        ("++", Token::PlusPlus),
-        ("?", Token::Question),
-        ("?.", Token::QuestionDot),
-        ("??", Token::QuestionQuestion),
-        (";", Token::Semicolon),
-        ("/", Token::Slash),
-        ("~", Token::Tilde),
+        ("&", TokenType::Ampersand),
+        ("&&", TokenType::AmpersandAmpersand),
+        ("*", TokenType::Asterisk),
+        ("**", TokenType::AsteriskAsterisk),
+        ("@", TokenType::At),
+        ("|", TokenType::Bar),
+        ("||", TokenType::BarBar),
+        ("^", TokenType::Caret),
+        ("}}", TokenType::CloseBrace),
+        ("]", TokenType::CloseBracket),
+        (")", TokenType::CloseParen),
+        (":", TokenType::Colon),
+        (",", TokenType::Comma),
+        (".", TokenType::Dot),
+        ("...", TokenType::DotDotDot),
+        ("==", TokenType::EqualsEquals),
+        ("===", TokenType::EqualsEqualsEquals),
+        ("=>", TokenType::EqualsGreaterThan),
+        ("!", TokenType::Exclamation),
+        ("!=", TokenType::ExclamationEquals),
+        ("!==", TokenType::ExclamationEqualsEquals),
+        (">", TokenType::GreaterThan),
+        (">=", TokenType::GreaterThanEquals),
+        (">>", TokenType::GreaterThanGreaterThan),
+        (">>>", TokenType::GreaterThanGreaterThanGreaterThan),
+        ("<", TokenType::LessThan),
+        ("<=", TokenType::LessThanEquals),
+        ("<<", TokenType::LessThanLessThan),
+        ("-", TokenType::Minus),
+        ("--", TokenType::MinusMinus),
+        ("{{", TokenType::OpenBrace),
+        ("[", TokenType::OpenBracket),
+        ("(", TokenType::OpenParen),
+        ("%", TokenType::Percent),
+        ("+", TokenType::Plus),
+        ("++", TokenType::PlusPlus),
+        ("?", TokenType::Question),
+        ("?.", TokenType::QuestionDot),
+        ("??", TokenType::QuestionQuestion),
+        (";", TokenType::Semicolon),
+        ("/", TokenType::Slash),
+        ("~", TokenType::Tilde),
         //
         // Assignments
-        ("&&=", Token::AmpersandAmpersandEquals),
-        ("&=", Token::AmpersandEquals),
-        ("*=", Token::AsteriskEquals),
-        ("**=", Token::AsteriskAsteriskEquals),
-        ("||=", Token::BarBarEquals),
-        ("|=", Token::BarEquals),
-        ("^=", Token::CaretEquals),
-        ("=", Token::Equals),
-        (">>=", Token::GreaterThanGreaterThanEquals),
-        (">>>", Token::GreaterThanGreaterThanGreaterThan),
-        ("<<=", Token::LessThanLessThanEquals),
-        ("-=", Token::MinusEquals),
-        ("%=", Token::PercentEquals),
-        ("+=", Token::PlusEquals),
-        ("??=", Token::QuestionQuestionEquals),
-        ("/=", Token::SlashEquals),
+        ("&&=", TokenType::AmpersandAmpersandEquals),
+        ("&=", TokenType::AmpersandEquals),
+        ("*=", TokenType::AsteriskEquals),
+        ("**=", TokenType::AsteriskAsteriskEquals),
+        ("||=", TokenType::BarBarEquals),
+        ("|=", TokenType::BarEquals),
+        ("^=", TokenType::CaretEquals),
+        ("=", TokenType::Equals),
+        (">>=", TokenType::GreaterThanGreaterThanEquals),
+        (">>>", TokenType::GreaterThanGreaterThanGreaterThan),
+        ("<<=", TokenType::LessThanLessThanEquals),
+        ("-=", TokenType::MinusEquals),
+        ("%=", TokenType::PercentEquals),
+        ("+=", TokenType::PlusEquals),
+        ("??=", TokenType::QuestionQuestionEquals),
+        ("/=", TokenType::SlashEquals),
         //
         // Keywords
-        ("await", Token::Await),
-        ("as", Token::As),
-        ("break", Token::Break),
-        ("case", Token::Case),
-        ("catch", Token::Catch),
-        ("class", Token::Class),
-        ("const", Token::Const),
-        ("continue", Token::Continue),
-        ("debugger", Token::Debugger),
-        ("default", Token::Default),
-        ("delete", Token::Delete),
-        ("do", Token::Do),
-        ("else", Token::Else),
-        ("enum", Token::Enum),
-        ("export", Token::Export),
-        ("extends", Token::Extends),
-        ("false", Token::False),
-        ("finally", Token::Finally),
-        ("for", Token::For),
-        ("function", Token::Function),
-        ("if", Token::If),
-        ("import", Token::Import),
-        ("in", Token::In),
-        ("instanceof", Token::Instanceof),
-        ("new", Token::New),
-        ("null", Token::Null),
-        ("return", Token::Return),
-        ("super", Token::Super),
-        ("switch", Token::Switch),
-        ("this", Token::This),
-        ("throw", Token::Throw),
-        ("true", Token::True),
-        ("try", Token::Try),
-        ("typeof", Token::Typeof),
-        ("var", Token::Var),
-        ("void", Token::Void),
-        ("while", Token::While),
-        ("with", Token::With),
+        ("await", TokenType::Await),
+        ("as", TokenType::As),
+        ("break", TokenType::Break),
+        ("case", TokenType::Case),
+        ("catch", TokenType::Catch),
+        ("class", TokenType::Class),
+        ("const", TokenType::Const),
+        ("continue", TokenType::Continue),
+        ("debugger", TokenType::Debugger),
+        ("default", TokenType::Default),
+        ("delete", TokenType::Delete),
+        ("do", TokenType::Do),
+        ("else", TokenType::Else),
+        ("enum", TokenType::Enum),
+        ("export", TokenType::Export),
+        ("extends", TokenType::Extends),
+        ("false", TokenType::False),
+        ("finally", TokenType::Finally),
+        ("for", TokenType::For),
+        ("function", TokenType::Function),
+        ("if", TokenType::If),
+        ("import", TokenType::Import),
+        ("in", TokenType::In),
+        ("instanceof", TokenType::Instanceof),
+        ("new", TokenType::New),
+        ("null", TokenType::Null),
+        ("return", TokenType::Return),
+        ("super", TokenType::Super),
+        ("switch", TokenType::Switch),
+        ("this", TokenType::This),
+        ("throw", TokenType::Throw),
+        ("true", TokenType::True),
+        ("try", TokenType::Try),
+        ("typeof", TokenType::Typeof),
+        ("var", TokenType::Var),
+        ("void", TokenType::Void),
+        ("while", TokenType::While),
+        ("with", TokenType::With),
     ];
 
     for test in tests {
@@ -182,7 +187,8 @@ fn test_tokens() {
 fn expect_number(content: &str, expected: &str) {
     let logger = LoggerImpl::new();
     let lexer = Lexer::new(content, &logger);
-    assert_eq!(lexer.token, Token::NumericLiteral(expected.into()));
+    assert_eq!(lexer.token, TokenType::NumericLiteral);
+    assert_eq!(lexer.token_value, expected);
 }
 
 #[test]
