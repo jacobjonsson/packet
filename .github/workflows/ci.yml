@@ -1,0 +1,20 @@
+name: CI
+
+on: [push]
+
+jobs:
+    fmt:
+        name: Format
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+            - run: rustup component add rustfmt
+            - run: cargo fmt --all -- --check
+
+    build:
+        name: Build
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+            - run: cargo build
+            - run: cargo test
