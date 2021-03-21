@@ -4,17 +4,15 @@ on: [push]
 
 jobs:
     fmt:
-        name: fmt
+        name: Format
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v2
-            - name: Install rustfmt
-              run: rustup component add rustfmt
-            - name: Run cargo fmt
-              run: cargo fmt --all -- --check
+            - run: rustup component add rustfmt
+            - run: cargo fmt --all -- --check
 
     build:
-        name: test
+        name: Build
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v2
