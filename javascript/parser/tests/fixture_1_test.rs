@@ -1,5 +1,6 @@
 use javascript_lexer::Lexer;
 use javascript_parser::Parser;
+use logger::LoggerImpl;
 
 #[test]
 fn fixture_1_test() {
@@ -12,8 +13,9 @@ function main(arg1, arg2, arg3) {
 const result = main(1,2,3);
     ";
 
-    let lexer = Lexer::new(input);
-    let mut parser = Parser::new(lexer);
+    let logger = LoggerImpl::new();
+    let lexer = Lexer::new(input, &logger);
+    let mut parser = Parser::new(lexer, &logger);
     let program = parser.parse_program();
     assert_eq!(program.statements.len(), 3);
 }

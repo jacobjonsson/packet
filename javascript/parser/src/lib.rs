@@ -5,6 +5,7 @@ mod statement;
 use javascript_ast::{expression::*, statement::*, Program};
 use javascript_lexer::Lexer;
 use javascript_token::{Token, TokenLiteral};
+use logger::Logger;
 
 /// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_Precedence#table
 /// https://github.com/evanw/esbuild/blob/51b785f89933426afe675b4e633cf531d5a9890d/internal/js_ast/js_ast.go#L29
@@ -71,14 +72,19 @@ impl OperatorPrecedence {
 pub struct ParserError(String);
 pub type ParseResult<T> = Result<T, ParserError>;
 
-pub struct Parser {
-    lexer: Lexer,
+pub struct Parser<'a> {
+    lexer: Lexer<'a>,
+    #[allow(dead_code)]
+    logger: &'a dyn Logger,
 }
 
 /// Public
-impl Parser {
-    pub fn new(lexer: Lexer) -> Parser {
-        Parser { lexer: lexer }
+impl<'a> Parser<'a> {
+    pub fn new<'b>(lexer: Lexer<'b>, logger: &'b impl Logger) -> Parser<'b> {
+        Parser {
+            lexer: lexer,
+            logger,
+        }
     }
 
     pub fn parse_program(&mut self) -> Program {
@@ -96,7 +102,7 @@ impl Parser {
 }
 
 /// Private
-impl Parser {
+impl<'a> Parser<'a> {
     fn parse_statement(&mut self) -> ParseResult<Statement> {
         match &self.lexer.token {
             Token::Const => self
@@ -907,7 +913,10 @@ impl Parser {
     fn parse_identifer(&mut self) -> ParseResult<Identifier> {
         let identifier = match &self.lexer.token {
             Token::Identifier(i) => Identifier { name: i.clone() },
-            t => return Err(ParserError(format!("Expected identifier but got {}", t))),
+            t => {
+                self.lexer.unexpected();
+                return Err(ParserError(format!("Expected identifier but got {}", t)));
+            }
         };
         self.lexer.next_token();
         Ok(identifier)

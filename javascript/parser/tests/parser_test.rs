@@ -9,18 +9,21 @@ use javascript_ast::{
 use javascript_lexer::Lexer;
 use javascript_parser::Parser;
 use javascript_printer::Printer;
+use logger::LoggerImpl;
 
 fn expected_printed(content: &str, expected: &str) {
-    let lexer = Lexer::new(content);
-    let mut parser = Parser::new(lexer);
+    let logger = LoggerImpl::new();
+    let lexer = Lexer::new(content, &logger);
+    let mut parser = Parser::new(lexer, &logger);
     let program = parser.parse_program();
     let output = Printer::new().print_program(&program);
     assert_eq!(output, expected);
 }
 
 fn expected_ast(content: &str, expected: Program) {
-    let lexer = Lexer::new(content);
-    let mut parser = Parser::new(lexer);
+    let logger = LoggerImpl::new();
+    let lexer = Lexer::new(content, &logger);
+    let mut parser = Parser::new(lexer, &logger);
     let program = parser.parse_program();
     assert_eq!(program, expected);
 }

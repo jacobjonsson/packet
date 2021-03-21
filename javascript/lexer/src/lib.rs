@@ -1,7 +1,7 @@
-use javascript_reporter::report_unexpected_token;
 use javascript_token::{lookup_identifer, Token};
+use logger::Logger;
 
-pub struct Lexer {
+pub struct Lexer<'a> {
     input: String,
     /// The position of the current character
     current: usize,
@@ -13,11 +13,13 @@ pub struct Lexer {
     character: Option<char>,
     /// The currently parsed token
     pub token: Token,
+
+    logger: &'a dyn Logger,
 }
 
 /// Public
-impl Lexer {
-    pub fn new(input: &str) -> Lexer {
+impl<'a> Lexer<'a> {
+    pub fn new<'b>(input: &str, logger: &'b impl Logger) -> Lexer<'b> {
         let mut lexer = Lexer {
             input: input.into(),
             token: Token::EndOfFile,
@@ -25,6 +27,7 @@ impl Lexer {
             current: 0,
             end: 0,
             character: input.chars().nth(0),
+            logger,
         };
 
         lexer.next_token();
@@ -32,24 +35,28 @@ impl Lexer {
     }
 
     /// Asserts that the current token matches the provided one
-    pub fn expect_token(&mut self, token: Token) {
+    pub fn expect_token(&self, token: Token) {
         if self.token != token {
-            report_unexpected_token(
+            self.logger.add_error(
                 &self.input,
-                &format!("Expected \"{}\" but found \"{}\"", token, self.token),
-                self.start,
-                self.end,
-            );
+                logger::Range {
+                    start: self.start,
+                    end: self.end,
+                },
+                format!("Expected \"{}\" but found \"{}\"", token, self.token),
+            )
         }
     }
 
     /// Reports the current token as unexpected
-    pub fn unexpected(&mut self) {
-        report_unexpected_token(
+    pub fn unexpected(&self) {
+        self.logger.add_error(
             &self.input,
-            &format!("Unexpected token \"{}\"", self.token),
-            self.start,
-            self.end,
+            logger::Range {
+                start: self.start,
+                end: self.end,
+            },
+            format!("Unexpected token \"{}\"", self.token),
         );
     }
 
@@ -372,7 +379,7 @@ impl Lexer {
 }
 
 /// Internal
-impl Lexer {
+impl<'a> Lexer<'a> {
     fn step(&mut self) {
         self.end = self.current;
         self.current += 1;

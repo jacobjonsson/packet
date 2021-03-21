@@ -9,7 +9,7 @@ use javascript_token::Token;
 
 use crate::{ParseResult, Parser, ParserError};
 
-impl Parser {
+impl<'a> Parser<'a> {
     pub(crate) fn parse_import_statement(&mut self) -> ParseResult<Statement> {
         let source: StringLiteral;
         let mut specifiers: Vec<ImportClause> = Vec::new();

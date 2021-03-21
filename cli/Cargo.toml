@@ -10,3 +10,4 @@ edition = "2018"
 javascript_lexer = { path = "../javascript/lexer" }
 javascript_parser = { path = "../javascript/parser" }
 javascript_printer = { path = "../javascript/printer" }
+logger = { path = "../logger" }

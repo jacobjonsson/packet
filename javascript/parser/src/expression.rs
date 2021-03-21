@@ -3,7 +3,7 @@ use javascript_token::Token;
 
 use crate::{OperatorPrecedence, ParseResult, Parser};
 
-impl Parser {
+impl<'a> Parser<'a> {
     pub(crate) fn parse_call_expression_arguments(&mut self) -> ParseResult<Vec<Box<Expression>>> {
         let mut arguments: Vec<Box<Expression>> = Vec::new();
         self.lexer.next_token();

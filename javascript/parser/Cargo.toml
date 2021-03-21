@@ -10,6 +10,7 @@ edition = "2018"
 javascript_lexer = { path = "../lexer" }
 javascript_ast = { path = "../ast" }
 javascript_token = { path = "../token" }
+logger = { path = "../../logger" }
 
 [dev-dependencies]
 javascript_printer = { path = "../printer" }

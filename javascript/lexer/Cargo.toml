@@ -8,4 +8,4 @@ edition = "2018"
 
 [dependencies]
 javascript_token = { path = "../token" }
-javascript_reporter = { path = "../reporter" }
+logger = { path = "../../logger" }

@@ -3,7 +3,7 @@ use javascript_token::Token;
 
 use crate::{OperatorPrecedence, ParseResult, Parser};
 
-impl Parser {
+impl<'a> Parser<'a> {
     /// Parses function declarations
     /// function a() {}
     /// function a(arg1) {}

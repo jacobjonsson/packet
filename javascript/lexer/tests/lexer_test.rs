@@ -1,5 +1,6 @@
 use javascript_lexer::Lexer;
 use javascript_token::Token;
+use logger::LoggerImpl;
 
 #[test]
 fn tokenize_multiple_lines() {
@@ -27,7 +28,8 @@ fn tokenize_multiple_lines() {
         Token::Semicolon,
     ];
 
-    let mut lexer = Lexer::new(input);
+    let logger = LoggerImpl::new();
+    let mut lexer = Lexer::new(input, &logger);
     for (idx, token) in expected_tokens.iter().enumerate() {
         if idx != 0 {
             lexer.next_token();
@@ -37,7 +39,8 @@ fn tokenize_multiple_lines() {
 }
 
 fn expect_string_literal(content: &str, expected: &str) {
-    let lexer = Lexer::new(content);
+    let logger = LoggerImpl::new();
+    let lexer = Lexer::new(content, &logger);
     assert_eq!(lexer.token, Token::StringLiteral(expected.into()));
 }
 
@@ -51,7 +54,8 @@ fn test_string_literal() {
 }
 
 fn expect_identifier(content: &str, expected: &str) {
-    let lexer = Lexer::new(content);
+    let logger = LoggerImpl::new();
+    let lexer = Lexer::new(content, &logger);
     assert_eq!(lexer.token, Token::Identifier(expected.into()));
 }
 
@@ -169,13 +173,15 @@ fn test_tokens() {
     ];
 
     for test in tests {
-        let lexer = Lexer::new(test.0);
+        let logger = LoggerImpl::new();
+        let lexer = Lexer::new(test.0, &logger);
         assert_eq!(lexer.token, test.1);
     }
 }
 
 fn expect_number(content: &str, expected: &str) {
-    let lexer = Lexer::new(content);
+    let logger = LoggerImpl::new();
+    let lexer = Lexer::new(content, &logger);
     assert_eq!(lexer.token, Token::NumericLiteral(expected.into()));
 }
 
