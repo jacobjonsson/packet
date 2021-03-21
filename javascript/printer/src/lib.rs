@@ -2,12 +2,14 @@ use javascript_ast::{expression::*, statement::*, Program};
 
 pub struct Printer {
     text: String,
+    statement_start: usize,
 }
 
 impl Printer {
     pub fn new() -> Printer {
         Printer {
             text: String::new(),
+            statement_start: 0,
         }
     }
 
@@ -39,6 +41,7 @@ impl Printer {
             }
 
             Statement::Expression(e) => {
+                self.statement_start = self.text.len();
                 self.print_expression(&e.expression);
             }
 
@@ -505,7 +508,7 @@ impl Printer {
             }
 
             Expression::CallExpression(c) => {
-                self.print_identifier(&c.function);
+                self.print_expression(&c.callee);
                 self.print("(");
 
                 for (idx, argument) in c.arguments.iter().enumerate() {
@@ -519,6 +522,10 @@ impl Printer {
             }
 
             Expression::FunctionExpression(f) => {
+                let wrap = self.text.len() == self.statement_start;
+                if wrap {
+                    self.print("(");
+                }
                 self.print("function");
                 self.print("(");
                 for (idx, parameter) in f.parameters.iter().enumerate() {
@@ -532,6 +539,9 @@ impl Printer {
                 self.print(")");
                 self.print_space();
                 self.print_block_statement(&f.body);
+                if wrap {
+                    self.print(")");
+                }
             }
 
             Expression::ConditionalExpression(c) => {

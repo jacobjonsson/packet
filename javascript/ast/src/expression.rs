@@ -100,7 +100,7 @@ pub struct PrefixExpression {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CallExpression {
-    pub function: Identifier, // TODO: Should support function expressions as well.
+    pub callee: Box<Expression>,
     pub arguments: Vec<Box<Expression>>,
 }
 

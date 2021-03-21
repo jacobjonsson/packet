@@ -331,7 +331,13 @@ impl<'a> Parser<'a> {
             TokenType::Minus => self.parse_prefix_expression(),
             TokenType::True => self.parse_boolean().map(Expression::BooleanExpression),
             TokenType::False => self.parse_boolean().map(Expression::BooleanExpression),
-            TokenType::OpenParen => self.parse_grouped_expression(),
+            TokenType::OpenParen => {
+                self.lexer.next_token();
+                let expression = self.parse_expression(OperatorPrecedence::Lowest)?;
+                self.lexer.expect_token(TokenType::CloseParen);
+                self.lexer.next_token();
+                Ok(expression)
+            }
 
             TokenType::New => {
                 self.lexer.next_token();
@@ -681,7 +687,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::BinaryExpression(BinaryExpression {
-                        left: Box::new(expression.clone()),
+                        left: Box::new(expression),
                         operator: BinaryOperator::Plus,
                         right: Box::new(self.parse_expression(OperatorPrecedence::Sum)?),
                     });
@@ -694,7 +700,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::BinaryExpression(BinaryExpression {
-                        left: Box::new(expression.clone()),
+                        left: Box::new(expression),
                         operator: BinaryOperator::Minus,
                         right: Box::new(self.parse_expression(OperatorPrecedence::Sum)?),
                     });
@@ -707,7 +713,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::BinaryExpression(BinaryExpression {
-                        left: Box::new(expression.clone()),
+                        left: Box::new(expression),
                         operator: BinaryOperator::Slash,
                         right: Box::new(self.parse_expression(OperatorPrecedence::Product)?),
                     });
@@ -720,7 +726,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::BinaryExpression(BinaryExpression {
-                        left: Box::new(expression.clone()),
+                        left: Box::new(expression),
                         operator: BinaryOperator::Asterisk,
                         right: Box::new(self.parse_expression(OperatorPrecedence::Product)?),
                     });
@@ -733,7 +739,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::BinaryExpression(BinaryExpression {
-                        left: Box::new(expression.clone()),
+                        left: Box::new(expression),
                         operator: BinaryOperator::EqualsEquals,
                         right: Box::new(self.parse_expression(OperatorPrecedence::Equals)?),
                     });
@@ -746,7 +752,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::BinaryExpression(BinaryExpression {
-                        left: Box::new(expression.clone()),
+                        left: Box::new(expression),
                         operator: BinaryOperator::EqualsEqualsEquals,
                         right: Box::new(self.parse_expression(OperatorPrecedence::Equals)?),
                     });
@@ -759,7 +765,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::BinaryExpression(BinaryExpression {
-                        left: Box::new(expression.clone()),
+                        left: Box::new(expression),
                         operator: BinaryOperator::ExclamationEquals,
                         right: Box::new(self.parse_expression(OperatorPrecedence::Equals)?),
                     });
@@ -772,7 +778,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::BinaryExpression(BinaryExpression {
-                        left: Box::new(expression.clone()),
+                        left: Box::new(expression),
                         operator: BinaryOperator::ExclamationEqualsEquals,
                         right: Box::new(self.parse_expression(OperatorPrecedence::Equals)?),
                     });
@@ -785,7 +791,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::BinaryExpression(BinaryExpression {
-                        left: Box::new(expression.clone()),
+                        left: Box::new(expression),
                         operator: BinaryOperator::LessThan,
                         right: Box::new(self.parse_expression(OperatorPrecedence::Compare)?),
                     });
@@ -798,7 +804,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::BinaryExpression(BinaryExpression {
-                        left: Box::new(expression.clone()),
+                        left: Box::new(expression),
                         operator: BinaryOperator::GreaterThan,
                         right: Box::new(self.parse_expression(OperatorPrecedence::Compare)?),
                     });
@@ -809,18 +815,11 @@ impl<'a> Parser<'a> {
                         return Ok(expression);
                     }
 
-                    let function = match expression {
-                        Expression::Identifier(i) => i,
-                        _ => {
-                            self.lexer.unexpected();
-                            panic!(); // We panic above, this is just to satisfy the compiler.
-                        }
-                    };
                     let arguments = self.parse_call_expression_arguments()?;
 
                     expression = Expression::CallExpression(CallExpression {
                         arguments,
-                        function,
+                        callee: Box::new(expression),
                     });
                 }
 
@@ -898,14 +897,6 @@ impl<'a> Parser<'a> {
                 }
             };
         }
-    }
-
-    fn parse_grouped_expression(&mut self) -> Result<Expression, ParserError> {
-        self.lexer.next_token();
-        let expression = self.parse_expression(OperatorPrecedence::Lowest)?;
-        self.lexer.expect_token(TokenType::CloseParen);
-        self.lexer.next_token();
-        Ok(expression)
     }
 
     fn parse_identifer(&mut self) -> ParseResult<Identifier> {

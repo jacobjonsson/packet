@@ -225,6 +225,8 @@ fn test_if_statement() {
 fn test_function_expression() {
     expected_printed("let a = function() {}", "let a = function() {};");
     expected_printed("a(function() {})", "a(function() {})");
+    expected_printed("(function() {})", "(function() {})");
+    expected_printed("(function() {})()", "(function() {})()");
 }
 
 #[test]
