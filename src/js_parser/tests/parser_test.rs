@@ -11,7 +11,7 @@ use js_parser::Parser;
 use js_printer::Printer;
 use logger::LoggerImpl;
 
-fn expected_printed(content: &str, expected: &str) {
+fn expect_printed(content: &str, expected: &str) {
     let logger = LoggerImpl::new();
     let lexer = Lexer::new(content, &logger);
     let mut parser = Parser::new(lexer, &logger);
@@ -20,7 +20,7 @@ fn expected_printed(content: &str, expected: &str) {
     assert_eq!(output, expected);
 }
 
-fn expected_ast(content: &str, expected: Program) {
+fn expect_ast(content: &str, expected: Program) {
     let logger = LoggerImpl::new();
     let lexer = Lexer::new(content, &logger);
     let mut parser = Parser::new(lexer, &logger);
@@ -30,47 +30,47 @@ fn expected_ast(content: &str, expected: Program) {
 
 #[test]
 fn test_string_literal() {
-    expected_printed("\"hello_world\"", "\"hello_world\"");
-    expected_printed("'hello_world'", "\"hello_world\"");
+    expect_printed("\"hello_world\"", "\"hello_world\"");
+    expect_printed("'hello_world'", "\"hello_world\"");
 }
 
 #[test]
 fn test_variable_declaration() {
-    expected_printed("var a = 1;", "var a = 1;");
-    expected_printed("let a = 1;", "let a = 1;");
-    expected_printed("const a = 1;", "const a = 1;");
-    expected_printed("var a;", "var a;");
-    expected_printed("let a;", "let a;");
-    expected_printed("const a;", "const a;");
-    expected_printed("const a", "const a;");
-    expected_printed("const a = 1", "const a = 1;");
+    expect_printed("var a = 1;", "var a = 1;");
+    expect_printed("let a = 1;", "let a = 1;");
+    expect_printed("const a = 1;", "const a = 1;");
+    expect_printed("var a;", "var a;");
+    expect_printed("let a;", "let a;");
+    expect_printed("const a;", "const a;");
+    expect_printed("const a", "const a;");
+    expect_printed("const a = 1", "const a = 1;");
 
-    expected_printed("let a = 1, b = 2, c = 3", "let a = 1, b = 2, c = 3;");
-    expected_printed("const a = 1, b = 2, c = 3", "const a = 1, b = 2, c = 3;");
-    expected_printed("var a = 1, b = 2, c = 3", "var a = 1, b = 2, c = 3;");
+    expect_printed("let a = 1, b = 2, c = 3", "let a = 1, b = 2, c = 3;");
+    expect_printed("const a = 1, b = 2, c = 3", "const a = 1, b = 2, c = 3;");
+    expect_printed("var a = 1, b = 2, c = 3", "var a = 1, b = 2, c = 3;");
 }
 
 #[test]
 fn test_infix_expressions() {
-    expected_printed("5 + 5", "5 + 5");
-    expected_printed("5 - 5", "5 - 5");
-    expected_printed("5 * 5", "5 * 5");
-    expected_printed("5 / 5", "5 / 5");
-    expected_printed("5 > 5", "5 > 5");
-    expected_printed("5 < 5", "5 < 5");
-    expected_printed("5 == 5", "5 == 5");
-    expected_printed("5 === 5", "5 === 5");
-    expected_printed("5 != 5", "5 != 5");
-    expected_printed("5 !== 5", "5 !== 5");
-    expected_printed("a + a", "a + a");
-    expected_printed("a === a", "a === a");
-    expected_printed("true === true", "true === true");
-    expected_printed("true !== false", "true !== false");
+    expect_printed("5 + 5", "5 + 5");
+    expect_printed("5 - 5", "5 - 5");
+    expect_printed("5 * 5", "5 * 5");
+    expect_printed("5 / 5", "5 / 5");
+    expect_printed("5 > 5", "5 > 5");
+    expect_printed("5 < 5", "5 < 5");
+    expect_printed("5 == 5", "5 == 5");
+    expect_printed("5 === 5", "5 === 5");
+    expect_printed("5 != 5", "5 != 5");
+    expect_printed("5 !== 5", "5 !== 5");
+    expect_printed("a + a", "a + a");
+    expect_printed("a === a", "a === a");
+    expect_printed("true === true", "true === true");
+    expect_printed("true !== false", "true !== false");
 }
 
 #[test]
 fn test_operator_precedence_parsing() {
-    expected_ast(
+    expect_ast(
         "5 + 5",
         Program {
             statements: vec![Statement::Expression(ExpressionStatement {
@@ -82,7 +82,7 @@ fn test_operator_precedence_parsing() {
             })],
         },
     );
-    expected_ast(
+    expect_ast(
         "true",
         Program {
             statements: vec![Statement::Expression(ExpressionStatement {
@@ -90,7 +90,7 @@ fn test_operator_precedence_parsing() {
             })],
         },
     );
-    expected_ast(
+    expect_ast(
         "false",
         Program {
             statements: vec![Statement::Expression(ExpressionStatement {
@@ -98,7 +98,7 @@ fn test_operator_precedence_parsing() {
             })],
         },
     );
-    expected_ast(
+    expect_ast(
         "5 + 5 + 5",
         Program {
             statements: vec![Statement::Expression(ExpressionStatement {
@@ -115,7 +115,7 @@ fn test_operator_precedence_parsing() {
         },
     );
 
-    expected_ast(
+    expect_ast(
         "3 + 4 * 5 == 3 * (1 + 4) * 5",
         Program {
             statements: vec![Statement::Expression(ExpressionStatement {
@@ -157,25 +157,25 @@ fn test_operator_precedence_parsing() {
 
 #[test]
 fn test_import_statement() {
-    expected_printed("import a from \"b\"", "import a from \"b\";");
-    expected_printed("import { a } from \"b\"", "import { a } from \"b\";");
-    expected_printed("import { a, b } from \"b\"", "import { a, b } from \"b\";");
-    expected_printed(
+    expect_printed("import a from \"b\"", "import a from \"b\";");
+    expect_printed("import { a } from \"b\"", "import { a } from \"b\";");
+    expect_printed("import { a, b } from \"b\"", "import { a, b } from \"b\";");
+    expect_printed(
         "import { a as b } from \"b\";",
         "import { a as b } from \"b\";",
     );
-    expected_printed("import { a, b } from \"b\"", "import { a, b } from \"b\";");
-    expected_printed(
+    expect_printed("import { a, b } from \"b\"", "import { a, b } from \"b\";");
+    expect_printed(
         "import { a as b, b as c } from \"b\";",
         "import { a as b, b as c } from \"b\";",
     );
-    expected_printed(
+    expect_printed(
         "import a, { b as c } from \"b\";",
         "import a, { b as c } from \"b\";",
     );
-    expected_printed("import a, { b } from \"b\"", "import a, { b } from \"b\";");
-    expected_printed("import * as a from \"b\"", "import * as a from \"b\";");
-    expected_printed(
+    expect_printed("import a, { b } from \"b\"", "import a, { b } from \"b\";");
+    expect_printed("import * as a from \"b\"", "import * as a from \"b\";");
+    expect_printed(
         "import a, * as b from \"b\"",
         "import a, * as b from \"b\";",
     );
@@ -183,9 +183,9 @@ fn test_import_statement() {
 
 #[test]
 fn test_function_declaration() {
-    expected_printed("function a() {}", "function a() {}");
-    expected_printed("function a(b, c) {}", "function a(b, c) {}");
-    expected_printed(
+    expect_printed("function a() {}", "function a() {}");
+    expect_printed("function a(b, c) {}", "function a(b, c) {}");
+    expect_printed(
         "function a(b, c) { return b + c; }",
         "function a(b, c) { return b + c; }",
     );
@@ -193,29 +193,29 @@ fn test_function_declaration() {
 
 #[test]
 fn parse_return_statement() {
-    expected_printed("return;", "return;");
-    expected_printed("return 5;", "return 5;");
-    expected_printed("return 5 + 5;", "return 5 + 5;");
+    expect_printed("return;", "return;");
+    expect_printed("return 5;", "return 5;");
+    expect_printed("return 5 + 5;", "return 5 + 5;");
 }
 
 #[test]
 fn test_call_expression() {
-    expected_printed("a()", "a()");
-    expected_printed("a(a)", "a(a)");
-    expected_printed("a(a, b)", "a(a, b)");
-    expected_printed("a(3 + 3)", "a(3 + 3)");
+    expect_printed("a()", "a()");
+    expect_printed("a(a)", "a(a)");
+    expect_printed("a(a, b)", "a(a, b)");
+    expect_printed("a(3 + 3)", "a(3 + 3)");
 }
 
 #[test]
 fn test_if_statement() {
-    expected_printed("if (true) {}", "if (true) {}");
-    expected_printed("if (true) {} else {}", "if (true) {} else {}");
-    expected_printed("if (x < 10) { return 10; }", "if (x < 10) { return 10; }");
-    expected_printed(
+    expect_printed("if (true) {}", "if (true) {}");
+    expect_printed("if (true) {} else {}", "if (true) {} else {}");
+    expect_printed("if (x < 10) { return 10; }", "if (x < 10) { return 10; }");
+    expect_printed(
         "if (false) {} else if (true) {}",
         "if (false) {} else if (true) {}",
     );
-    expected_printed(
+    expect_printed(
         "if (false) {} function a() {}",
         "if (false) {}function a() {}",
     );
@@ -223,31 +223,31 @@ fn test_if_statement() {
 
 #[test]
 fn test_function_expression() {
-    expected_printed("let a = function() {}", "let a = function() {};");
-    expected_printed("a(function() {})", "a(function() {})");
-    expected_printed("(function() {})", "(function() {})");
-    expected_printed("(function() {})()", "(function() {})()");
-    expected_printed("(function a() {})", "(function a() {})");
-    expected_printed("let a = function b() {}", "let a = function b() {};");
+    expect_printed("let a = function() {}", "let a = function() {};");
+    expect_printed("a(function() {})", "a(function() {})");
+    expect_printed("(function() {})", "(function() {})");
+    expect_printed("(function() {})()", "(function() {})()");
+    expect_printed("(function a() {})", "(function a() {})");
+    expect_printed("let a = function b() {}", "let a = function b() {};");
 }
 
 #[test]
 fn test_conditional_expression() {
-    expected_printed("true ? 1 : 2", "true ? 1 : 2");
-    expected_printed("3 > 2 ? 3 + 2 : 3 * 2", "3 > 2 ? 3 + 2 : 3 * 2");
+    expect_printed("true ? 1 : 2", "true ? 1 : 2");
+    expect_printed("3 > 2 ? 3 + 2 : 3 * 2", "3 > 2 ? 3 + 2 : 3 * 2");
 }
 
 #[test]
 fn test_for_statement() {
-    expected_printed(
+    expect_printed(
         "for (let a = 1; a < 10; a++) {}",
         "for (let a = 1; a < 10; a++) {}",
     );
-    expected_printed(
+    expect_printed(
         "for (const a = 1; a < 10; a++) {}",
         "for (const a = 1; a < 10; a++) {}",
     );
-    expected_printed(
+    expect_printed(
         "for (let a = 1; a < 10; a++) {}",
         "for (let a = 1; a < 10; a++) {}",
     );
@@ -255,10 +255,10 @@ fn test_for_statement() {
 
 #[test]
 fn parse_for_in_statement() {
-    expected_printed("for (const a in items) {}", "for (const a in items) {}");
-    expected_printed("for (var a in items) {}", "for (var a in items) {}");
-    expected_printed("for (let a in items) {}", "for (let a in items) {}");
-    expected_printed(
+    expect_printed("for (const a in items) {}", "for (const a in items) {}");
+    expect_printed("for (var a in items) {}", "for (var a in items) {}");
+    expect_printed("for (let a in items) {}", "for (let a in items) {}");
+    expect_printed(
         "for (let a in items) { return 3 + 3; }",
         "for (let a in items) { return 3 + 3; }",
     );
@@ -266,10 +266,10 @@ fn parse_for_in_statement() {
 
 #[test]
 fn parse_for_of_statement() {
-    expected_printed("for (const a of items) {}", "for (const a of items) {}");
-    expected_printed("for (var a of items) {}", "for (var a of items) {}");
-    expected_printed("for (let a of items) {}", "for (let a of items) {}");
-    expected_printed(
+    expect_printed("for (const a of items) {}", "for (const a of items) {}");
+    expect_printed("for (var a of items) {}", "for (var a of items) {}");
+    expect_printed("for (let a of items) {}", "for (let a of items) {}");
+    expect_printed(
         "for (let a of items) { return 3 + 3; }",
         "for (let a of items) { return 3 + 3; }",
     );
@@ -277,45 +277,45 @@ fn parse_for_of_statement() {
 
 #[test]
 fn test_update_expression() {
-    expected_printed("++a", "++a");
-    expected_printed("a++", "a++");
-    expected_printed("--a", "--a");
-    expected_printed("a--", "a--");
+    expect_printed("++a", "++a");
+    expect_printed("a++", "a++");
+    expect_printed("--a", "--a");
+    expect_printed("a--", "a--");
 }
 
 #[test]
 fn test_assignment_expression() {
-    expected_printed("a = 1", "a = 1");
-    expected_printed("a = 3 * 3", "a = 3 * 3");
-    expected_printed("a += 1", "a += 1");
-    expected_printed("a += 3 * 3", "a += 3 * 3");
-    expected_printed("a -= 1", "a -= 1");
-    expected_printed("a -= 3 * 3", "a -= 3 * 3");
-    expected_printed("a *= 1", "a *= 1");
-    expected_printed("a *= 3 * 3", "a *= 3 * 3");
-    expected_printed("a /= 1", "a /= 1");
-    expected_printed("a /= 3 * 3", "a /= 3 * 3");
-    expected_printed("a %= 1", "a %= 1");
-    expected_printed("a %= 3 * 3", "a %= 3 * 3");
-    expected_printed("a <<= 1", "a <<= 1");
-    expected_printed("a <<= 3 * 3", "a <<= 3 * 3");
-    expected_printed("a >>= 1", "a >>= 1");
-    expected_printed("a >>= 3 * 3", "a >>= 3 * 3");
-    expected_printed("a >>>= 1", "a >>>= 1");
-    expected_printed("a >>>= 3 * 3", "a >>>= 3 * 3");
-    expected_printed("a |= 1", "a |= 1");
-    expected_printed("a |= 3 * 3", "a |= 3 * 3");
-    expected_printed("a ^= 1", "a ^= 1");
-    expected_printed("a ^= 3 * 3", "a ^= 3 * 3");
-    expected_printed("a &= 1", "a &= 1");
-    expected_printed("a &= 3 * 3", "a &= 3 * 3");
+    expect_printed("a = 1", "a = 1");
+    expect_printed("a = 3 * 3", "a = 3 * 3");
+    expect_printed("a += 1", "a += 1");
+    expect_printed("a += 3 * 3", "a += 3 * 3");
+    expect_printed("a -= 1", "a -= 1");
+    expect_printed("a -= 3 * 3", "a -= 3 * 3");
+    expect_printed("a *= 1", "a *= 1");
+    expect_printed("a *= 3 * 3", "a *= 3 * 3");
+    expect_printed("a /= 1", "a /= 1");
+    expect_printed("a /= 3 * 3", "a /= 3 * 3");
+    expect_printed("a %= 1", "a %= 1");
+    expect_printed("a %= 3 * 3", "a %= 3 * 3");
+    expect_printed("a <<= 1", "a <<= 1");
+    expect_printed("a <<= 3 * 3", "a <<= 3 * 3");
+    expect_printed("a >>= 1", "a >>= 1");
+    expect_printed("a >>= 3 * 3", "a >>= 3 * 3");
+    expect_printed("a >>>= 1", "a >>>= 1");
+    expect_printed("a >>>= 3 * 3", "a >>>= 3 * 3");
+    expect_printed("a |= 1", "a |= 1");
+    expect_printed("a |= 3 * 3", "a |= 3 * 3");
+    expect_printed("a ^= 1", "a ^= 1");
+    expect_printed("a ^= 3 * 3", "a ^= 3 * 3");
+    expect_printed("a &= 1", "a &= 1");
+    expect_printed("a &= 3 * 3", "a &= 3 * 3");
 }
 
 #[test]
 fn test_logical_expression() {
-    expected_printed("3 + 3 || 1 * 2", "3 + 3 || 1 * 2");
-    expected_printed("3 + 3 && 1 * 2", "3 + 3 && 1 * 2");
-    expected_ast(
+    expect_printed("3 + 3 || 1 * 2", "3 + 3 || 1 * 2");
+    expect_printed("3 + 3 && 1 * 2", "3 + 3 && 1 * 2");
+    expect_ast(
         "a || b && c",
         Program {
             statements: vec![Statement::Expression(ExpressionStatement {
@@ -335,26 +335,26 @@ fn test_logical_expression() {
 
 #[test]
 fn test_continue_statement() {
-    expected_printed("continue;", "continue");
-    expected_printed("continue label1;", "continue label1");
+    expect_printed("continue;", "continue");
+    expect_printed("continue label1;", "continue label1");
 }
 
 #[test]
 fn test_break_statement() {
-    expected_printed("break;", "break");
-    expected_printed("break label1;", "break label1");
+    expect_printed("break;", "break");
+    expect_printed("break label1;", "break label1");
 }
 
 #[test]
 fn test_empty_statement() {
-    expected_printed(";", ";");
+    expect_printed(";", ";");
 }
 
 #[test]
 fn test_while_statement() {
-    expected_printed("while (true) {}", "while (true) {}");
-    expected_printed("while (1 < 10) {}", "while (1 < 10) {}");
-    expected_printed(
+    expect_printed("while (true) {}", "while (true) {}");
+    expect_printed("while (1 < 10) {}", "while (1 < 10) {}");
+    expect_printed(
         "while (1 < 10) { return 3; }",
         "while (1 < 10) { return 3; }",
     );
@@ -362,9 +362,9 @@ fn test_while_statement() {
 
 #[test]
 fn test_do_while_statement() {
-    expected_printed("do {} while (true)", "do {} while (true)");
-    expected_printed("do {} while (1 < 10)", "do {} while (1 < 10)");
-    expected_printed(
+    expect_printed("do {} while (true)", "do {} while (true)");
+    expect_printed("do {} while (1 < 10)", "do {} while (1 < 10)");
+    expect_printed(
         "do { return 3; } while (1 < 10)",
         "do { return 3; } while (1 < 10)",
     );
@@ -372,45 +372,45 @@ fn test_do_while_statement() {
 
 #[test]
 fn test_switch_statement() {
-    expected_printed(
+    expect_printed(
         "switch (a) { case \"1\": {} }",
         "switch (a) { case \"1\": {} }",
     );
-    expected_printed(
+    expect_printed(
         "switch (a) { case \"1\": {} default: {} }",
         "switch (a) { case \"1\": {} default: {} }",
     );
-    expected_printed("switch (a) { default: {} }", "switch (a) { default: {} }");
+    expect_printed("switch (a) { default: {} }", "switch (a) { default: {} }");
 }
 
 #[test]
 fn test_debugger_statement() {
-    expected_printed("debugger", "debugger");
+    expect_printed("debugger", "debugger");
 }
 
 #[test]
 fn test_with_statement() {
-    expected_printed("with (a) {}", "with (a) {}")
+    expect_printed("with (a) {}", "with (a) {}")
 }
 
 #[test]
 fn test_labeled_statement() {
-    expected_printed("label1: function a() {}", "label1: function a() {}");
-    expected_printed("label1: while (true) {}", "label1: while (true) {}");
+    expect_printed("label1: function a() {}", "label1: function a() {}");
+    expect_printed("label1: while (true) {}", "label1: while (true) {}");
 }
 
 #[test]
 fn test_throw_statement() {
-    expected_printed("throw 3 + 3", "throw 3 + 3");
-    expected_printed("throw err", "throw err");
-    expected_printed("throw new Error()", "throw new Error()");
+    expect_printed("throw 3 + 3", "throw 3 + 3");
+    expect_printed("throw err", "throw err");
+    expect_printed("throw new Error()", "throw new Error()");
 }
 
 #[test]
 fn test_try_statement() {
-    expected_printed("try {} catch (err) {}", "try {} catch (err) {}");
-    expected_printed("try {} finally {}", "try {} finally {}");
-    expected_printed(
+    expect_printed("try {} catch (err) {}", "try {} catch (err) {}");
+    expect_printed("try {} finally {}", "try {} finally {}");
+    expect_printed(
         "try {} catch (err) {} finally {}",
         "try {} catch (err) {} finally {}",
     );
@@ -418,81 +418,81 @@ fn test_try_statement() {
 
 #[test]
 fn test_this_expression() {
-    expected_printed("this", "this");
-    expected_printed("this.hello()", "this.hello()");
+    expect_printed("this", "this");
+    expect_printed("this.hello()", "this.hello()");
 }
 
 #[test]
 fn test_array_expression() {
-    expected_printed("[1, 2, 3, 4, 5]", "[1, 2, 3, 4, 5]");
-    expected_printed("[\"a\", 2]", "[\"a\", 2]");
-    expected_printed("let a = []", "let a = [];");
-    expected_printed("let a = [,,,]", "let a = [, , ,];");
+    expect_printed("[1, 2, 3, 4, 5]", "[1, 2, 3, 4, 5]");
+    expect_printed("[\"a\", 2]", "[\"a\", 2]");
+    expect_printed("let a = []", "let a = [];");
+    expect_printed("let a = [,,,]", "let a = [, , ,];");
 }
 
 #[test]
 fn test_object_expression() {
-    expected_printed("let a = { a: b }", "let a = { \"a\": b };");
-    expected_printed(
+    expect_printed("let a = { a: b }", "let a = { \"a\": b };");
+    expect_printed(
         "let a = { \"a\": \"hello\" }",
         "let a = { \"a\": \"hello\" };",
     );
-    expected_printed("let a = {}", "let a = {};");
-    expected_printed("let a = { a: b, c: d }", "let a = { \"a\": b, \"c\": d };");
-    expected_printed("let a = { [a]: b, [c]: d }", "let a = { [a]: b, [c]: d };");
-    expected_printed(
+    expect_printed("let a = {}", "let a = {};");
+    expect_printed("let a = { a: b, c: d }", "let a = { \"a\": b, \"c\": d };");
+    expect_printed("let a = { [a]: b, [c]: d }", "let a = { [a]: b, [c]: d };");
+    expect_printed(
         "let a = { [a]: { [b]: { [c]: { [d]: {} } } } }",
         "let a = { [a]: { [b]: { [c]: { [d]: {} } } } };",
     );
-    expected_printed("let a = { [a]: 3 * 3 / 2 }", "let a = { [a]: 3 * 3 / 2 };");
+    expect_printed("let a = { [a]: 3 * 3 / 2 }", "let a = { [a]: 3 * 3 / 2 };");
 }
 
 #[test]
 fn test_new_expression() {
-    expected_printed("new MyClass()", "new MyClass()");
-    expected_printed("new MyClass(a, b, c)", "new MyClass(a, b, c)");
-    expected_printed("new function() {}()", "new function() {}()");
+    expect_printed("new MyClass()", "new MyClass()");
+    expect_printed("new MyClass(a, b, c)", "new MyClass(a, b, c)");
+    expect_printed("new function() {}()", "new function() {}()");
 }
 
 #[test]
 fn test_member_expression() {
-    expected_printed("a.b.c", "a.b.c");
-    expected_printed("a[b].d.[c]", "a[b].d.[c]");
-    expected_printed("a['a' + 'b'].d.[c]", "a[\"a\" + \"b\"].d.[c]");
+    expect_printed("a.b.c", "a.b.c");
+    expect_printed("a[b].d.[c]", "a[b].d.[c]");
+    expect_printed("a['a' + 'b'].d.[c]", "a[\"a\" + \"b\"].d.[c]");
 }
 
 #[test]
 fn test_export_named_declaration() {
-    expected_printed("export { a }", "export { a };");
-    expected_printed("export { a as b }", "export { a as b };");
-    expected_printed("export { a } from \"b\"", "export { a } from \"b\";");
-    expected_printed(
+    expect_printed("export { a }", "export { a };");
+    expect_printed("export { a as b }", "export { a as b };");
+    expect_printed("export { a } from \"b\"", "export { a } from \"b\";");
+    expect_printed(
         "export { a as b } from \"c\"",
         "export { a as b } from \"c\";",
     );
-    expected_printed(
+    expect_printed(
         "export { default as a } from \"b\";",
         "export { default as a } from \"b\";",
     );
-    expected_printed("export function a() {}", "export function a() {}");
-    expected_printed("export const a = 1;", "export const a = 1;");
+    expect_printed("export function a() {}", "export function a() {}");
+    expect_printed("export const a = 1;", "export const a = 1;");
 }
 
 #[test]
 fn test_export_all_declaration() {
-    expected_printed("export * from \"a\";", "export * from \"a\";");
+    expect_printed("export * from \"a\";", "export * from \"a\";");
 }
 
 #[test]
 fn test_export_default_declaration() {
-    expected_printed(
+    expect_printed(
         "export default function a() {}",
         "export default function a() {}",
     );
-    expected_printed(
+    expect_printed(
         "export default function() {}",
         "export default function() {}",
     );
-    expected_printed("export default 3 + 3", "export default 3 + 3;");
-    expected_printed("export default { a: c }", "export default { \"a\": c };");
+    expect_printed("export default 3 + 3", "export default 3 + 3;");
+    expect_printed("export default { a: c }", "export default { \"a\": c };");
 }
