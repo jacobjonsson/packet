@@ -1,7 +1,8 @@
-PACKET_PATH = ./target/release/cli
-
 packet:
 	cargo build --release
+
+jquery: packet
+	./target/release/cli ./fixtures/jquery-1.9.1.js
 
 ################################################################################
 # This runs the test262 official JavaScript test suite through packet

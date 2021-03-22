@@ -290,24 +290,24 @@ impl<'a> Parser<'a> {
         self.lexer.expect_token(Token::OpenParen);
         self.lexer.next_token();
 
-        let init: Option<ForStatementInit>;
+        self.allow_in = false;
+
+        let init = match self.lexer.token {
+            Token::Const | Token::Let | Token::Var => self
+                .parse_variable_declaration()
+                .map(ForStatementInit::VariableDeclaration)
+                .map(Some)?,
+            Token::Semicolon => None,
+            _ => self
+                .parse_expression(OperatorPrecedence::Lowest)
+                .map(ForStatementInit::Expression)
+                .map(Some)?,
+        };
+
+        self.allow_in = true;
+
         let mut test: Option<Expression> = None;
         let mut update: Option<Expression> = None;
-
-        match self.lexer.token {
-            Token::Const | Token::Let | Token::Var => {
-                init = self
-                    .parse_variable_declaration()
-                    .map(ForStatementInit::VariableDeclaration)
-                    .map(Some)?;
-            }
-            _ => {
-                init = self
-                    .parse_expression(OperatorPrecedence::Lowest)
-                    .map(ForStatementInit::Expression)
-                    .map(Some)?;
-            }
-        }
 
         if self.lexer.token == Token::Of {
             // TODO: We should check for declarations here and forbid them if they exist.
@@ -399,10 +399,9 @@ impl<'a> Parser<'a> {
             let id = self.parse_pattern()?;
             if self.lexer.token == Token::Equals {
                 self.lexer.next_token();
-                init = Some(self.parse_expression(OperatorPrecedence::Lowest)?);
+                init = Some(self.parse_expression(OperatorPrecedence::Assignment)?);
             }
             declarations.push(VariableDeclarator { id, init });
-
             if self.lexer.token != Token::Comma {
                 break;
             }
