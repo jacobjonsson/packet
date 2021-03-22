@@ -15,6 +15,7 @@ pub enum Statement {
     ContinueStatement(ContinueStatement),
     BreakStatement(BreakStatement),
     FunctionDeclaration(FunctionDeclaration),
+    AnonymousDefaultExportedFunctionDeclaration(AnonymousDefaultExportedFunctionDeclaration),
     VariableDeclaration(VariableDeclaration),
     Expression(ExpressionStatement),
     ImportDeclaration(ImportDeclaration),
@@ -23,6 +24,9 @@ pub enum Statement {
     LabeledStatement(LabeledStatement),
     ThrowStatement(ThrowStatement),
     TryStatement(TryStatement),
+    ExportAllDeclaration(ExportAllDeclaration),
+    ExportNamedDeclaration(ExportNamedDeclaration),
+    ExportDefaultDeclaration(ExportDefaultDeclaration),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -150,6 +154,13 @@ pub struct FunctionDeclaration {
     pub body: BlockStatement,
 }
 
+/// This is only allowed in export statements.
+#[derive(Debug, PartialEq, Clone)]
+pub struct AnonymousDefaultExportedFunctionDeclaration {
+    pub parameters: Vec<Identifier>, // TODO: es6 and upwards supports more patterns, see here: https://github.com/estree/estree/blob/master/es5.md#patterns
+    pub body: BlockStatement,
+}
+
 /* -------------------------------------------------------------------------- */
 /*                                  Variables                                 */
 /* -------------------------------------------------------------------------- */
@@ -209,4 +220,43 @@ pub struct ImportDefaultSpecifier {
 #[derive(Debug, PartialEq, Clone)]
 pub struct ImportNamespaceSpecifier {
     pub local: Identifier,
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                   Export                                   */
+/* -------------------------------------------------------------------------- */
+#[derive(Debug, PartialEq, Clone)]
+pub struct ExportAllDeclaration {
+    pub source: StringLiteral,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Declaration {
+    FunctionDeclaration(FunctionDeclaration),
+    VariableDeclaration(VariableDeclaration),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ExportNamedDeclaration {
+    pub declaration: Option<Declaration>,
+    pub specifiers: Vec<ExportSpecifier>,
+    pub source: Option<StringLiteral>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ExportSpecifier {
+    pub local: Identifier,
+    pub exported: Identifier,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum ExportDefaultDeclarationKind {
+    FunctionDeclaration(FunctionDeclaration),
+    Expression(Expression),
+    AnonymousDefaultExportedFunctionDeclaration(AnonymousDefaultExportedFunctionDeclaration),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ExportDefaultDeclaration {
+    pub declaration: ExportDefaultDeclarationKind,
 }

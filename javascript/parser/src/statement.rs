@@ -92,21 +92,9 @@ impl<'a> Parser<'a> {
         let mut update: Option<Expression> = None;
 
         match self.lexer.token {
-            TokenType::Let => {
+            TokenType::Const | TokenType::Let | TokenType::Var => {
                 init = self
-                    .parse_var_statement(VariableDeclarationKind::Let)
-                    .map(ForStatementInit::VariableDeclaration)
-                    .map(Some)?;
-            }
-            TokenType::Const => {
-                init = self
-                    .parse_var_statement(VariableDeclarationKind::Const)
-                    .map(ForStatementInit::VariableDeclaration)
-                    .map(Some)?;
-            }
-            TokenType::Var => {
-                init = self
-                    .parse_var_statement(VariableDeclarationKind::Var)
+                    .parse_var_statement()
                     .map(ForStatementInit::VariableDeclaration)
                     .map(Some)?;
             }

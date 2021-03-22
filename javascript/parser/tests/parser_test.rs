@@ -460,3 +460,39 @@ fn test_member_expression() {
     expected_printed("a[b].d.[c]", "a[b].d.[c]");
     expected_printed("a['a' + 'b'].d.[c]", "a[\"a\" + \"b\"].d.[c]");
 }
+
+#[test]
+fn test_export_named_declaration() {
+    expected_printed("export { a }", "export { a };");
+    expected_printed("export { a as b }", "export { a as b };");
+    expected_printed("export { a } from \"b\"", "export { a } from \"b\";");
+    expected_printed(
+        "export { a as b } from \"c\"",
+        "export { a as b } from \"c\";",
+    );
+    expected_printed(
+        "export { default as a } from \"b\";",
+        "export { default as a } from \"b\";",
+    );
+    expected_printed("export function a() {}", "export function a() {}");
+    expected_printed("export const a = 1;", "export const a = 1;");
+}
+
+#[test]
+fn test_export_all_declaration() {
+    expected_printed("export * from \"a\";", "export * from \"a\";");
+}
+
+#[test]
+fn test_export_default_declaration() {
+    expected_printed(
+        "export default function a() {}",
+        "export default function a() {}",
+    );
+    expected_printed(
+        "export default function() {}",
+        "export default function() {}",
+    );
+    expected_printed("export default 3 + 3", "export default 3 + 3;");
+    expected_printed("export default { a: c }", "export default { \"a\": c };");
+}

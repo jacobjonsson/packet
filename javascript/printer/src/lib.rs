@@ -308,7 +308,93 @@ impl Printer {
 
             Statement::Block(b) => self.print_block_statement(b),
             Statement::FunctionDeclaration(f) => self.print_function_declaration(f),
+
+            // export * from "a";
+            Statement::ExportAllDeclaration(e) => {
+                self.print("export * from ");
+                self.print_string_literal(&e.source);
+                self.print(";");
+            }
+
+            // export {a}
+            // export {a as b}
+            // export function a() {}
+            // export var a = 1;
+            // export {a} from "b";
+            // export {a as c} from "b";
+            Statement::ExportNamedDeclaration(e) => {
+                self.print("export");
+                if let Some(declaration) = &e.declaration {
+                    self.print(" ");
+                    match declaration {
+                        Declaration::FunctionDeclaration(f) => self.print_function_declaration(f),
+                        Declaration::VariableDeclaration(v) => {
+                            self.print_variable_declaration(v);
+                            self.print(";")
+                        }
+                    }
+                } else {
+                    self.print_space();
+                    self.print("{");
+                    for (idx, specifier) in e.specifiers.iter().enumerate() {
+                        if idx == 0 {
+                            self.print_space();
+                        }
+                        if idx != 0 {
+                            self.print(",");
+                            self.print_space();
+                        }
+
+                        self.print_identifier(&specifier.local);
+                        if specifier.local.name != specifier.exported.name {
+                            self.print(" as ");
+                            self.print_identifier(&specifier.exported);
+                        }
+
+                        if idx == e.specifiers.len() - 1 {
+                            self.print_space();
+                        }
+                    }
+                    self.print("}");
+
+                    if let Some(source) = &e.source {
+                        self.print_space();
+                        self.print("from");
+                        self.print_space();
+                        self.print_string_literal(source);
+                    }
+                    self.print(";");
+                }
+            }
+
+            // export default 3 + 3
+            // export default function a() {}
+            // export default function() {}
+            // export default {}
+            Statement::ExportDefaultDeclaration(e) => {
+                self.print("export default ");
+                match &e.declaration {
+                    ExportDefaultDeclarationKind::FunctionDeclaration(f) => {
+                        self.print_function_declaration(f);
+                    }
+                    ExportDefaultDeclarationKind::Expression(exp) => {
+                        self.print_expression(exp);
+                        self.print(";");
+                    }
+                    ExportDefaultDeclarationKind::AnonymousDefaultExportedFunctionDeclaration(
+                        a,
+                    ) => self.print_anonymous_default_exported_function_declaration(a),
+                }
+            }
+
+            Statement::AnonymousDefaultExportedFunctionDeclaration(a) => {
+                self.print_anonymous_default_exported_function_declaration(a)
+            }
         };
+    }
+
+    fn print_string_literal(&mut self, string_literal: &StringLiteral) {
+        self.print(&format!("\"{}\"", string_literal.value));
     }
 
     fn print_variable_declaration(&mut self, variable_declaration: &VariableDeclaration) {
@@ -383,6 +469,23 @@ impl Printer {
         self.print("function ");
         self.print_identifier(&function_declaration.id);
         self.print("(");
+        for (idx, argument) in function_declaration.parameters.iter().enumerate() {
+            if idx != 0 {
+                self.print(",");
+                self.print_space();
+            }
+            self.print_identifier(argument);
+        }
+        self.print(")");
+        self.print_space();
+        self.print_block_statement(&function_declaration.body);
+    }
+
+    fn print_anonymous_default_exported_function_declaration(
+        &mut self,
+        function_declaration: &AnonymousDefaultExportedFunctionDeclaration,
+    ) {
+        self.print("function(");
         for (idx, argument) in function_declaration.parameters.iter().enumerate() {
             if idx != 0 {
                 self.print(",");
