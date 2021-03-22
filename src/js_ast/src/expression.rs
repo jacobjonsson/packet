@@ -9,11 +9,12 @@ pub enum Expression {
     LogicalExpression(LogicalExpression),
     BooleanExpression(BooleanExpression),
     FunctionExpression(FunctionExpression),
-    PrefixExpression(PrefixExpression),
     StringLiteral(StringLiteral),
+    NullLiteral(NullLiteral),
     CallExpression(CallExpression),
     ConditionalExpression(ConditionalExpression),
     UpdateExpression(UpdateExpression),
+    UnaryExpression(UnaryExpression),
     ThisExpression(ThisExpression),
     ArrayExpression(ArrayExpression),
     ObjectExpression(ObjectExpression),
@@ -74,6 +75,9 @@ pub struct StringLiteral {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct NullLiteral {}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct IntegerLiteral {
     pub value: i64,
 }
@@ -90,12 +94,6 @@ pub struct FunctionExpression {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct PrefixExpression {
-    pub operator: String,
-    pub right: Box<Expression>,
-}
-
-#[derive(Debug, PartialEq, Clone)]
 pub struct CallExpression {
     pub callee: Box<Expression>,
     pub arguments: Vec<Box<Expression>>,
@@ -106,6 +104,24 @@ pub struct ConditionalExpression {
     pub test: Box<Expression>,
     pub consequence: Box<Expression>,
     pub alternate: Box<Expression>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum UnaryOperator {
+    Minus,
+    Plus,
+    Exclamation,
+    Tilde,
+    Typeof,
+    Void,
+    Delete,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct UnaryExpression {
+    pub operator: UnaryOperator,
+    pub prefix: bool,
+    pub argument: Box<Expression>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

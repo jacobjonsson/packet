@@ -75,6 +75,8 @@ impl Printer {
                         }
                         ForStatementInit::Pattern(p) => self.print_pattern(p),
                     }
+                } else {
+                    self.print(";");
                 }
                 // We currently auto print semicolons for variable declarations,
                 // hence why we don't print anything here.
@@ -503,6 +505,7 @@ impl Printer {
 
     fn print_expression(&mut self, expression: &Expression) {
         match &expression {
+            Expression::NullLiteral(_) => self.print("null"),
             Expression::BooleanExpression(e) => {
                 match e.value {
                     true => self.print("true"),
@@ -605,9 +608,17 @@ impl Printer {
                 self.print_expression(e.right.as_ref());
             }
 
-            Expression::PrefixExpression(e) => {
-                self.print(&e.operator);
-                self.print_expression(e.right.as_ref());
+            Expression::UnaryExpression(e) => {
+                match e.operator {
+                    UnaryOperator::Minus => self.print("-"),
+                    UnaryOperator::Plus => self.print("+"),
+                    UnaryOperator::Exclamation => self.print("!"),
+                    UnaryOperator::Tilde => self.print("~"),
+                    UnaryOperator::Typeof => self.print("typeof "),
+                    UnaryOperator::Void => self.print("void "),
+                    UnaryOperator::Delete => self.print("delete "),
+                }
+                self.print_expression(e.argument.as_ref());
             }
 
             Expression::StringLiteral(e) => {

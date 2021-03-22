@@ -275,6 +275,7 @@ impl<'a> Lexer<'a> {
                         self.token = Token::LessThanLessThan;
                     }
                 } else if self.character == Some('=') {
+                    self.step();
                     self.token = Token::LessThanEquals;
                 } else {
                     self.token = Token::LessThan;
@@ -503,7 +504,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn is_letter(character: char) -> bool {
-        return character.is_alphabetic() || character == '_';
+        return character.is_alphabetic() || character == '_' || character == '$';
     }
 
     fn is_digit(character: char) -> bool {

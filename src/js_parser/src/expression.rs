@@ -16,139 +16,153 @@ impl<'a> Parser<'a> {
 
     fn parse_prefix(&mut self) -> ParseResult<Expression> {
         match &self.lexer.token {
+            Token::Null => self.parse_null_literal().map(Expression::NullLiteral),
             Token::NumericLiteral => self.parse_numeric_literal(),
             Token::Identifier => self.parse_identifer().map(Expression::Identifier),
             Token::StringLiteral => self.parse_string_literal().map(Expression::StringLiteral),
-            Token::Exclamation => self.parse_prefix_expression(),
-            Token::Plus => self.parse_prefix_expression(),
-            Token::Minus => self.parse_prefix_expression(),
+            Token::Exclamation => self.parse_unary_expression(UnaryOperator::Exclamation),
+            Token::Tilde => self.parse_unary_expression(UnaryOperator::Tilde),
+            Token::Plus => self.parse_unary_expression(UnaryOperator::Plus),
+            Token::Minus => self.parse_unary_expression(UnaryOperator::Minus),
+            Token::Typeof => self.parse_unary_expression(UnaryOperator::Typeof),
+            Token::Delete => self.parse_unary_expression(UnaryOperator::Delete),
+            Token::Void => self.parse_unary_expression(UnaryOperator::Void),
             Token::True => self.parse_boolean().map(Expression::BooleanExpression),
             Token::False => self.parse_boolean().map(Expression::BooleanExpression),
-            Token::OpenParen => {
-                self.lexer.next_token();
-                let expression = self.parse_expression(OperatorPrecedence::Lowest)?;
-                self.lexer.expect_token(Token::CloseParen);
-                self.lexer.next_token();
-                Ok(expression)
-            }
-
-            Token::New => {
-                self.lexer.next_token();
-                let callee = Box::new(self.parse_expression(OperatorPrecedence::Member)?);
-                self.lexer.expect_token(Token::OpenParen);
-                self.lexer.next_token();
-                let mut arguments: Vec<Expression> = Vec::new();
-                while self.lexer.token != Token::CloseParen {
-                    arguments.push(self.parse_expression(OperatorPrecedence::Lowest)?);
-                    if self.lexer.token == Token::Comma {
-                        self.lexer.next_token();
-                    }
-                }
-                self.lexer.expect_token(Token::CloseParen);
-                self.lexer.next_token();
-                Ok(Expression::NewExpression(NewExpression {
-                    arguments,
-                    callee,
-                }))
-            }
-
-            Token::OpenBrace => {
-                self.lexer.next_token();
-
-                let mut properties: Vec<Property> = Vec::new();
-
-                while self.lexer.token != Token::CloseBrace {
-                    let (key, computed) = self.parse_property_key()?;
-                    self.lexer.expect_token(Token::Colon);
-                    self.lexer.next_token();
-
-                    let value = self.parse_expression(OperatorPrecedence::Lowest)?;
-                    properties.push(Property {
-                        computed,
-                        value,
-                        key,
-                        kind: PropertyKind::Init,
-                    });
-
-                    if self.lexer.token == Token::Comma {
-                        self.lexer.next_token();
-                    }
-                }
-
-                self.lexer.expect_token(Token::CloseBrace);
-                self.lexer.next_token();
-
-                Ok(Expression::ObjectExpression(ObjectExpression {
-                    properties,
-                }))
-            }
-
+            Token::OpenParen => self.parse_group_expression(),
+            Token::New => self.parse_new_expression().map(Expression::NewExpression),
+            Token::OpenBrace => self
+                .parse_object_expression()
+                .map(Expression::ObjectExpression),
             Token::Function => self
                 .parse_function_expression()
                 .map(Expression::FunctionExpression),
-            Token::This => {
-                self.lexer.next_token();
-                Ok(Expression::ThisExpression(ThisExpression {}))
-            }
-            Token::OpenBracket => {
-                self.lexer.next_token();
-                let mut elements: Vec<Option<Box<Expression>>> = Vec::new();
-                while self.lexer.token != Token::CloseBracket {
-                    match self.lexer.token {
-                        Token::Comma => elements.push(None),
-                        Token::DotDotDot => self.lexer.unexpected(),
-                        _ => elements.push(Some(Box::new(
-                            self.parse_expression(OperatorPrecedence::Lowest)?,
-                        ))),
-                    };
-
-                    if self.lexer.token != Token::Comma {
-                        break;
-                    } else {
-                        self.lexer.next_token();
-                    }
-                }
-                self.lexer.expect_token(Token::CloseBracket);
-                self.lexer.next_token();
-
-                Ok(Expression::ArrayExpression(ArrayExpression { elements }))
-            }
-            Token::PlusPlus => {
-                self.lexer.next_token();
-                self.parse_expression(OperatorPrecedence::Prefix)
-                    .map(|e| UpdateExpression {
-                        operator: UpdateOperator::Increment,
-                        argument: Box::new(e),
-                        prefix: true,
-                    })
-                    .map(Expression::UpdateExpression)
-                    .map(Ok)?
-            }
-            Token::MinusMinus => {
-                self.lexer.next_token();
-                self.parse_expression(OperatorPrecedence::Prefix)
-                    .map(|e| UpdateExpression {
-                        operator: UpdateOperator::Decrement,
-                        argument: Box::new(e),
-                        prefix: true,
-                    })
-                    .map(Expression::UpdateExpression)
-                    .map(Ok)?
-            }
+            Token::This => self.parse_this_expression().map(Expression::ThisExpression),
+            Token::OpenBracket => self
+                .parse_array_expression()
+                .map(Expression::ArrayExpression),
+            Token::PlusPlus | Token::MinusMinus => self
+                .parse_update_expression(true)
+                .map(Expression::UpdateExpression),
             _ => {
                 self.lexer.unexpected();
             }
         }
     }
 
-    fn parse_prefix_expression(&mut self) -> Result<Expression, ParserError> {
-        let operator = self.lexer.token_value.clone();
+    fn parse_null_literal(&mut self) -> ParseResult<NullLiteral> {
         self.lexer.next_token();
-        let right = self.parse_expression(OperatorPrecedence::Prefix)?;
+        Ok(NullLiteral {})
+    }
+
+    fn parse_this_expression(&mut self) -> ParseResult<ThisExpression> {
         self.lexer.next_token();
-        Ok(Expression::PrefixExpression(PrefixExpression {
+        Ok(ThisExpression {})
+    }
+
+    fn parse_group_expression(&mut self) -> ParseResult<Expression> {
+        self.lexer.next_token();
+        let expression = self.parse_expression(OperatorPrecedence::Lowest)?;
+        self.lexer.expect_token(Token::CloseParen);
+        self.lexer.next_token();
+        Ok(expression)
+    }
+
+    fn parse_update_expression(&mut self, prefix: bool) -> ParseResult<UpdateExpression> {
+        let operator = match self.lexer.token {
+            Token::PlusPlus => UpdateOperator::Increment,
+            Token::MinusMinus => UpdateOperator::Decrement,
+            _ => self.lexer.unexpected(),
+        };
+        self.lexer.next_token();
+        let argument = self.parse_expression(OperatorPrecedence::Prefix)?;
+        Ok(UpdateExpression {
+            argument: Box::new(argument),
             operator,
-            right: Box::new(right),
+            prefix,
+        })
+    }
+
+    fn parse_new_expression(&mut self) -> ParseResult<NewExpression> {
+        self.lexer.next_token();
+        let callee = Box::new(self.parse_expression(OperatorPrecedence::Member)?);
+        self.lexer.expect_token(Token::OpenParen);
+        self.lexer.next_token();
+        let mut arguments: Vec<Expression> = Vec::new();
+        while self.lexer.token != Token::CloseParen {
+            arguments.push(self.parse_expression(OperatorPrecedence::Lowest)?);
+            if self.lexer.token == Token::Comma {
+                self.lexer.next_token();
+            }
+        }
+        self.lexer.expect_token(Token::CloseParen);
+        self.lexer.next_token();
+        Ok(NewExpression { arguments, callee })
+    }
+
+    fn parse_object_expression(&mut self) -> ParseResult<ObjectExpression> {
+        self.lexer.next_token();
+
+        let mut properties: Vec<Property> = Vec::new();
+
+        while self.lexer.token != Token::CloseBrace {
+            let (key, computed) = self.parse_property_key()?;
+            self.lexer.expect_token(Token::Colon);
+            self.lexer.next_token();
+
+            let value = self.parse_expression(OperatorPrecedence::Lowest)?;
+            properties.push(Property {
+                computed,
+                value,
+                key,
+                kind: PropertyKind::Init,
+            });
+
+            if self.lexer.token == Token::Comma {
+                self.lexer.next_token();
+            }
+        }
+
+        self.lexer.expect_token(Token::CloseBrace);
+        self.lexer.next_token();
+
+        Ok(ObjectExpression { properties })
+    }
+
+    fn parse_array_expression(&mut self) -> ParseResult<ArrayExpression> {
+        self.lexer.next_token();
+        let mut elements: Vec<Option<Box<Expression>>> = Vec::new();
+        while self.lexer.token != Token::CloseBracket {
+            match self.lexer.token {
+                Token::Comma => elements.push(None),
+                Token::DotDotDot => self.lexer.unexpected(),
+                _ => elements.push(Some(Box::new(
+                    self.parse_expression(OperatorPrecedence::Lowest)?,
+                ))),
+            };
+
+            if self.lexer.token != Token::Comma {
+                break;
+            } else {
+                self.lexer.next_token();
+            }
+        }
+        self.lexer.expect_token(Token::CloseBracket);
+        self.lexer.next_token();
+
+        Ok(ArrayExpression { elements })
+    }
+
+    fn parse_unary_expression(
+        &mut self,
+        operator: UnaryOperator,
+    ) -> Result<Expression, ParserError> {
+        self.lexer.next_token();
+        let argument = self.parse_expression(OperatorPrecedence::Prefix)?;
+        Ok(Expression::UnaryExpression(UnaryExpression {
+            prefix: true,
+            operator,
+            argument: Box::new(argument),
         }))
     }
 
@@ -176,7 +190,7 @@ impl<'a> Parser<'a> {
                 // a.b.c
                 Token::Dot => {
                     self.lexer.next_token();
-                    let property = self.parse_expression(OperatorPrecedence::Lowest)?;
+                    let property = self.parse_expression(OperatorPrecedence::Member)?;
                     expression = Expression::MemberExpression(MemberExpression {
                         object: Box::new(expression),
                         computed: false,
@@ -416,6 +430,45 @@ impl<'a> Parser<'a> {
                     });
                 }
 
+                // 1 ^ 2
+                Token::Caret => {
+                    if level >= OperatorPrecedence::Product {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression),
+                        operator: BinaryOperator::Caret,
+                        right: Box::new(self.parse_expression(OperatorPrecedence::Product)?),
+                    });
+                }
+
+                // 1 >= 0
+                Token::GreaterThanEquals => {
+                    if level >= OperatorPrecedence::Equals {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression),
+                        operator: BinaryOperator::GreaterThanEquals,
+                        right: Box::new(self.parse_expression(OperatorPrecedence::Equals)?),
+                    });
+                }
+
+                // 1 <= 0
+                Token::LessThanEquals => {
+                    if level >= OperatorPrecedence::Equals {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression),
+                        operator: BinaryOperator::LessThanEquals,
+                        right: Box::new(self.parse_expression(OperatorPrecedence::Equals)?),
+                    });
+                }
+
                 // 1 == 1
                 Token::EqualsEquals => {
                     if level >= OperatorPrecedence::Equals {
@@ -492,6 +545,32 @@ impl<'a> Parser<'a> {
                         operator: BinaryOperator::GreaterThan,
                         right: Box::new(self.parse_expression(OperatorPrecedence::Compare)?),
                     });
+                }
+
+                // a instanceof b
+                Token::Instanceof => {
+                    if level >= OperatorPrecedence::Compare {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression),
+                        operator: BinaryOperator::Instanceof,
+                        right: Box::new(self.parse_expression(OperatorPrecedence::Compare)?),
+                    })
+                }
+
+                // a in b
+                Token::In => {
+                    if level >= OperatorPrecedence::Compare || !self.allow_in {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression),
+                        operator: BinaryOperator::In,
+                        right: Box::new(self.parse_expression(OperatorPrecedence::Compare)?),
+                    })
                 }
 
                 Token::OpenParen => {
@@ -576,7 +655,6 @@ impl<'a> Parser<'a> {
                 }
 
                 _ => {
-                    //
                     return Ok(expression);
                 }
             };

@@ -76,6 +76,8 @@ pub struct Parser<'a> {
     lexer: Lexer<'a>,
     #[allow(dead_code)]
     logger: &'a dyn Logger,
+    /// in statement is only allowed in certain expressions.
+    allow_in: bool,
 }
 
 /// Public
@@ -84,6 +86,7 @@ impl<'a> Parser<'a> {
         Parser {
             lexer: lexer,
             logger,
+            allow_in: true,
         }
     }
 

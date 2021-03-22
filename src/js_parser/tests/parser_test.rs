@@ -44,7 +44,12 @@ fn test_variable_declaration() {
     expect_printed("const a;", "const a;");
     expect_printed("const a", "const a;");
     expect_printed("const a = 1", "const a = 1;");
-
+    expect_printed(
+        "let a = window.document, b = window.navigation;",
+        "let a = window.document, b = window.navigation;",
+    );
+    expect_printed("typeof undefined", "typeof undefined");
+    expect_printed("var a =  +y, b = c", "var a = +y, b = c;");
     expect_printed("let a = 1, b = 2, c = 3", "let a = 1, b = 2, c = 3;");
     expect_printed("const a = 1, b = 2, c = 3", "const a = 1, b = 2, c = 3;");
     expect_printed("var a = 1, b = 2, c = 3", "var a = 1, b = 2, c = 3;");
@@ -56,19 +61,35 @@ fn test_variable_declaration() {
 }
 
 #[test]
-fn test_infix_expressions() {
+fn test_prefix_expressions() {
+    expect_printed("+5", "+5");
+    expect_printed("-5", "-5");
+    expect_printed("!5", "!5");
+    expect_printed("~5", "~5");
+    expect_printed("typeof a", "typeof a");
+    expect_printed("void a", "void a");
+    expect_printed("delete a", "delete a");
+}
+
+#[test]
+fn test_binary_expressions() {
     expect_printed("5 + 5", "5 + 5");
     expect_printed("5 - 5", "5 - 5");
     expect_printed("5 * 5", "5 * 5");
     expect_printed("5 / 5", "5 / 5");
     expect_printed("5 > 5", "5 > 5");
     expect_printed("5 < 5", "5 < 5");
+    expect_printed("5 ^ 5", "5 ^ 5");
+    expect_printed("5 <= 4", "5 <= 4");
+    expect_printed("5 >= 4", "5 >= 4");
     expect_printed("5 == 5", "5 == 5");
     expect_printed("5 === 5", "5 === 5");
     expect_printed("5 != 5", "5 != 5");
     expect_printed("5 !== 5", "5 !== 5");
     expect_printed("a + a", "a + a");
     expect_printed("a === a", "a === a");
+    expect_printed("a instanceof b", "a instanceof b");
+    expect_printed("a in b", "a in b");
     expect_printed("true === true", "true === true");
     expect_printed("true !== false", "true !== false");
 }
@@ -225,6 +246,10 @@ fn test_if_statement() {
         "if (false) {} function a() {}",
         "if (false) {}function a() {}",
     );
+    expect_printed(
+        "if (i in items && a[i] === elem) {}",
+        "if (i in items && a[i] === elem) {}",
+    );
 }
 
 #[test]
@@ -265,6 +290,7 @@ fn test_for_statement() {
         "for (let a = 1; a < 10; a++) {}",
         "for (let a = 1; a < 10; a++) {}",
     );
+    expect_printed("for (; a < 10; a++) {}", "for (; a < 10; a++) {}");
 }
 
 #[test]
@@ -272,6 +298,7 @@ fn parse_for_in_statement() {
     expect_printed("for (const a in items) {}", "for (const a in items) {}");
     expect_printed("for (var a in items) {}", "for (var a in items) {}");
     expect_printed("for (let a in items) {}", "for (let a in items) {}");
+    expect_printed("for (a in items) {}", "for (a in items) {}");
     expect_printed(
         "for (let a in items) { return 3 + 3; }",
         "for (let a in items) { return 3 + 3; }",
@@ -442,6 +469,7 @@ fn test_array_expression() {
     expect_printed("[\"a\", 2]", "[\"a\", 2]");
     expect_printed("let a = []", "let a = [];");
     expect_printed("let a = [,,,]", "let a = [, , ,];");
+    expect_printed("let a = [null, undefined];", "let a = [null, undefined];");
 }
 
 #[test]
@@ -466,6 +494,7 @@ fn test_new_expression() {
     expect_printed("new MyClass()", "new MyClass()");
     expect_printed("new MyClass(a, b, c)", "new MyClass(a, b, c)");
     expect_printed("new function() {}()", "new function() {}()");
+    expect_printed("new a.b.c(e)", "new a.b.c(e)");
 }
 
 #[test]
@@ -473,6 +502,8 @@ fn test_member_expression() {
     expect_printed("a.b.c", "a.b.c");
     expect_printed("a[b].d.[c]", "a[b].d.[c]");
     expect_printed("a['a' + 'b'].d.[c]", "a[\"a\" + \"b\"].d.[c]");
+    expect_printed("a.b.c.d()", "a.b.c.d()");
+    expect_printed("a.b.c.d(e)", "a.b.c.d(e)");
 }
 
 #[test]

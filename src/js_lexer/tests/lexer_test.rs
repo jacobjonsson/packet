@@ -69,6 +69,8 @@ fn test_identifiers() {
     expect_identifier("a", "a");
     expect_identifier("a1", "a1");
     expect_identifier("a_a", "a_a");
+    expect_identifier("$", "$");
+    expect_identifier("_$", "_$");
 }
 
 #[test]
