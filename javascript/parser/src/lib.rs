@@ -1,5 +1,5 @@
 mod expression;
-mod import;
+mod module;
 mod statement;
 
 use javascript_ast::{expression::*, statement::*, Program};
@@ -105,16 +105,11 @@ impl<'a> Parser<'a> {
 impl<'a> Parser<'a> {
     fn parse_statement(&mut self) -> ParseResult<Statement> {
         match &self.lexer.token {
-            TokenType::Const => self
-                .parse_var_statement(VariableDeclarationKind::Const)
-                .map(Statement::VariableDeclaration),
-            TokenType::Var => self
-                .parse_var_statement(VariableDeclarationKind::Var)
-                .map(Statement::VariableDeclaration),
-            TokenType::Let => self
-                .parse_var_statement(VariableDeclarationKind::Let)
+            TokenType::Const | TokenType::Var | TokenType::Let => self
+                .parse_var_statement()
                 .map(Statement::VariableDeclaration),
             TokenType::Import => self.parse_import_statement(),
+            TokenType::Export => self.parse_export_statement(),
             TokenType::Function => self
                 .parse_function_declaration()
                 .map(Statement::FunctionDeclaration),
@@ -271,7 +266,6 @@ impl<'a> Parser<'a> {
                 // Either catch or finally must be present.
                 if self.lexer.token != TokenType::Catch && self.lexer.token != TokenType::Finally {
                     self.lexer.unexpected();
-                    panic!();
                 }
                 if self.lexer.token == TokenType::Catch {
                     self.lexer.next_token();
@@ -452,7 +446,6 @@ impl<'a> Parser<'a> {
             }
             _ => {
                 self.lexer.unexpected();
-                return Err(ParserError("".into()));
             }
         }
     }
@@ -935,10 +928,13 @@ impl<'a> Parser<'a> {
         Ok(Expression::IntegerLiteral(IntegerLiteral { value }))
     }
 
-    fn parse_var_statement(
-        &mut self,
-        kind: VariableDeclarationKind,
-    ) -> ParseResult<VariableDeclaration> {
+    fn parse_var_statement(&mut self) -> ParseResult<VariableDeclaration> {
+        let kind = match self.lexer.token {
+            TokenType::Const => VariableDeclarationKind::Const,
+            TokenType::Let => VariableDeclarationKind::Let,
+            TokenType::Var => VariableDeclarationKind::Var,
+            _ => self.lexer.unexpected(),
+        };
         self.lexer.next_token();
 
         let mut declarations: Vec<VariableDeclarator> = Vec::new();

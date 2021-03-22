@@ -52,8 +52,58 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Reports the current token as unexpected
-    pub fn unexpected(&self) {
+    pub fn is_identifier_or_keyword(&self) -> bool {
+        match &self.token {
+            TokenType::Identifier => true,
+            TokenType::Await => true,
+            TokenType::As => true,
+            TokenType::Break => true,
+            TokenType::Case => true,
+            TokenType::Catch => true,
+            TokenType::Class => true,
+            TokenType::Const => true,
+            TokenType::Continue => true,
+            TokenType::Debugger => true,
+            TokenType::Default => true,
+            TokenType::Delete => true,
+            TokenType::Do => true,
+            TokenType::Else => true,
+            TokenType::Enum => true,
+            TokenType::Export => true,
+            TokenType::Extends => true,
+            TokenType::From => true,
+            TokenType::False => true,
+            TokenType::Finally => true,
+            TokenType::For => true,
+            TokenType::Function => true,
+            TokenType::Let => true,
+            TokenType::If => true,
+            TokenType::Import => true,
+            TokenType::In => true,
+            TokenType::Instanceof => true,
+            TokenType::New => true,
+            TokenType::Null => true,
+            TokenType::Of => true,
+            TokenType::Return => true,
+            TokenType::Super => true,
+            TokenType::Switch => true,
+            TokenType::This => true,
+            TokenType::Throw => true,
+            TokenType::True => true,
+            TokenType::Try => true,
+            TokenType::Typeof => true,
+            TokenType::Var => true,
+            TokenType::Void => true,
+            TokenType::While => true,
+            TokenType::With => true,
+
+            _ => false,
+        }
+    }
+
+    /// Reports the current token as unexpected.
+    /// Calls exit and will therefor never return.
+    pub fn unexpected(&self) -> ! {
         self.logger.add_error(
             &self.input,
             logger::Range {
