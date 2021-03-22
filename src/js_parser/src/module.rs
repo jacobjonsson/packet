@@ -1,12 +1,4 @@
-use js_ast::{
-    expression::{Identifier, StringLiteral},
-    statement::{
-        AnonymousDefaultExportedFunctionDeclaration, Declaration, ExportAllDeclaration,
-        ExportDefaultDeclaration, ExportDefaultDeclarationKind, ExportNamedDeclaration,
-        ExportSpecifier, FunctionDeclaration, ImportClause, ImportDeclaration,
-        ImportDefaultSpecifier, ImportNamespaceSpecifier, ImportSpecifier, Statement,
-    },
-};
+use js_ast::{expression::*, statement::*};
 use js_token::Token;
 
 use crate::{OperatorPrecedence, ParseResult, Parser, ParserError};
@@ -198,7 +190,7 @@ impl<'a> Parser<'a> {
     fn parse_export_named(&mut self) -> ParseResult<ExportNamedDeclaration> {
         match &self.lexer.token {
             Token::Const | Token::Let | Token::Var => {
-                let variable_declaration = self.parse_var_statement()?;
+                let variable_declaration = self.parse_variable_declaration()?;
                 Ok(ExportNamedDeclaration {
                     declaration: Some(Declaration::VariableDeclaration(variable_declaration)),
                     source: None,
