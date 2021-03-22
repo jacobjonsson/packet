@@ -1,4 +1,4 @@
-use js_token::{lookup_identifer, TokenType};
+use js_token::{lookup_identifer, Token};
 use logger::Logger;
 
 pub struct Lexer<'a> {
@@ -14,7 +14,7 @@ pub struct Lexer<'a> {
     /// The value of the currently parsed token.
     pub token_value: String,
     /// The currently parsed token
-    pub token: TokenType,
+    pub token: Token,
 
     logger: &'a dyn Logger,
 }
@@ -25,7 +25,7 @@ impl<'a> Lexer<'a> {
         let mut lexer = Lexer {
             input: input.into(),
             token_value: String::new(),
-            token: TokenType::EndOfFile,
+            token: Token::EndOfFile,
             start: 0,
             current: 0,
             end: 0,
@@ -38,7 +38,7 @@ impl<'a> Lexer<'a> {
     }
 
     /// Asserts that the current token matches the provided one
-    pub fn expect_token(&self, token: TokenType) {
+    pub fn expect_token(&self, token: Token) {
         if self.token != token {
             self.logger.add_error(
                 &self.input,
@@ -54,48 +54,48 @@ impl<'a> Lexer<'a> {
 
     pub fn is_identifier_or_keyword(&self) -> bool {
         match &self.token {
-            TokenType::Identifier => true,
-            TokenType::Await => true,
-            TokenType::As => true,
-            TokenType::Break => true,
-            TokenType::Case => true,
-            TokenType::Catch => true,
-            TokenType::Class => true,
-            TokenType::Const => true,
-            TokenType::Continue => true,
-            TokenType::Debugger => true,
-            TokenType::Default => true,
-            TokenType::Delete => true,
-            TokenType::Do => true,
-            TokenType::Else => true,
-            TokenType::Enum => true,
-            TokenType::Export => true,
-            TokenType::Extends => true,
-            TokenType::From => true,
-            TokenType::False => true,
-            TokenType::Finally => true,
-            TokenType::For => true,
-            TokenType::Function => true,
-            TokenType::Let => true,
-            TokenType::If => true,
-            TokenType::Import => true,
-            TokenType::In => true,
-            TokenType::Instanceof => true,
-            TokenType::New => true,
-            TokenType::Null => true,
-            TokenType::Of => true,
-            TokenType::Return => true,
-            TokenType::Super => true,
-            TokenType::Switch => true,
-            TokenType::This => true,
-            TokenType::Throw => true,
-            TokenType::True => true,
-            TokenType::Try => true,
-            TokenType::Typeof => true,
-            TokenType::Var => true,
-            TokenType::Void => true,
-            TokenType::While => true,
-            TokenType::With => true,
+            Token::Identifier => true,
+            Token::Await => true,
+            Token::As => true,
+            Token::Break => true,
+            Token::Case => true,
+            Token::Catch => true,
+            Token::Class => true,
+            Token::Const => true,
+            Token::Continue => true,
+            Token::Debugger => true,
+            Token::Default => true,
+            Token::Delete => true,
+            Token::Do => true,
+            Token::Else => true,
+            Token::Enum => true,
+            Token::Export => true,
+            Token::Extends => true,
+            Token::From => true,
+            Token::False => true,
+            Token::Finally => true,
+            Token::For => true,
+            Token::Function => true,
+            Token::Let => true,
+            Token::If => true,
+            Token::Import => true,
+            Token::In => true,
+            Token::Instanceof => true,
+            Token::New => true,
+            Token::Null => true,
+            Token::Of => true,
+            Token::Return => true,
+            Token::Super => true,
+            Token::Switch => true,
+            Token::This => true,
+            Token::Throw => true,
+            Token::True => true,
+            Token::Try => true,
+            Token::Typeof => true,
+            Token::Var => true,
+            Token::Void => true,
+            Token::While => true,
+            Token::With => true,
 
             _ => false,
         }
@@ -123,7 +123,7 @@ impl<'a> Lexer<'a> {
         let character = match self.character {
             Some(v) => v,
             None => {
-                self.token = TokenType::EndOfFile;
+                self.token = Token::EndOfFile;
                 return;
             }
         };
@@ -131,15 +131,15 @@ impl<'a> Lexer<'a> {
         match character {
             '~' => {
                 self.step();
-                self.token = TokenType::Tilde;
+                self.token = Token::Tilde;
             }
             '/' => {
                 self.step();
                 if self.character == Some('=') {
                     self.step();
-                    self.token = TokenType::SlashEquals;
+                    self.token = Token::SlashEquals;
                 } else {
-                    self.token = TokenType::Slash;
+                    self.token = Token::Slash;
                 }
             }
             '.' => {
@@ -148,79 +148,79 @@ impl<'a> Lexer<'a> {
                     self.step();
                     if self.character == Some('.') {
                         self.step();
-                        self.token = TokenType::DotDotDot;
+                        self.token = Token::DotDotDot;
                     } else {
                         // Means we hit ".." but not "...",
                         // should this be an error?
-                        self.token = TokenType::Dot;
+                        self.token = Token::Dot;
                     }
                 } else {
-                    self.token = TokenType::Dot;
+                    self.token = Token::Dot;
                 }
             }
             '?' => {
                 self.step();
                 if self.character == Some('.') {
                     self.step();
-                    self.token = TokenType::QuestionDot;
+                    self.token = Token::QuestionDot;
                 } else if self.character == Some('?') {
                     self.step();
                     if self.character == Some('=') {
                         self.step();
-                        self.token = TokenType::QuestionQuestionEquals;
+                        self.token = Token::QuestionQuestionEquals;
                     } else {
-                        self.token = TokenType::QuestionQuestion;
+                        self.token = Token::QuestionQuestion;
                     }
                 } else {
-                    self.token = TokenType::Question;
+                    self.token = Token::Question;
                 }
             }
             ';' => {
                 self.step();
-                self.token = TokenType::Semicolon;
+                self.token = Token::Semicolon;
             }
             '(' => {
                 self.step();
-                self.token = TokenType::OpenParen;
+                self.token = Token::OpenParen;
             }
             ')' => {
                 self.step();
-                self.token = TokenType::CloseParen;
+                self.token = Token::CloseParen;
             }
             '{' => {
                 self.step();
-                self.token = TokenType::OpenBrace;
+                self.token = Token::OpenBrace;
             }
             '}' => {
                 self.step();
-                self.token = TokenType::CloseBrace;
+                self.token = Token::CloseBrace;
             }
             ',' => {
                 self.step();
-                self.token = TokenType::Comma;
+                self.token = Token::Comma;
             }
             '+' => {
                 self.step();
                 if self.character == Some('+') {
                     self.step();
-                    self.token = TokenType::PlusPlus;
+                    self.token = Token::PlusPlus;
                 } else if self.character == Some('=') {
                     self.step();
-                    self.token = TokenType::PlusEquals;
+                    self.token = Token::PlusEquals;
                 } else {
-                    self.token = TokenType::Plus;
+                    self.token = Token::Plus;
                 }
             }
             '-' => {
                 self.step();
                 if self.character == Some('-') {
                     self.step();
-                    self.token = TokenType::MinusMinus;
+                    self.token = Token::MinusMinus;
                 } else if self.character == Some('=') {
                     self.step();
-                    self.token = TokenType::MinusEquals;
+                    self.token = Token::MinusEquals;
                 } else {
-                    self.token = TokenType::Minus;
+                    self.token = Token::Minus;
                 }
             }
             '*' => {
@@ -229,15 +229,15 @@ impl<'a> Lexer<'a> {
                     self.step();
                     if self.character == Some('=') {
                         self.step();
-                        self.token = TokenType::AsteriskAsteriskEquals;
+                        self.token = Token::AsteriskAsteriskEquals;
                     } else {
-                        self.token = TokenType::AsteriskAsterisk;
+                        self.token = Token::AsteriskAsterisk;
                     }
                 } else if self.character == Some('=') {
                     self.step();
-                    self.token = TokenType::AsteriskEquals;
+                    self.token = Token::AsteriskEquals;
                 } else {
-                    self.token = TokenType::Asterisk;
+                    self.token = Token::Asterisk;
                 }
             }
             '<' => {
@@ -246,14 +246,14 @@ impl<'a> Lexer<'a> {
                     self.step();
                     if self.character == Some('=') {
                         self.step();
-                        self.token = TokenType::LessThanLessThanEquals;
+                        self.token = Token::LessThanLessThanEquals;
                     } else {
-                        self.token = TokenType::LessThanLessThan;
+                        self.token = Token::LessThanLessThan;
                     }
                 } else if self.character == Some('=') {
-                    self.token = TokenType::LessThanEquals;
+                    self.token = Token::LessThanEquals;
                 } else {
-                    self.token = TokenType::LessThan;
+                    self.token = Token::LessThan;
                 }
             }
             '>' => {
@@ -264,30 +264,30 @@ impl<'a> Lexer<'a> {
                         self.step();
                         if self.character == Some('=') {
                             self.step();
-                            self.token = TokenType::GreaterThanGreaterThanGreaterThanEquals;
+                            self.token = Token::GreaterThanGreaterThanGreaterThanEquals;
                         } else {
-                            self.token = TokenType::GreaterThanGreaterThanGreaterThan;
+                            self.token = Token::GreaterThanGreaterThanGreaterThan;
                         }
                     } else if self.character == Some('=') {
                         self.step();
-                        self.token = TokenType::GreaterThanGreaterThanEquals;
+                        self.token = Token::GreaterThanGreaterThanEquals;
                     } else {
-                        self.token = TokenType::GreaterThanGreaterThan;
+                        self.token = Token::GreaterThanGreaterThan;
                     }
                 } else if self.character == Some('=') {
                     self.step();
-                    self.token = TokenType::GreaterThanEquals;
+                    self.token = Token::GreaterThanEquals;
                 } else {
-                    self.token = TokenType::GreaterThan;
+                    self.token = Token::GreaterThan;
                 }
             }
             '[' => {
                 self.step();
-                self.token = TokenType::OpenBracket;
+                self.token = Token::OpenBracket;
             }
             ']' => {
                 self.step();
-                self.token = TokenType::CloseBracket;
+                self.token = Token::CloseBracket;
             }
             '=' => {
                 self.step();
@@ -295,15 +295,15 @@ impl<'a> Lexer<'a> {
                     self.step();
                     if self.character == Some('=') {
                         self.step();
-                        self.token = TokenType::EqualsEqualsEquals;
+                        self.token = Token::EqualsEqualsEquals;
                     } else {
-                        self.token = TokenType::EqualsEquals;
+                        self.token = Token::EqualsEquals;
                     }
                 } else if self.character == Some('>') {
                     self.step();
-                    self.token = TokenType::EqualsGreaterThan;
+                    self.token = Token::EqualsGreaterThan;
                 } else {
-                    self.token = TokenType::Equals;
+                    self.token = Token::Equals;
                 }
             }
             '!' => {
@@ -312,26 +312,26 @@ impl<'a> Lexer<'a> {
                     self.step();
                     if self.character == Some('=') {
                         self.step();
-                        self.token = TokenType::ExclamationEqualsEquals;
+                        self.token = Token::ExclamationEqualsEquals;
                     } else {
-                        self.token = TokenType::ExclamationEquals;
+                        self.token = Token::ExclamationEquals;
                     }
                 } else {
-                    self.token = TokenType::Exclamation;
+                    self.token = Token::Exclamation;
                 }
             }
             '%' => {
                 self.step();
                 if self.character == Some('=') {
                     self.step();
-                    self.token = TokenType::PercentEquals;
+                    self.token = Token::PercentEquals;
                 } else {
-                    self.token = TokenType::Percent;
+                    self.token = Token::Percent;
                 }
             }
             ':' => {
                 self.step();
-                self.token = TokenType::Colon;
+                self.token = Token::Colon;
             }
             '|' => {
                 self.step();
@@ -339,28 +339,28 @@ impl<'a> Lexer<'a> {
                     self.step();
                     if self.character == Some('=') {
                         self.step();
-                        self.token = TokenType::BarBarEquals;
+                        self.token = Token::BarBarEquals;
                     } else {
-                        self.token = TokenType::BarBar;
+                        self.token = Token::BarBar;
                     }
                 } else if self.character == Some('=') {
                     self.step();
-                    self.token = TokenType::BarEquals;
+                    self.token = Token::BarEquals;
                 } else {
-                    self.token = TokenType::Bar;
+                    self.token = Token::Bar;
                 }
             }
             '@' => {
                 self.step();
-                self.token = TokenType::At;
+                self.token = Token::At;
             }
             '^' => {
                 self.step();
                 if self.character == Some('=') {
                     self.step();
-                    self.token = TokenType::CaretEquals;
+                    self.token = Token::CaretEquals;
                 } else {
-                    self.token = TokenType::Caret;
+                    self.token = Token::Caret;
                 }
             }
             '&' => {
@@ -369,15 +369,15 @@ impl<'a> Lexer<'a> {
                     self.step();
                     if self.character == Some('=') {
                         self.step();
-                        self.token = TokenType::AmpersandAmpersandEquals;
+                        self.token = Token::AmpersandAmpersandEquals;
                     } else {
-                        self.token = TokenType::AmpersandAmpersand;
+                        self.token = Token::AmpersandAmpersand;
                     }
                 } else if self.character == Some('=') {
                     self.step();
-                    self.token = TokenType::AmpersandEquals;
+                    self.token = Token::AmpersandEquals;
                 } else {
-                    self.token = TokenType::Ampersand;
+                    self.token = Token::Ampersand;
                 }
             }
 
@@ -395,7 +395,7 @@ impl<'a> Lexer<'a> {
                 // Consume the ending "
                 self.step();
                 self.token_value = literal;
-                self.token = TokenType::StringLiteral;
+                self.token = Token::StringLiteral;
             }
 
             '\'' => {
@@ -412,7 +412,7 @@ impl<'a> Lexer<'a> {
                 // Consume the ending '
                 self.step();
                 self.token_value = literal;
-                self.token = TokenType::StringLiteral;
+                self.token = Token::StringLiteral;
             }
 
             c if Lexer::is_letter(c) => {
@@ -424,12 +424,12 @@ impl<'a> Lexer<'a> {
             c if Lexer::is_digit(c) => {
                 let number = self.read_number();
                 self.token_value = number;
-                self.token = TokenType::NumericLiteral;
+                self.token = Token::NumericLiteral;
             }
 
             _ => {
                 self.step();
-                self.token = TokenType::Illegal;
+                self.token = Token::Illegal;
             }
         };
     }

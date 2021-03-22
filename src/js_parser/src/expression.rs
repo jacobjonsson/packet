@@ -1,5 +1,5 @@
 use js_ast::expression::{Expression, FunctionExpression, Identifier};
-use js_token::TokenType;
+use js_token::Token;
 
 use crate::{OperatorPrecedence, ParseResult, Parser};
 
@@ -7,16 +7,16 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_call_expression_arguments(&mut self) -> ParseResult<Vec<Box<Expression>>> {
         let mut arguments: Vec<Box<Expression>> = Vec::new();
         self.lexer.next_token();
-        if self.lexer.token == TokenType::CloseParen {
+        if self.lexer.token == Token::CloseParen {
             self.lexer.next_token();
             return Ok(arguments);
         }
         arguments.push(Box::new(self.parse_expression(OperatorPrecedence::Lowest)?));
-        while self.lexer.token == TokenType::Comma {
+        while self.lexer.token == Token::Comma {
             self.lexer.next_token();
             arguments.push(Box::new(self.parse_expression(OperatorPrecedence::Lowest)?));
         }
-        self.lexer.expect_token(TokenType::CloseParen);
+        self.lexer.expect_token(Token::CloseParen);
         self.lexer.next_token();
         Ok(arguments)
     }
@@ -27,12 +27,12 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_function_expression(&mut self) -> ParseResult<FunctionExpression> {
         self.lexer.next_token();
         let mut id: Option<Identifier> = None;
-        if self.lexer.token == TokenType::Identifier {
+        if self.lexer.token == Token::Identifier {
             id = Some(self.parse_identifer()?);
         }
-        self.lexer.expect_token(TokenType::OpenParen);
+        self.lexer.expect_token(Token::OpenParen);
         let parameters = self.parse_function_parameters()?;
-        self.lexer.expect_token(TokenType::OpenBrace);
+        self.lexer.expect_token(Token::OpenBrace);
         let body = self.parse_block_statement()?;
 
         Ok(FunctionExpression {
@@ -50,7 +50,7 @@ impl<'a> Parser<'a> {
 
         // Means there aren't any parameters to parse
         self.lexer.next_token();
-        if self.lexer.token == TokenType::CloseParen {
+        if self.lexer.token == Token::CloseParen {
             self.lexer.next_token(); // Skip the closing paren
             return Ok(Vec::new());
         }
@@ -59,11 +59,11 @@ impl<'a> Parser<'a> {
         parameters.push(self.parse_identifer()?);
 
         // As long as the next token is a comma, we keep parsing identifiers.
-        while self.lexer.token == TokenType::Comma {
+        while self.lexer.token == Token::Comma {
             self.lexer.next_token();
             parameters.push(self.parse_identifer()?);
         }
-        self.lexer.expect_token(TokenType::CloseParen);
+        self.lexer.expect_token(Token::CloseParen);
         self.lexer.next_token();
         Ok(parameters)
     }
