@@ -138,6 +138,30 @@ impl<'a> Lexer<'a> {
                 if self.character == Some('=') {
                     self.step();
                     self.token = Token::SlashEquals;
+                } else if self.character == Some('/') {
+                    'single_line_comment: loop {
+                        self.step();
+                        if self.character == Some('\n') || self.character == Some('\r') {
+                            break 'single_line_comment;
+                        } else if self.character == None {
+                            break 'single_line_comment;
+                        }
+                    }
+                    self.next_token();
+                } else if self.character == Some('*') {
+                    'multi_line_comment: loop {
+                        self.step();
+                        if self.character == Some('*') {
+                            self.step();
+                            if self.character == Some('/') {
+                                self.step();
+                                break 'multi_line_comment;
+                            }
+                        } else if self.character == None {
+                            break 'multi_line_comment;
+                        }
+                    }
+                    self.next_token();
                 } else {
                     self.token = Token::Slash;
                 }

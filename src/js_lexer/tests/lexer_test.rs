@@ -196,3 +196,30 @@ fn test_numeric_literals() {
     expect_number("1", "1");
     expect_number("120", "120");
 }
+
+#[test]
+fn test_comments() {
+    let input = "// comment 1
+    let a;
+    /* comment 2 */
+    let b;
+    ";
+
+    let tokens = vec![
+        Token::Let,
+        Token::Identifier,
+        Token::Semicolon,
+        Token::Let,
+        Token::Identifier,
+        Token::Semicolon,
+    ];
+
+    let logger = LoggerImpl::new();
+    let mut lexer = Lexer::new(input, &logger);
+    for (idx, token) in tokens.iter().enumerate() {
+        if idx != 0 {
+            lexer.next_token();
+        }
+        assert_eq!(token, &lexer.token);
+    }
+}
