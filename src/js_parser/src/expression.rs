@@ -58,21 +58,13 @@ impl<'a> Parser<'a> {
                 let mut properties: Vec<Property> = Vec::new();
 
                 while self.lexer.token != Token::CloseBrace {
-                    let key: PropertyKey;
-                    if self.lexer.token == Token::OpenBracket {
-                        self.lexer.next_token();
-                        key = PropertyKey::Identifier(self.parse_identifer()?);
-                        self.lexer.expect_token(Token::CloseBracket);
-                        self.lexer.next_token();
-                    } else {
-                        key = PropertyKey::StringLiteral(self.parse_string_literal()?);
-                    }
-
+                    let (key, computed) = self.parse_property_key()?;
                     self.lexer.expect_token(Token::Colon);
                     self.lexer.next_token();
 
                     let value = self.parse_expression(OperatorPrecedence::Lowest)?;
                     properties.push(Property {
+                        computed,
                         value,
                         key,
                         kind: PropertyKind::Init,
@@ -199,7 +191,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::AssignmentExpression(AssignmentExpression {
-                        left: Box::new(expression),
+                        left: Box::new(AssignmentExpressionLeft::Expression(expression)),
                         operator: AssignmentOperator::Equals,
                         right: Box::new(
                             self.parse_expression(OperatorPrecedence::Assignment.lower())?,
@@ -214,7 +206,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::AssignmentExpression(AssignmentExpression {
-                        left: Box::new(expression),
+                        left: Box::new(AssignmentExpressionLeft::Expression(expression)),
                         operator: AssignmentOperator::PlusEquals,
                         right: Box::new(
                             self.parse_expression(OperatorPrecedence::Assignment.lower())?,
@@ -229,7 +221,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::AssignmentExpression(AssignmentExpression {
-                        left: Box::new(expression),
+                        left: Box::new(AssignmentExpressionLeft::Expression(expression)),
                         operator: AssignmentOperator::MinusEquals,
                         right: Box::new(
                             self.parse_expression(OperatorPrecedence::Assignment.lower())?,
@@ -244,7 +236,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::AssignmentExpression(AssignmentExpression {
-                        left: Box::new(expression),
+                        left: Box::new(AssignmentExpressionLeft::Expression(expression)),
                         operator: AssignmentOperator::AsteriskEquals,
                         right: Box::new(
                             self.parse_expression(OperatorPrecedence::Assignment.lower())?,
@@ -259,7 +251,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::AssignmentExpression(AssignmentExpression {
-                        left: Box::new(expression),
+                        left: Box::new(AssignmentExpressionLeft::Expression(expression)),
                         operator: AssignmentOperator::SlashEquals,
                         right: Box::new(
                             self.parse_expression(OperatorPrecedence::Assignment.lower())?,
@@ -274,7 +266,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::AssignmentExpression(AssignmentExpression {
-                        left: Box::new(expression),
+                        left: Box::new(AssignmentExpressionLeft::Expression(expression)),
                         operator: AssignmentOperator::PercentEquals,
                         right: Box::new(
                             self.parse_expression(OperatorPrecedence::Assignment.lower())?,
@@ -289,7 +281,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::AssignmentExpression(AssignmentExpression {
-                        left: Box::new(expression),
+                        left: Box::new(AssignmentExpressionLeft::Expression(expression)),
                         operator: AssignmentOperator::LessThanLessThanEquals,
                         right: Box::new(
                             self.parse_expression(OperatorPrecedence::Assignment.lower())?,
@@ -304,7 +296,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::AssignmentExpression(AssignmentExpression {
-                        left: Box::new(expression),
+                        left: Box::new(AssignmentExpressionLeft::Expression(expression)),
                         operator: AssignmentOperator::GreaterThanGreaterThanEquals,
                         right: Box::new(
                             self.parse_expression(OperatorPrecedence::Assignment.lower())?,
@@ -319,7 +311,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::AssignmentExpression(AssignmentExpression {
-                        left: Box::new(expression),
+                        left: Box::new(AssignmentExpressionLeft::Expression(expression)),
                         operator: AssignmentOperator::GreaterThanGreaterThanGreaterThanEquals,
                         right: Box::new(
                             self.parse_expression(OperatorPrecedence::Assignment.lower())?,
@@ -334,7 +326,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::AssignmentExpression(AssignmentExpression {
-                        left: Box::new(expression),
+                        left: Box::new(AssignmentExpressionLeft::Expression(expression)),
                         operator: AssignmentOperator::BarEquals,
                         right: Box::new(
                             self.parse_expression(OperatorPrecedence::Assignment.lower())?,
@@ -349,7 +341,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::AssignmentExpression(AssignmentExpression {
-                        left: Box::new(expression),
+                        left: Box::new(AssignmentExpressionLeft::Expression(expression)),
                         operator: AssignmentOperator::CaretEquals,
                         right: Box::new(
                             self.parse_expression(OperatorPrecedence::Assignment.lower())?,
@@ -364,7 +356,7 @@ impl<'a> Parser<'a> {
                     }
                     self.lexer.next_token();
                     expression = Expression::AssignmentExpression(AssignmentExpression {
-                        left: Box::new(expression),
+                        left: Box::new(AssignmentExpressionLeft::Expression(expression)),
                         operator: AssignmentOperator::AmpersandEquals,
                         right: Box::new(
                             self.parse_expression(OperatorPrecedence::Assignment.lower())?,
@@ -608,6 +600,103 @@ impl<'a> Parser<'a> {
         Ok(arguments)
     }
 
+    pub(crate) fn parse_property_key(&mut self) -> ParseResult<(PropertyKey, bool)> {
+        let (property_key, computed) = match self.lexer.token {
+            Token::OpenBracket => {
+                self.lexer.next_token();
+                let pk = PropertyKey::Identifier(self.parse_identifer()?);
+                self.lexer.expect_token(Token::CloseBracket);
+                self.lexer.next_token();
+                (pk, true)
+            }
+            Token::Identifier => (PropertyKey::Identifier(self.parse_identifer()?), false),
+            Token::StringLiteral => (
+                PropertyKey::StringLiteral(self.parse_string_literal()?),
+                false,
+            ),
+            _ => self.lexer.unexpected(),
+        };
+
+        Ok((property_key, computed))
+    }
+
+    pub(crate) fn parse_pattern(&mut self) -> ParseResult<Pattern> {
+        match &self.lexer.token {
+            Token::Identifier => Ok(Pattern::Identifier(self.parse_identifer()?)),
+            Token::OpenBrace => Ok(Pattern::ObjectPattern(self.parse_object_pattern()?)),
+            Token::OpenBracket => Ok(Pattern::ArrayPattern(self.parse_array_pattern()?)),
+            Token::DotDotDot => Ok(Pattern::RestElement(self.parse_rest_element()?)),
+            Token::Equals => Ok(Pattern::AssignmentPattern(self.parse_assignment_pattern()?)),
+            _ => todo!(),
+        }
+    }
+
+    pub(crate) fn parse_object_pattern(&mut self) -> ParseResult<ObjectPattern> {
+        self.lexer.next_token();
+        let mut properties: Vec<ObjectPatternProperty> = Vec::new();
+        while self.lexer.token != Token::CloseBrace {
+            if self.lexer.token == Token::DotDotDot {
+                properties.push(ObjectPatternProperty::RestElement(
+                    self.parse_rest_element()?,
+                ))
+            } else {
+                let (key, _) = self.parse_property_key()?;
+                let value: Pattern;
+                if self.lexer.token == Token::Equals {
+                    value = self.parse_pattern()?;
+                } else {
+                    self.lexer.expect_token(Token::Colon);
+                    self.lexer.next_token();
+                    value = self.parse_pattern()?;
+                }
+                properties.push(ObjectPatternProperty::AssignmentProperty(
+                    AssignmentProperty {
+                        key,
+                        value: Box::new(value),
+                    },
+                ));
+            }
+        }
+        self.lexer.expect_token(Token::CloseBrace);
+        self.lexer.next_token();
+        Ok(ObjectPattern { properties })
+    }
+
+    pub(crate) fn parse_array_pattern(&mut self) -> ParseResult<ArrayPattern> {
+        self.lexer.next_token();
+        let mut properties: Vec<Option<Pattern>> = Vec::new();
+        while self.lexer.token != Token::CloseBracket {
+            if self.lexer.token == Token::Comma {
+                self.lexer.next_token();
+                properties.push(None);
+            } else if self.lexer.token == Token::DotDotDot {
+                properties.push(Some(Pattern::RestElement(self.parse_rest_element()?)));
+            } else {
+                properties.push(Some(self.parse_pattern()?));
+            }
+            if self.lexer.token == Token::Comma {
+                self.lexer.next_token();
+            }
+        }
+        self.lexer.expect_token(Token::CloseBracket);
+        self.lexer.next_token();
+        Ok(ArrayPattern { properties })
+    }
+
+    pub(crate) fn parse_rest_element(&mut self) -> ParseResult<RestElement> {
+        self.lexer.next_token();
+        Ok(RestElement {
+            argument: Box::new(self.parse_pattern()?),
+        })
+    }
+
+    pub(crate) fn parse_assignment_pattern(&mut self) -> ParseResult<AssignmentPattern> {
+        self.lexer.next_token();
+        Ok(AssignmentPattern {
+            right: Box::new(self.parse_expression(OperatorPrecedence::Assignment)?),
+        })
+    }
+
     /// Parse function expression
     /// let a = function() {}
     /// a(function() {})
@@ -630,10 +719,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Parses function parameters
-    /// Note that we currently only return a vector of identifiers.
-    /// In the future we need to support all of the patterns, see here: https://github.com/estree/estree/blob/master/es5.md#patterns
-    pub(crate) fn parse_function_parameters(&mut self) -> ParseResult<Vec<Identifier>> {
-        let mut parameters: Vec<Identifier> = Vec::new();
+    pub(crate) fn parse_function_parameters(&mut self) -> ParseResult<Vec<Pattern>> {
+        let mut parameters: Vec<Pattern> = Vec::new();
 
         // Means there aren't any parameters to parse
         self.lexer.next_token();
@@ -642,16 +729,16 @@ impl<'a> Parser<'a> {
             return Ok(Vec::new());
         }
 
-        // Parse the first parameter
-        parameters.push(self.parse_identifer()?);
-
-        // As long as the next token is a comma, we keep parsing identifiers.
-        while self.lexer.token == Token::Comma {
-            self.lexer.next_token();
-            parameters.push(self.parse_identifer()?);
+        while self.lexer.token != Token::CloseParen {
+            // Parse the first parameter
+            parameters.push(self.parse_pattern()?);
+            if self.lexer.token == Token::Comma {
+                self.lexer.next_token();
+            }
         }
         self.lexer.expect_token(Token::CloseParen);
         self.lexer.next_token();
+
         Ok(parameters)
     }
 

@@ -1,4 +1,4 @@
-use crate::expression::{Expression, Identifier, StringLiteral};
+use crate::expression::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
@@ -49,7 +49,7 @@ pub struct TryStatement {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CatchClause {
-    pub param: Identifier, // TODO: Should be pattern.
+    pub param: Pattern,
     pub body: BlockStatement,
 }
 
@@ -75,10 +75,13 @@ pub struct IfStatement {
     pub alternate: Option<Box<Statement>>,
 }
 
+/* ------------------------------ Start for-statements ----------------------------- */
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum ForStatementInit {
     VariableDeclaration(VariableDeclaration),
     Expression(Expression),
+    Pattern(Pattern),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -102,6 +105,8 @@ pub struct ForOfStatement {
     pub right: Expression,
     pub body: Box<Statement>,
 }
+
+/* ---------------------------- End for-statements --------------------------- */
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ContinueStatement {
@@ -150,14 +155,14 @@ pub struct LabeledStatement {
 #[derive(Debug, PartialEq, Clone)]
 pub struct FunctionDeclaration {
     pub id: Identifier,
-    pub parameters: Vec<Identifier>, // TODO: es6 and upwards supports more patterns, see here: https://github.com/estree/estree/blob/master/es5.md#patterns
+    pub parameters: Vec<Pattern>,
     pub body: BlockStatement,
 }
 
 /// This is only allowed in export statements.
 #[derive(Debug, PartialEq, Clone)]
 pub struct AnonymousDefaultExportedFunctionDeclaration {
-    pub parameters: Vec<Identifier>, // TODO: es6 and upwards supports more patterns, see here: https://github.com/estree/estree/blob/master/es5.md#patterns
+    pub parameters: Vec<Pattern>,
     pub body: BlockStatement,
 }
 
@@ -174,7 +179,7 @@ pub enum VariableDeclarationKind {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct VariableDeclarator {
-    pub id: Identifier, // TODO: Identifier is the only supported pattern for es5, there are more patterns for the es6, es7 and etc.
+    pub id: Pattern,
     pub init: Option<Expression>,
 }
 

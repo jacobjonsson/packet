@@ -73,6 +73,7 @@ impl Printer {
                             self.print_variable_declaration(v);
                             self.print(";");
                         }
+                        ForStatementInit::Pattern(p) => self.print_pattern(p),
                     }
                 }
                 // We currently auto print semicolons for variable declarations,
@@ -96,8 +97,9 @@ impl Printer {
                 self.print_space();
                 self.print("(");
                 match &f.left {
-                    ForStatementInit::Expression(e) => self.print_expression(e),
                     ForStatementInit::VariableDeclaration(v) => self.print_variable_declaration(v),
+                    ForStatementInit::Pattern(p) => self.print_pattern(p),
+                    ForStatementInit::Expression(e) => self.print_expression(e),
                 };
                 self.print(" in ");
                 self.print_expression(&f.right);
@@ -113,6 +115,7 @@ impl Printer {
                 match &f.left {
                     ForStatementInit::Expression(e) => self.print_expression(e),
                     ForStatementInit::VariableDeclaration(v) => self.print_variable_declaration(v),
+                    ForStatementInit::Pattern(p) => self.print_pattern(p),
                 };
                 self.print(" of ");
                 self.print_expression(&f.right);
@@ -209,7 +212,7 @@ impl Printer {
                     self.print("catch");
                     self.print_space();
                     self.print("(");
-                    self.print_identifier(&handler.param);
+                    self.print_pattern(&handler.param);
                     self.print(")");
                     self.print_space();
                     self.print_block_statement(&handler.body);
@@ -424,7 +427,7 @@ impl Printer {
                 self.print(",");
                 self.print_space();
             }
-            self.print_identifier(&declaration.id);
+            self.print_pattern(&declaration.id);
             if let Some(expression) = &declaration.init {
                 self.print_space();
                 self.print("=");
@@ -474,7 +477,7 @@ impl Printer {
                 self.print(",");
                 self.print_space();
             }
-            self.print_identifier(argument);
+            self.print_pattern(argument);
         }
         self.print(")");
         self.print_space();
@@ -491,7 +494,7 @@ impl Printer {
                 self.print(",");
                 self.print_space();
             }
-            self.print_identifier(argument);
+            self.print_pattern(argument);
         }
         self.print(")");
         self.print_space();
@@ -515,7 +518,10 @@ impl Printer {
             Expression::ThisExpression(_) => self.print("this"),
             Expression::UpdateExpression(u) => self.print_update_expression(u),
             Expression::AssignmentExpression(a) => {
-                self.print_expression(&a.left);
+                match a.left.as_ref() {
+                    AssignmentExpressionLeft::Expression(exp) => self.print_expression(exp),
+                    AssignmentExpressionLeft::Pattern(p) => self.print_pattern(p),
+                }
                 self.print_space();
                 match &a.operator {
                     AssignmentOperator::Equals => self.print("="),
@@ -641,7 +647,7 @@ impl Printer {
                         self.print_space();
                     }
 
-                    self.print_identifier(&parameter);
+                    self.print_pattern(&parameter);
                 }
                 self.print(")");
                 self.print_space();
@@ -701,9 +707,13 @@ impl Printer {
                     match &property.key {
                         PropertyKey::Identifier(i) => {
                             // [a]
-                            self.print("[");
+                            if property.computed {
+                                self.print("[");
+                            }
                             self.print(&i.name);
-                            self.print("]");
+                            if property.computed {
+                                self.print("]");
+                            }
                         }
                         PropertyKey::StringLiteral(s) => {
                             // "a"
@@ -745,6 +755,114 @@ impl Printer {
 
     fn print_identifier(&mut self, id: &Identifier) {
         self.print(&id.name);
+    }
+
+    fn print_property_key(&mut self, property_key: &PropertyKey) {
+        match property_key {
+            PropertyKey::StringLiteral(s) => self.print_string_literal(s),
+            PropertyKey::Identifier(i) => self.print_identifier(i),
+        };
+    }
+
+    fn print_object_pattern(&mut self, object_pattern: &ObjectPattern) {
+        self.print("{");
+        if object_pattern.properties.len() > 0 {
+            self.print_space();
+        }
+        for (idx, property) in object_pattern.properties.iter().enumerate() {
+            if idx != 0 {
+                self.print(",");
+                self.print_space();
+            }
+            match property {
+                ObjectPatternProperty::AssignmentProperty(a) => {
+                    self.print_property_key(&a.key);
+
+                    // The only reason we don't call self.print_pattern here is because we need to insert : for some of the cases.
+                    // a: b
+                    // a: { b: c }
+                    // a: [b]
+                    // a = b
+                    match a.value.as_ref() {
+                        Pattern::Identifier(i) => {
+                            self.print(":");
+                            self.print_space();
+                            self.print_identifier(i);
+                        }
+                        Pattern::ObjectPattern(o) => {
+                            self.print(":");
+                            self.print_space();
+                            self.print_object_pattern(o);
+                        }
+                        Pattern::ArrayPattern(a) => {
+                            self.print(":");
+                            self.print_space();
+                            self.print_array_pattern(a);
+                        }
+                        Pattern::AssignmentPattern(a) => {
+                            self.print_space();
+                            self.print_assignment_pattern(a);
+                        }
+                        Pattern::RestElement(_) => {
+                            // This should be impossible, means the user entered: a: ...b which is not valid javascript.
+                            panic!("Rest element as property value is not valid")
+                        }
+                    }
+                }
+                ObjectPatternProperty::RestElement(r) => {
+                    self.print_rest_element(r);
+                }
+            }
+        }
+        if object_pattern.properties.len() > 0 {
+            self.print_space();
+        }
+        self.print("}");
+    }
+
+    fn print_array_pattern(&mut self, array_pattern: &ArrayPattern) {
+        self.print("[");
+        for (idx, property) in array_pattern.properties.iter().enumerate() {
+            let is_last_element = idx < array_pattern.properties.len() - 1;
+            match property {
+                Some(pattern) => {
+                    self.print_pattern(pattern);
+                    if is_last_element {
+                        self.print(",");
+                    }
+                }
+                None => {
+                    self.print(",");
+                }
+            }
+
+            // Do not print spaces for the last element
+            if is_last_element {
+                self.print_space();
+            }
+        }
+        self.print("]");
+    }
+
+    fn print_rest_element(&mut self, rest_element: &RestElement) {
+        self.print("...");
+        self.print_pattern(&rest_element.argument);
+    }
+
+    fn print_assignment_pattern(&mut self, assignment_pattern: &AssignmentPattern) {
+        self.print("=");
+        self.print_space();
+        self.print_expression(&assignment_pattern.right);
+    }
+
+    fn print_pattern(&mut self, pattern: &Pattern) {
+        match pattern {
+            Pattern::Identifier(i) => self.print_identifier(i),
+            Pattern::ObjectPattern(o) => self.print_object_pattern(o),
+            Pattern::ArrayPattern(a) => self.print_array_pattern(a),
+            Pattern::RestElement(r) => self.print_rest_element(r),
+            Pattern::AssignmentPattern(a) => self.print_assignment_pattern(a),
+        };
     }
 
     fn print_space(&mut self) {
