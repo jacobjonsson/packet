@@ -35,11 +35,6 @@ pub struct MemberExpression {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Identifier {
-    pub name: String,
-}
-
-#[derive(Debug, PartialEq, Clone)]
 pub struct ThisExpression {}
 
 #[derive(Debug, PartialEq, Clone)]
@@ -67,6 +62,7 @@ pub enum PropertyKey {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Property {
+    pub computed: bool,
     pub key: PropertyKey,
     pub value: Expression,
     pub kind: PropertyKind,
@@ -89,7 +85,7 @@ pub struct BooleanExpression {
 #[derive(Debug, PartialEq, Clone)]
 pub struct FunctionExpression {
     pub id: Option<Identifier>,
-    pub parameters: Vec<Identifier>, // TODO: es6 and upwards supports more patterns, see here: https://github.com/estree/estree/blob/master/es5.md#patterns
+    pub parameters: Vec<Pattern>,
     pub body: BlockStatement,
 }
 
@@ -174,9 +170,15 @@ pub enum AssignmentOperator {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum AssignmentExpressionLeft {
+    Expression(Expression),
+    Pattern(Pattern),
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct AssignmentExpression {
     pub operator: AssignmentOperator,
-    pub left: Box<Expression>,
+    pub left: Box<AssignmentExpressionLeft>,
     pub right: Box<Expression>,
 }
 
@@ -190,5 +192,55 @@ pub enum LogicalOperator {
 pub struct LogicalExpression {
     pub left: Box<Expression>,
     pub operator: LogicalOperator,
+    pub right: Box<Expression>,
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                  Patterns                                  */
+/* -------------------------------------------------------------------------- */
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Pattern {
+    Identifier(Identifier),
+    ObjectPattern(ObjectPattern),
+    ArrayPattern(ArrayPattern),
+    RestElement(RestElement),
+    AssignmentPattern(AssignmentPattern),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Identifier {
+    pub name: String,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct AssignmentProperty {
+    pub key: PropertyKey,
+    pub value: Box<Pattern>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum ObjectPatternProperty {
+    AssignmentProperty(AssignmentProperty),
+    RestElement(RestElement),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ObjectPattern {
+    pub properties: Vec<ObjectPatternProperty>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ArrayPattern {
+    pub properties: Vec<Option<Pattern>>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct RestElement {
+    pub argument: Box<Pattern>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct AssignmentPattern {
     pub right: Box<Expression>,
 }

@@ -170,7 +170,7 @@ impl<'a> Parser<'a> {
                     self.lexer.next_token();
                     self.lexer.expect_token(Token::OpenParen);
                     self.lexer.next_token();
-                    let param = self.parse_identifer()?;
+                    let param = self.parse_pattern()?;
                     self.lexer.expect_token(Token::CloseParen);
                     self.lexer.next_token();
                     self.lexer.expect_token(Token::OpenBrace);
@@ -395,16 +395,13 @@ impl<'a> Parser<'a> {
 
         let mut declarations: Vec<VariableDeclarator> = Vec::new();
         loop {
-            let mut value: Option<Expression> = None;
-            let identifier = self.parse_identifer()?;
+            let mut init: Option<Expression> = None;
+            let id = self.parse_pattern()?;
             if self.lexer.token == Token::Equals {
                 self.lexer.next_token();
-                value = Some(self.parse_expression(OperatorPrecedence::Lowest)?);
+                init = Some(self.parse_expression(OperatorPrecedence::Lowest)?);
             }
-            declarations.push(VariableDeclarator {
-                id: identifier,
-                init: value,
-            });
+            declarations.push(VariableDeclarator { id, init });
 
             if self.lexer.token != Token::Comma {
                 break;

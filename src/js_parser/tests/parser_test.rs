@@ -48,6 +48,11 @@ fn test_variable_declaration() {
     expect_printed("let a = 1, b = 2, c = 3", "let a = 1, b = 2, c = 3;");
     expect_printed("const a = 1, b = 2, c = 3", "const a = 1, b = 2, c = 3;");
     expect_printed("var a = 1, b = 2, c = 3", "var a = 1, b = 2, c = 3;");
+    expect_printed("let { a: b } = c;", "let { a: b } = c;");
+    expect_printed("let [ a ] = b;", "let [a] = b;");
+    expect_printed("let { ...a } = b;", "let { ...a } = b;");
+    expect_printed("let [...a] = b;", "let [...a] = b;");
+    expect_printed("let { a = b } = c;", "let { a = b } = c;");
 }
 
 #[test]
@@ -185,6 +190,7 @@ fn test_import_statement() {
 fn test_function_declaration() {
     expect_printed("function a() {}", "function a() {}");
     expect_printed("function a(b, c) {}", "function a(b, c) {}");
+    expect_printed("function a({ ...b }, c) {}", "function a({ ...b }, c) {}");
     expect_printed(
         "function a(b, c) { return b + c; }",
         "function a(b, c) { return b + c; }",
@@ -229,6 +235,14 @@ fn test_function_expression() {
     expect_printed("(function() {})()", "(function() {})()");
     expect_printed("(function a() {})", "(function a() {})");
     expect_printed("let a = function b() {}", "let a = function b() {};");
+    expect_printed(
+        "let a = function b({ ...c }) {}",
+        "let a = function b({ ...c }) {};",
+    );
+    expect_printed(
+        "let a = function b([...c]) {}",
+        "let a = function b([...c]) {};",
+    );
 }
 
 #[test]
@@ -432,13 +446,13 @@ fn test_array_expression() {
 
 #[test]
 fn test_object_expression() {
-    expect_printed("let a = { a: b }", "let a = { \"a\": b };");
+    expect_printed("let a = { a: b }", "let a = { a: b };");
     expect_printed(
         "let a = { \"a\": \"hello\" }",
         "let a = { \"a\": \"hello\" };",
     );
     expect_printed("let a = {}", "let a = {};");
-    expect_printed("let a = { a: b, c: d }", "let a = { \"a\": b, \"c\": d };");
+    expect_printed("let a = { a: b, c: d }", "let a = { a: b, c: d };");
     expect_printed("let a = { [a]: b, [c]: d }", "let a = { [a]: b, [c]: d };");
     expect_printed(
         "let a = { [a]: { [b]: { [c]: { [d]: {} } } } }",
@@ -494,5 +508,5 @@ fn test_export_default_declaration() {
         "export default function() {}",
     );
     expect_printed("export default 3 + 3", "export default 3 + 3;");
-    expect_printed("export default { a: c }", "export default { \"a\": c };");
+    expect_printed("export default { a: c }", "export default { a: c };");
 }
