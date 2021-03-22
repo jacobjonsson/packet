@@ -1,5 +1,5 @@
-use javascript_lexer::Lexer;
-use javascript_token::TokenType;
+use js_lexer::Lexer;
+use js_token::TokenType;
 use logger::LoggerImpl;
 
 #[test]

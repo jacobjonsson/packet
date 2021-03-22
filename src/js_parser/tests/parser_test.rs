@@ -1,4 +1,4 @@
-use javascript_ast::{
+use js_ast::{
     expression::{
         BinaryExpression, BinaryOperator, BooleanExpression, Expression, Identifier,
         IntegerLiteral, LogicalExpression, LogicalOperator,
@@ -6,9 +6,9 @@ use javascript_ast::{
     statement::{ExpressionStatement, Statement},
     Program,
 };
-use javascript_lexer::Lexer;
-use javascript_parser::Parser;
-use javascript_printer::Printer;
+use js_lexer::Lexer;
+use js_parser::Parser;
+use js_printer::Printer;
 use logger::LoggerImpl;
 
 fn expected_printed(content: &str, expected: &str) {

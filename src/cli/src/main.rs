@@ -1,6 +1,6 @@
-use javascript_lexer::Lexer;
-use javascript_parser::Parser;
-use javascript_printer::Printer;
+use js_lexer::Lexer;
+use js_parser::Parser;
+use js_printer::Printer;
 use logger::LoggerImpl;
 use std::env;
 use std::fs;

@@ -1,4 +1,4 @@
-use javascript_ast::{
+use js_ast::{
     expression::{Identifier, StringLiteral},
     statement::{
         AnonymousDefaultExportedFunctionDeclaration, Declaration, ExportAllDeclaration,
@@ -7,7 +7,7 @@ use javascript_ast::{
         ImportDefaultSpecifier, ImportNamespaceSpecifier, ImportSpecifier, Statement,
     },
 };
-use javascript_token::TokenType;
+use js_token::TokenType;
 
 use crate::{OperatorPrecedence, ParseResult, Parser, ParserError};
 
