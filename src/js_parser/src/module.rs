@@ -7,7 +7,7 @@ use js_ast::{
         ImportDefaultSpecifier, ImportNamespaceSpecifier, ImportSpecifier, Statement,
     },
 };
-use js_token::TokenType;
+use js_token::Token;
 
 use crate::{OperatorPrecedence, ParseResult, Parser, ParserError};
 
@@ -19,7 +19,7 @@ impl<'a> Parser<'a> {
 
         self.lexer.next_token();
 
-        if self.lexer.token == TokenType::OpenParen {
+        if self.lexer.token == Token::OpenParen {
             return Err(ParserError(
                 "Import expression are not supported yet".into(),
             ));
@@ -27,27 +27,27 @@ impl<'a> Parser<'a> {
 
         match &self.lexer.token {
             // import "module";
-            TokenType::StringLiteral => {
+            Token::StringLiteral => {
                 source = self.parse_string_literal()?;
             }
             // import * as abc from "module";
-            TokenType::Asterisk => {
+            Token::Asterisk => {
                 specifiers.push(self.parse_namespace_import_clause()?);
-                self.lexer.expect_token(TokenType::From);
+                self.lexer.expect_token(Token::From);
                 self.lexer.next_token();
                 source = self.parse_string_literal()?;
             }
             // import { a } from "module";
-            TokenType::OpenBrace => {
+            Token::OpenBrace => {
                 specifiers.append(&mut self.parse_named_import_clause()?);
-                self.lexer.expect_token(TokenType::From);
+                self.lexer.expect_token(Token::From);
                 self.lexer.next_token();
                 source = self.parse_string_literal()?;
             }
             // import a from "module";
-            TokenType::Identifier => {
+            Token::Identifier => {
                 specifiers.append(&mut self.parse_default_import_clause()?);
-                self.lexer.expect_token(TokenType::From);
+                self.lexer.expect_token(Token::From);
                 self.lexer.next_token();
                 source = self.parse_string_literal()?;
             }
@@ -64,7 +64,7 @@ impl<'a> Parser<'a> {
 
     fn parse_namespace_import_clause(&mut self) -> ParseResult<ImportClause> {
         self.lexer.next_token();
-        self.lexer.expect_token(TokenType::As);
+        self.lexer.expect_token(Token::As);
         self.lexer.next_token();
         let identifier = self.parse_identifer()?;
         Ok(ImportClause::ImportNamespace(ImportNamespaceSpecifier {
@@ -77,7 +77,7 @@ impl<'a> Parser<'a> {
         let mut specifiers: Vec<ImportClause> = Vec::new();
         let imported_identifier = self.parse_identifer()?;
         let mut local_identifier: Option<Identifier> = None;
-        if self.lexer.token == TokenType::As {
+        if self.lexer.token == Token::As {
             self.lexer.next_token();
             local_identifier = Some(self.parse_identifer()?);
         }
@@ -86,11 +86,11 @@ impl<'a> Parser<'a> {
             local: local_identifier.unwrap_or(imported_identifier.clone()),
         }));
 
-        while self.lexer.token == TokenType::Comma {
+        while self.lexer.token == Token::Comma {
             self.lexer.next_token();
             let imported_identifier = self.parse_identifer()?;
             let mut local_identifier: Option<Identifier> = None;
-            if self.lexer.token == TokenType::As {
+            if self.lexer.token == Token::As {
                 self.lexer.next_token();
                 local_identifier = Some(self.parse_identifer()?);
             }
@@ -100,7 +100,7 @@ impl<'a> Parser<'a> {
             }));
         }
 
-        self.lexer.expect_token(TokenType::CloseBrace);
+        self.lexer.expect_token(Token::CloseBrace);
         self.lexer.next_token();
 
         Ok(specifiers)
@@ -112,11 +112,11 @@ impl<'a> Parser<'a> {
             local: self.parse_identifer()?,
         }));
 
-        if self.lexer.token == TokenType::Comma {
+        if self.lexer.token == Token::Comma {
             self.lexer.next_token();
             match &self.lexer.token {
-                TokenType::Asterisk => specifiers.push(self.parse_namespace_import_clause()?),
-                TokenType::OpenBrace => specifiers.append(&mut self.parse_named_import_clause()?),
+                Token::Asterisk => specifiers.push(self.parse_namespace_import_clause()?),
+                Token::OpenBrace => specifiers.append(&mut self.parse_named_import_clause()?),
                 t => return Err(ParserError(format!("Unexpected token {}", t))),
             };
         }
@@ -131,8 +131,8 @@ impl<'a> Parser<'a> {
         self.lexer.next_token();
 
         match &self.lexer.token {
-            TokenType::Asterisk => self.parse_export_all().map(Statement::ExportAllDeclaration),
-            TokenType::Default => self
+            Token::Asterisk => self.parse_export_all().map(Statement::ExportAllDeclaration),
+            Token::Default => self
                 .parse_export_default()
                 .map(Statement::ExportDefaultDeclaration),
             _ => self
@@ -143,7 +143,7 @@ impl<'a> Parser<'a> {
 
     fn parse_export_all(&mut self) -> ParseResult<ExportAllDeclaration> {
         self.lexer.next_token();
-        self.lexer.expect_token(TokenType::From);
+        self.lexer.expect_token(Token::From);
         self.lexer.next_token();
         let string_literal = self.parse_string_literal()?;
         self.consume_semicolon();
@@ -156,13 +156,13 @@ impl<'a> Parser<'a> {
         self.lexer.next_token();
 
         match self.lexer.token {
-            TokenType::Function => {
+            Token::Function => {
                 self.lexer.next_token();
-                if self.lexer.token == TokenType::Identifier {
+                if self.lexer.token == Token::Identifier {
                     let identifier = self.parse_identifer()?;
-                    self.lexer.expect_token(TokenType::OpenParen);
+                    self.lexer.expect_token(Token::OpenParen);
                     let parameters = self.parse_function_parameters()?;
-                    self.lexer.expect_token(TokenType::OpenBrace);
+                    self.lexer.expect_token(Token::OpenBrace);
                     let body = self.parse_block_statement()?;
                     Ok(ExportDefaultDeclaration {
                         declaration: ExportDefaultDeclarationKind::FunctionDeclaration(
@@ -174,9 +174,9 @@ impl<'a> Parser<'a> {
                         ),
                     })
                 } else {
-                    self.lexer.expect_token(TokenType::OpenParen);
+                    self.lexer.expect_token(Token::OpenParen);
                     let parameters = self.parse_function_parameters()?;
-                    self.lexer.expect_token(TokenType::OpenBrace);
+                    self.lexer.expect_token(Token::OpenBrace);
                     let body = self.parse_block_statement()?;
                     Ok(ExportDefaultDeclaration {
                         declaration: ExportDefaultDeclarationKind::AnonymousDefaultExportedFunctionDeclaration(
@@ -197,7 +197,7 @@ impl<'a> Parser<'a> {
 
     fn parse_export_named(&mut self) -> ParseResult<ExportNamedDeclaration> {
         match &self.lexer.token {
-            TokenType::Const | TokenType::Let | TokenType::Var => {
+            Token::Const | Token::Let | Token::Var => {
                 let variable_declaration = self.parse_var_statement()?;
                 Ok(ExportNamedDeclaration {
                     declaration: Some(Declaration::VariableDeclaration(variable_declaration)),
@@ -205,7 +205,7 @@ impl<'a> Parser<'a> {
                     specifiers: Vec::new(),
                 })
             }
-            TokenType::Function => {
+            Token::Function => {
                 let function_declaration = self.parse_function_declaration()?;
                 Ok(ExportNamedDeclaration {
                     declaration: Some(Declaration::FunctionDeclaration(function_declaration)),
@@ -213,12 +213,12 @@ impl<'a> Parser<'a> {
                     specifiers: Vec::new(),
                 })
             }
-            TokenType::OpenBrace => {
+            Token::OpenBrace => {
                 let specifiers = self.parse_export_clause()?;
                 let mut source: Option<StringLiteral> = None;
-                if self.lexer.token == TokenType::From {
+                if self.lexer.token == Token::From {
                     self.lexer.next_token();
-                    self.lexer.expect_token(TokenType::StringLiteral);
+                    self.lexer.expect_token(Token::StringLiteral);
                     source = Some(self.parse_string_literal()?);
                 }
                 self.consume_semicolon();
@@ -234,11 +234,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_export_clause(&mut self) -> ParseResult<Vec<ExportSpecifier>> {
-        self.lexer.expect_token(TokenType::OpenBrace);
+        self.lexer.expect_token(Token::OpenBrace);
         self.lexer.next_token();
 
         let mut specifiers: Vec<ExportSpecifier> = Vec::new();
-        while self.lexer.token != TokenType::CloseBrace {
+        while self.lexer.token != Token::CloseBrace {
             // The name can actually be a keyword if we're really an "export from"
             // statement. However, we won't know until later. Allow keywords as
             // identifiers for now and throw an error later if there's no "from".
@@ -258,11 +258,11 @@ impl<'a> Parser<'a> {
             };
             self.lexer.next_token();
             let mut exported: Option<Identifier> = None;
-            if self.lexer.token == TokenType::As {
+            if self.lexer.token == Token::As {
                 self.lexer.next_token();
                 exported = Some(self.parse_identifer()?);
             }
-            if self.lexer.token == TokenType::Comma {
+            if self.lexer.token == Token::Comma {
                 self.lexer.next_token();
             }
 
@@ -271,7 +271,7 @@ impl<'a> Parser<'a> {
                 local: local,
             })
         }
-        self.lexer.expect_token(TokenType::CloseBrace);
+        self.lexer.expect_token(Token::CloseBrace);
         self.lexer.next_token();
         Ok(specifiers)
     }

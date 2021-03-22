@@ -1,5 +1,5 @@
 use js_ast::{expression::*, statement::*};
-use js_token::TokenType;
+use js_token::Token;
 
 use crate::{OperatorPrecedence, ParseResult, Parser};
 
@@ -10,9 +10,9 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_function_declaration(&mut self) -> ParseResult<FunctionDeclaration> {
         self.lexer.next_token(); // Skip the function keyword.
         let identifier = self.parse_identifer()?;
-        self.lexer.expect_token(TokenType::OpenParen);
+        self.lexer.expect_token(Token::OpenParen);
         let parameters = self.parse_function_parameters()?;
-        self.lexer.expect_token(TokenType::OpenBrace);
+        self.lexer.expect_token(Token::OpenBrace);
         let body = self.parse_block_statement()?;
         Ok(FunctionDeclaration {
             id: identifier,
@@ -26,10 +26,10 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_block_statement(&mut self) -> ParseResult<BlockStatement> {
         self.lexer.next_token();
         let mut statements: Vec<Statement> = Vec::new();
-        while self.lexer.token != TokenType::CloseBrace {
+        while self.lexer.token != Token::CloseBrace {
             statements.push(self.parse_statement()?);
         }
-        self.lexer.expect_token(TokenType::CloseBrace);
+        self.lexer.expect_token(Token::CloseBrace);
         self.lexer.next_token();
         Ok(BlockStatement { statements })
     }
@@ -39,7 +39,7 @@ impl<'a> Parser<'a> {
     /// return 1 + 1;
     pub(crate) fn parse_return_statement(&mut self) -> ParseResult<ReturnStatement> {
         self.lexer.next_token();
-        if self.lexer.token == TokenType::Semicolon {
+        if self.lexer.token == Token::Semicolon {
             self.lexer.next_token();
             return Ok(ReturnStatement { expression: None });
         }
@@ -56,15 +56,15 @@ impl<'a> Parser<'a> {
     /// if (test) { consequent } else alternate
     pub(crate) fn parse_if_statement(&mut self) -> ParseResult<IfStatement> {
         self.lexer.next_token();
-        self.lexer.expect_token(TokenType::OpenParen);
+        self.lexer.expect_token(Token::OpenParen);
         self.lexer.next_token();
         let test = self.parse_expression(OperatorPrecedence::Lowest)?;
-        self.lexer.expect_token(TokenType::CloseParen);
+        self.lexer.expect_token(Token::CloseParen);
         self.lexer.next_token();
         // TODO: Function declarations are not valid in strict mode.
         let consequent = self.parse_statement()?;
         let mut alternate: Option<Box<Statement>> = None;
-        if self.lexer.token == TokenType::Else {
+        if self.lexer.token == Token::Else {
             self.lexer.next_token();
             // TODO: Function declarations are not valid in strict mode.
             alternate = self.parse_statement().map(Box::new).map(Some)?;
@@ -80,11 +80,11 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_for_statement(&mut self) -> ParseResult<Statement> {
         self.lexer.next_token();
 
-        if self.lexer.token == TokenType::Await {
+        if self.lexer.token == Token::Await {
             panic!("\"for await\" syntax is not yet supported");
         }
 
-        self.lexer.expect_token(TokenType::OpenParen);
+        self.lexer.expect_token(Token::OpenParen);
         self.lexer.next_token();
 
         let init: Option<ForStatementInit>;
@@ -92,7 +92,7 @@ impl<'a> Parser<'a> {
         let mut update: Option<Expression> = None;
 
         match self.lexer.token {
-            TokenType::Const | TokenType::Let | TokenType::Var => {
+            Token::Const | Token::Let | Token::Var => {
                 init = self
                     .parse_var_statement()
                     .map(ForStatementInit::VariableDeclaration)
@@ -106,11 +106,11 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if self.lexer.token == TokenType::Of {
+        if self.lexer.token == Token::Of {
             // TODO: We should check for declarations here and forbid them if they exist.
             self.lexer.next_token();
             let right = self.parse_expression(OperatorPrecedence::Lowest)?;
-            self.lexer.expect_token(TokenType::CloseParen);
+            self.lexer.expect_token(Token::CloseParen);
             self.lexer.next_token();
             let body = self.parse_statement()?;
             if let Some(left) = init {
@@ -126,11 +126,11 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if self.lexer.token == TokenType::In {
+        if self.lexer.token == Token::In {
             // TODO: We should check for declarations here and forbid them if they exist.
             self.lexer.next_token();
             let right = self.parse_expression(OperatorPrecedence::Lowest)?;
-            self.lexer.expect_token(TokenType::CloseParen);
+            self.lexer.expect_token(Token::CloseParen);
             self.lexer.next_token();
             let body = self.parse_statement()?;
             if let Some(left) = init {
@@ -146,26 +146,26 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if self.lexer.token == TokenType::Semicolon {
+        if self.lexer.token == Token::Semicolon {
             self.lexer.next_token();
         }
 
-        if self.lexer.token != TokenType::Semicolon {
+        if self.lexer.token != Token::Semicolon {
             test = self
                 .parse_expression(OperatorPrecedence::Lowest)
                 .map(Some)?;
         }
 
-        self.lexer.expect_token(TokenType::Semicolon);
+        self.lexer.expect_token(Token::Semicolon);
         self.lexer.next_token();
 
-        if self.lexer.token != TokenType::CloseParen {
+        if self.lexer.token != Token::CloseParen {
             update = self
                 .parse_expression(OperatorPrecedence::Lowest)
                 .map(Some)?;
         }
 
-        self.lexer.expect_token(TokenType::CloseParen);
+        self.lexer.expect_token(Token::CloseParen);
         self.lexer.next_token();
 
         let body = self.parse_statement().map(Box::new)?;
