@@ -1,4 +1,4 @@
-use javascript_ast::{expression::*, statement::*, Program};
+use js_ast::{expression::*, statement::*, Program};
 
 pub struct Printer {
     text: String,

@@ -1,4 +1,4 @@
-use javascript_token::{lookup_identifer, TokenType};
+use js_token::{lookup_identifer, TokenType};
 use logger::Logger;
 
 pub struct Lexer<'a> {

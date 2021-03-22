@@ -1,5 +1,5 @@
-use javascript_lexer::Lexer;
-use javascript_parser::Parser;
+use js_lexer::Lexer;
+use js_parser::Parser;
 use logger::LoggerImpl;
 
 #[test]

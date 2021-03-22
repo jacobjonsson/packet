@@ -1,11 +1,11 @@
 [workspace]
 
 members = [
-    "javascript/token",
-    "javascript/lexer",
-    "javascript/ast",
-    "javascript/parser",
-    "javascript/printer",
-    "cli",
-    "logger",
+    "src/js_token",
+    "src/js_lexer",
+    "src/js_ast",
+    "src/js_parser",
+    "src/js_printer",
+    "src/cli",
+    "src/logger",
 ]

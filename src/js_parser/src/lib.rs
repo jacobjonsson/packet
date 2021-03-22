@@ -2,9 +2,9 @@ mod expression;
 mod module;
 mod statement;
 
-use javascript_ast::{expression::*, statement::*, Program};
-use javascript_lexer::Lexer;
-use javascript_token::TokenType;
+use js_ast::{expression::*, statement::*, Program};
+use js_lexer::Lexer;
+use js_token::TokenType;
 use logger::Logger;
 
 /// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_Precedence#table

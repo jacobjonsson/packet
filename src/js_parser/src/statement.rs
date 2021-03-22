@@ -1,5 +1,5 @@
-use javascript_ast::{expression::*, statement::*};
-use javascript_token::TokenType;
+use js_ast::{expression::*, statement::*};
+use js_token::TokenType;
 
 use crate::{OperatorPrecedence, ParseResult, Parser};
 
