@@ -713,29 +713,7 @@ impl Printer {
                         self.print(",");
                         self.print_space();
                     }
-                    // { [a]: b }
-                    // { "a": b, "c": d }
-                    match &property.key {
-                        PropertyKey::Identifier(i) => {
-                            // [a]
-                            if property.computed {
-                                self.print("[");
-                            }
-                            self.print(&i.name);
-                            if property.computed {
-                                self.print("]");
-                            }
-                        }
-                        PropertyKey::StringLiteral(s) => {
-                            // "a"
-                            self.print("\"");
-                            self.print(&s.value);
-                            self.print("\"");
-                        }
-                    }
-                    self.print(":");
-                    self.print_space();
-                    self.print_expression(&property.value, Precedence::Comma);
+                    self.print_property(&property);
 
                     if idx == o.properties.len() - 1 {
                         self.print_space();
@@ -743,6 +721,24 @@ impl Printer {
                 }
                 self.print("}");
             }
+        }
+    }
+
+    fn print_property(&mut self, property: &Property) {
+        // { [a]: b }
+        // { "a": b, "c": d }
+        if property.computed {
+            self.print("[");
+            self.print_expression(&property.key, Precedence::Comma);
+            self.print("]");
+            self.print(":");
+            self.print_space();
+            self.print_expression(&property.value, Precedence::Comma);
+        } else {
+            self.print_expression(&property.key, Precedence::Comma);
+            self.print(":");
+            self.print_space();
+            self.print_expression(&property.value, Precedence::Comma);
         }
     }
 

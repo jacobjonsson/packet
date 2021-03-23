@@ -510,15 +510,9 @@ pub enum PropertyKind {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum PropertyKey {
-    StringLiteral(StringLiteral),
-    Identifier(Identifier),
-}
-
-#[derive(Debug, PartialEq, Clone)]
 pub struct Property {
     pub computed: bool,
-    pub key: PropertyKey,
+    pub key: Expression,
     pub value: Expression,
     pub kind: PropertyKind,
 }
@@ -538,7 +532,7 @@ pub struct NullLiteral {}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct IntegerLiteral {
-    pub value: i64,
+    pub value: f64,
 }
 #[derive(Debug, PartialEq, Clone)]
 pub struct BooleanExpression {
@@ -593,6 +587,12 @@ pub enum Pattern {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Identifier {
     pub name: String,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum PropertyKey {
+    StringLiteral(StringLiteral),
+    Identifier(Identifier),
 }
 
 #[derive(Debug, PartialEq, Clone)]

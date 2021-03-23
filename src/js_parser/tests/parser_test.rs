@@ -61,6 +61,7 @@ fn test_binary_expressions() {
     expect_printed("5 - 5", "5 - 5");
     expect_printed("5 * 5", "5 * 5");
     expect_printed("5 / 5", "5 / 5");
+    expect_printed("5 % 5", "5 % 5");
     expect_printed("5 > 5", "5 > 5");
     expect_printed("5 < 5", "5 < 5");
     expect_printed("5 ^ 5", "5 ^ 5");
@@ -76,6 +77,12 @@ fn test_binary_expressions() {
     expect_printed("a in b", "a in b");
     expect_printed("true === true", "true === true");
     expect_printed("true !== false", "true !== false");
+    expect_printed("a | b", "a | b");
+    expect_printed("a & b", "a & b");
+    expect_printed("a ^ b", "a ^ b");
+    expect_printed("a << b", "a << b");
+    expect_printed("a >> b", "a >> b");
+    expect_printed("a >>> b", "a >>> b");
 }
 
 #[test]
@@ -384,6 +391,15 @@ fn test_object_expression() {
         "let a = { [a]: { [b]: { [c]: { [d]: {} } } } };",
     );
     expect_printed("let a = { [a]: 3 * 3 / 2 }", "let a = { [a]: 3 * 3 / 2 };");
+    expect_printed(
+        "let a = { a: function() {}, b: function() {} };",
+        "let a = { a: function() {}, b: function() {} };",
+    );
+    expect_printed(
+        "let a = { a: b ? c : d, e: f };",
+        "let a = { a: b ? c : d, e: f };",
+    );
+    expect_printed("let a = { for: b };", "let a = { for: b };");
 }
 
 #[test]

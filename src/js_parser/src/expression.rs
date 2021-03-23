@@ -1,4 +1,3 @@
-use crate::ParserError;
 use js_ast::expression::*;
 use js_token::Token;
 
@@ -19,13 +18,7 @@ impl<'a> Parser<'a> {
             }
 
             Token::NumericLiteral => {
-                let value = self.lexer.token_value.parse::<i64>().map_err(|_| {
-                    ParserError(format!(
-                        "Failed to parse {} as number",
-                        self.lexer.token_value
-                    ))
-                })?;
-
+                let value = self.lexer.number;
                 self.lexer.next_token();
                 Ok(Expression::IntegerLiteral(IntegerLiteral { value }))
             }
@@ -185,17 +178,8 @@ impl<'a> Parser<'a> {
         let mut properties: Vec<Property> = Vec::new();
 
         while self.lexer.token != Token::CloseBrace {
-            let (key, computed) = self.parse_property_key()?;
-            self.lexer.expect_token(Token::Colon);
-            self.lexer.next_token();
-
-            let value = self.parse_expression(Precedence::Comma)?;
-            properties.push(Property {
-                computed,
-                value,
-                key,
-                kind: PropertyKind::Init,
-            });
+            let property = self.parse_property()?;
+            properties.push(property);
 
             if self.lexer.token == Token::Comma {
                 self.lexer.next_token();
@@ -445,6 +429,19 @@ impl<'a> Parser<'a> {
                     });
                 }
 
+                // 1 % 2
+                Token::Percent => {
+                    if precedence >= Precedence::Multiply {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression),
+                        op_code: OpCode::BinaryReminder,
+                        right: Box::new(self.parse_expression(Precedence::Add)?),
+                    });
+                }
+
                 // 1 / 2
                 Token::Slash => {
                     if precedence >= Precedence::Multiply {
@@ -471,9 +468,35 @@ impl<'a> Parser<'a> {
                     });
                 }
 
+                // 1 | 2
+                Token::Bar => {
+                    if precedence >= Precedence::BitwiseOr {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression),
+                        op_code: OpCode::BinaryBitwiseOr,
+                        right: Box::new(self.parse_expression(Precedence::BitwiseOr)?),
+                    });
+                }
+
+                // 1 & 2
+                Token::Ampersand => {
+                    if precedence >= Precedence::BitwiseAnd {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression),
+                        op_code: OpCode::BinaryBitwiseAnd,
+                        right: Box::new(self.parse_expression(Precedence::BitwiseAnd)?),
+                    });
+                }
+
                 // 1 ^ 2
                 Token::Caret => {
-                    if precedence >= Precedence::Multiply {
+                    if precedence >= Precedence::BitwiseXor {
                         return Ok(expression);
                     }
                     self.lexer.next_token();
@@ -481,6 +504,45 @@ impl<'a> Parser<'a> {
                         left: Box::new(expression),
                         op_code: OpCode::BinaryBitwiseXor,
                         right: Box::new(self.parse_expression(Precedence::BitwiseXor)?),
+                    });
+                }
+
+                // 1 << 2
+                Token::LessThanLessThan => {
+                    if precedence >= Precedence::Shift {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression),
+                        op_code: OpCode::BinaryLeftShift,
+                        right: Box::new(self.parse_expression(Precedence::Shift)?),
+                    });
+                }
+
+                // 1 >> 2
+                Token::GreaterThanGreaterThan => {
+                    if precedence >= Precedence::Shift {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression),
+                        op_code: OpCode::BinaryRightShift,
+                        right: Box::new(self.parse_expression(Precedence::Shift)?),
+                    });
+                }
+
+                // 1 >>> 2
+                Token::GreaterThanGreaterThanGreaterThan => {
+                    if precedence >= Precedence::Shift {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression),
+                        op_code: OpCode::BinaryUnsignedRightShift,
+                        right: Box::new(self.parse_expression(Precedence::Shift)?),
                     });
                 }
 
@@ -645,10 +707,10 @@ impl<'a> Parser<'a> {
                         return Ok(expression);
                     }
                     self.lexer.next_token();
-                    let consequence = self.parse_expression(Precedence::Lowest)?;
+                    let consequence = self.parse_expression(Precedence::Comma)?;
                     self.lexer.expect_token(Token::Colon);
                     self.lexer.next_token();
-                    let alternate = self.parse_expression(Precedence::Lowest)?;
+                    let alternate = self.parse_expression(Precedence::Comma)?;
                     expression = Expression::ConditionalExpression(ConditionalExpression {
                         test: Box::new(expression),
                         consequence: Box::new(consequence),
@@ -748,6 +810,50 @@ impl<'a> Parser<'a> {
         };
 
         Ok((property_key, computed))
+    }
+
+    pub(crate) fn parse_property(&mut self) -> ParseResult<Property> {
+        let key: Expression;
+        let mut computed = false;
+
+        match self.lexer.token {
+            Token::OpenBracket => {
+                computed = true;
+                self.lexer.next_token();
+                key = self.parse_expression(Precedence::Comma)?;
+                self.lexer.expect_token(Token::CloseBracket);
+                self.lexer.next_token();
+            }
+
+            Token::NumericLiteral => {
+                key = Expression::IntegerLiteral(IntegerLiteral {
+                    value: self.lexer.number,
+                });
+            }
+
+            Token::StringLiteral => {
+                key = Expression::StringLiteral(self.parse_string_literal()?);
+            }
+
+            _ => {
+                let name = self.lexer.token_value.clone();
+                if !self.lexer.is_identifier_or_keyword() {
+                    self.lexer.expect_token(Token::Identifier);
+                }
+                self.lexer.next_token();
+                key = Expression::Identifier(Identifier { name });
+                // TODO: Support shorthand syntax here.
+            }
+        };
+        self.lexer.expect_token(Token::Colon);
+        self.lexer.next_token();
+        let value = self.parse_expression(Precedence::Comma)?;
+        Ok(Property {
+            computed,
+            key,
+            kind: PropertyKind::Init,
+            value,
+        })
     }
 
     pub(crate) fn parse_pattern(&mut self) -> ParseResult<Pattern> {

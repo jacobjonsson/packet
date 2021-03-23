@@ -131,8 +131,8 @@ impl std::fmt::Display for Token {
             Token::StringLiteral => write!(f, "StringLiteral"),
 
             // Punctuation
-            Token::Ampersand => write!(f, "%"),
-            Token::AmpersandAmpersand => write!(f, "%%"),
+            Token::Ampersand => write!(f, "&"),
+            Token::AmpersandAmpersand => write!(f, "&&"),
             Token::Asterisk => write!(f, "*"),
             Token::AsteriskAsterisk => write!(f, "**"),
             Token::At => write!(f, "@"),
@@ -175,8 +175,8 @@ impl std::fmt::Display for Token {
             Token::Tilde => write!(f, "~"),
 
             // Assignments
-            Token::AmpersandAmpersandEquals => write!(f, "%%="),
-            Token::AmpersandEquals => write!(f, "%="),
+            Token::AmpersandAmpersandEquals => write!(f, "&&="),
+            Token::AmpersandEquals => write!(f, "&="),
             Token::AsteriskAsteriskEquals => write!(f, "**="),
             Token::AsteriskEquals => write!(f, "*="),
             Token::BarBarEquals => write!(f, "||="),

@@ -2,6 +2,11 @@ use js_lexer::Lexer;
 use js_token::Token;
 use logger::LoggerImpl;
 
+enum StringOrFloat<'a> {
+    String(&'a str),
+    Float(f64),
+}
+
 #[test]
 fn tokenize_multiple_lines() {
     let input = "import a from \"a\";
@@ -13,18 +18,18 @@ fn tokenize_multiple_lines() {
 
     let expected_tokens = vec![
         (Token::Import, None),
-        (Token::Identifier, Some("a")),
+        (Token::Identifier, Some(StringOrFloat::String("a"))),
         (Token::From, None),
-        (Token::StringLiteral, Some("a")),
+        (Token::StringLiteral, Some(StringOrFloat::String("a"))),
         (Token::Semicolon, None),
         (Token::Let, None),
-        (Token::Identifier, Some("b")),
+        (Token::Identifier, Some(StringOrFloat::String("b"))),
         (Token::Equals, None),
-        (Token::NumericLiteral, Some("5")),
+        (Token::NumericLiteral, Some(StringOrFloat::Float(5.))),
         (Token::Semicolon, None),
-        (Token::NumericLiteral, Some("5")),
+        (Token::NumericLiteral, Some(StringOrFloat::Float(5.))),
         (Token::Plus, None),
-        (Token::NumericLiteral, Some("5")),
+        (Token::NumericLiteral, Some(StringOrFloat::Float(5.))),
         (Token::Semicolon, None),
     ];
 
@@ -35,8 +40,11 @@ fn tokenize_multiple_lines() {
             lexer.next_token();
         }
         assert_eq!(&lexer.token, &token.0);
-        if let Some(value) = token.1 {
-            assert_eq!(lexer.token_value, value);
+        if let Some(value) = &token.1 {
+            match value {
+                StringOrFloat::Float(f) => assert_eq!(&lexer.number, f),
+                StringOrFloat::String(s) => assert_eq!(&lexer.token_value, s),
+            }
         }
     }
 }
@@ -50,11 +58,12 @@ fn expect_string_literal(content: &str, expected: &str) {
 
 #[test]
 fn test_string_literal() {
-    expect_string_literal("'a'", "a");
+    expect_string_literal("       'a'", "a");
     expect_string_literal("\"a\"", "a");
     expect_string_literal("'\n'", "\n");
     expect_string_literal("'\"'", "\"");
     expect_string_literal("\"'\"", "'");
+    expect_string_literal("\"\\\"\"", "\\\"");
 }
 
 fn expect_identifier(content: &str, expected: &str) {
@@ -204,17 +213,17 @@ fn test_tokens() {
     }
 }
 
-fn expect_number(content: &str, expected: &str) {
+fn expect_number(content: &str, expected: f64) {
     let logger = LoggerImpl::new();
     let lexer = Lexer::new(content, &logger);
     assert_eq!(lexer.token, Token::NumericLiteral);
-    assert_eq!(lexer.token_value, expected);
+    assert_eq!(lexer.number, expected);
 }
 
 #[test]
 fn test_numeric_literals() {
-    expect_number("1", "1");
-    expect_number("120", "120");
+    expect_number("1", 1.);
+    expect_number("120", 120.);
 }
 
 #[test]
