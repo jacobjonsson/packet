@@ -16,8 +16,30 @@ impl<'a> Parser<'a> {
 
     fn parse_prefix(&mut self) -> ParseResult<Expression> {
         match &self.lexer.token {
-            Token::Null => self.parse_null_literal().map(Expression::NullLiteral),
-            Token::NumericLiteral => self.parse_numeric_literal(),
+            Token::Null => {
+                self.lexer.next_token();
+                Ok(Expression::NullLiteral(NullLiteral {}))
+            }
+
+            Token::NumericLiteral => {
+                let value = self.lexer.token_value.parse::<i64>().map_err(|_| {
+                    ParserError(format!(
+                        "Failed to parse {} as number",
+                        self.lexer.token_value
+                    ))
+                })?;
+
+                self.lexer.next_token();
+                Ok(Expression::IntegerLiteral(IntegerLiteral { value }))
+            }
+
+            Token::Slash | Token::SlashEquals => {
+                self.lexer.scan_regexp();
+                let value = self.lexer.raw();
+                self.lexer.next_token();
+                Ok(Expression::RegexpLiteral(RegexpLiteral { value }))
+            }
+
             Token::Identifier => self.parse_identifer().map(Expression::Identifier),
             Token::StringLiteral => self.parse_string_literal().map(Expression::StringLiteral),
             Token::Exclamation => self.parse_unary_expression(UnaryOperator::Exclamation),
@@ -48,11 +70,6 @@ impl<'a> Parser<'a> {
                 self.lexer.unexpected();
             }
         }
-    }
-
-    fn parse_null_literal(&mut self) -> ParseResult<NullLiteral> {
-        self.lexer.next_token();
-        Ok(NullLiteral {})
     }
 
     fn parse_this_expression(&mut self) -> ParseResult<ThisExpression> {
@@ -187,6 +204,7 @@ impl<'a> Parser<'a> {
                         property: Box::new(property),
                     })
                 }
+
                 // a.b.c
                 Token::Dot => {
                     self.lexer.next_token();
@@ -837,19 +855,6 @@ impl<'a> Parser<'a> {
         };
         self.lexer.next_token();
         Ok(boolean_expression)
-    }
-
-    pub(crate) fn parse_numeric_literal(&mut self) -> ParseResult<Expression> {
-        self.lexer.expect_token(Token::NumericLiteral);
-        let value = self.lexer.token_value.parse::<i64>().map_err(|_| {
-            ParserError(format!(
-                "Failed to parse {} as number",
-                self.lexer.token_value
-            ))
-        })?;
-
-        self.lexer.next_token();
-        Ok(Expression::IntegerLiteral(IntegerLiteral { value }))
     }
 
     pub(crate) fn parse_string_literal(&mut self) -> ParseResult<StringLiteral> {

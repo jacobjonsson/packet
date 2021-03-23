@@ -50,25 +50,25 @@
             return new jQuery.fn.init(selector, context, rootjQuery);
         },
         // Used for matching numbers
-        // core_pnum = /[+-]?(?:\d*\.|)\d+(?:[eE][+-]?\d+|)/.source,
+        core_pnum = /[+-]?(?:\d*\.|)\d+(?:[eE][+-]?\d+|)/.source,
         // Used for splitting on whitespace
-        // core_rnotwhite = /\S+/g,
+        core_rnotwhite = /\S+/g,
         // Make sure we trim BOM and NBSP (here's looking at you, Safari 5.0 and IE)
-        // rtrim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g,
+        rtrim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g,
         // A simple way to check for HTML strings
         // Prioritize #id over <tag> to avoid XSS via location.hash (#9521)
         // Strict HTML recognition (#11290: must start with <)
-        // rquickExpr = /^(?:(<[\w\W]+>)[^>]*|#([\w-]*))$/,
+        rquickExpr = /^(?:(<[\w\W]+>)[^>]*|#([\w-]*))$/,
         // Match a standalone tag
-        // rsingleTag = /^<(\w+)\s*\/?>(?:<\/\1>|)$/,
+        rsingleTag = /^<(\w+)\s*\/?>(?:<\/\1>|)$/,
         // JSON RegExp
-        // rvalidchars = /^[\],:{}\s]*$/,
-        // rvalidbraces = /(?:^|:|,)(?:\s*\[)+/g,
-        // rvalidescape = /\\(?:["\\\/bfnrt]|u[\da-fA-F]{4})/g,
-        // rvalidtokens = /"[^"\\\r\n]*"|true|false|null|-?(?:\d+\.|)\d+(?:[eE][+-]?\d+|)/g,
+        rvalidchars = /^[\],:{}\s]*$/,
+        rvalidbraces = /(?:^|:|,)(?:\s*\[)+/g,
+        rvalidescape = /\\(?:["\\\/bfnrt]|u[\da-fA-F]{4})/g,
+        rvalidtokens = /"[^"\\\r\n]*"|true|false|null|-?(?:\d+\.|)\d+(?:[eE][+-]?\d+|)/g,
         // Matches dashed string for camelizing
-        // rmsPrefix = /^-ms-/,
-        // rdashAlpha = /-([\da-z])/gi,
+        rmsPrefix = /^-ms-/,
+        rdashAlpha = /-([\da-z])/gi,
         // Used by jQuery.camelCase as callback to replace()
         fcamelCase = function (all, letter) {
             return letter.toUpperCase();
