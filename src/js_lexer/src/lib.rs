@@ -1,8 +1,11 @@
+use std::str::Chars;
+
 use js_token::{lookup_identifer, Token};
 use logger::Logger;
 
 pub struct Lexer<'a> {
     input: String,
+    chars: Chars<'a>,
     /// The position of the current character
     current: usize,
     /// The start position of the current token
@@ -23,7 +26,7 @@ pub struct Lexer<'a> {
 
 /// Public
 impl<'a> Lexer<'a> {
-    pub fn new<'b>(input: &str, logger: &'b impl Logger) -> Lexer<'b> {
+    pub fn new<'b>(input: &'b str, logger: &'b impl Logger) -> Lexer<'b> {
         let mut lexer = Lexer {
             input: input.into(),
             token_value: String::new(),
@@ -32,7 +35,8 @@ impl<'a> Lexer<'a> {
             start: 0,
             current: 0,
             end: 0,
-            character: input.chars().nth(0),
+            chars: input.chars(),
+            character: None,
             logger,
         };
 
@@ -523,7 +527,7 @@ impl<'a> Lexer<'a> {
 /// Internal
 impl<'a> Lexer<'a> {
     fn step(&mut self) {
-        self.character = self.input.chars().nth(self.current);
+        self.character = self.chars.next();
         self.end = self.current;
         self.current += 1;
     }
