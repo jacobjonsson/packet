@@ -1,7 +1,7 @@
 use js_ast::{expression::*, statement::*};
 use js_token::Token;
 
-use crate::{OperatorPrecedence, ParseResult, Parser, ParserError};
+use crate::{ParseResult, Parser, ParserError};
 
 // Import parsing
 impl<'a> Parser<'a> {
@@ -178,7 +178,7 @@ impl<'a> Parser<'a> {
                 }
             }
             _ => {
-                let expression = self.parse_expression(OperatorPrecedence::Lowest)?;
+                let expression = self.parse_expression(Precedence::Lowest)?;
                 self.consume_semicolon();
                 Ok(ExportDefaultDeclaration {
                     declaration: ExportDefaultDeclarationKind::Expression(expression),

@@ -31,21 +31,21 @@ impl Printer {
             }
             Statement::EmptyStatement(_) => self.print(";"),
 
-            Statement::Return(r) => {
+            Statement::ReturnStatement(r) => {
                 self.print("return");
                 if let Some(expression) = &r.expression {
                     self.print(" ");
-                    self.print_expression(expression);
+                    self.print_expression(expression, Precedence::Lowest);
                 }
                 self.print(";");
             }
 
             Statement::Expression(e) => {
                 self.statement_start = self.text.len();
-                self.print_expression(&e.expression);
+                self.print_expression(&e.expression, Precedence::Lowest);
             }
 
-            Statement::If(i) => self.print_if_statement(i),
+            Statement::IfStatement(i) => self.print_if_statement(i),
 
             Statement::ContinueStatement(c) => {
                 self.print("continue");
@@ -62,32 +62,22 @@ impl Printer {
                 }
             }
 
-            Statement::For(f) => {
+            Statement::ForStatement(f) => {
                 self.print("for");
                 self.print_space();
                 self.print("(");
                 if let Some(init) = &f.init {
-                    match init {
-                        ForStatementInit::Expression(e) => self.print_expression(e),
-                        ForStatementInit::VariableDeclaration(v) => {
-                            self.print_variable_declaration(v);
-                            self.print(";");
-                        }
-                        ForStatementInit::Pattern(p) => self.print_pattern(p),
-                    }
-                } else {
-                    self.print(";");
+                    self.print_for_loop_init(init);
                 }
-                // We currently auto print semicolons for variable declarations,
-                // hence why we don't print anything here.
+                self.print(";");
                 self.print_space();
                 if let Some(test) = &f.test {
-                    self.print_expression(test);
+                    self.print_expression(test, Precedence::Lowest);
                 }
                 self.print(";");
                 self.print_space();
                 if let Some(update) = &f.update {
-                    self.print_expression(update);
+                    self.print_expression(update, Precedence::Lowest);
                 }
                 self.print(")");
                 self.print_space();
@@ -98,13 +88,9 @@ impl Printer {
                 self.print("for");
                 self.print_space();
                 self.print("(");
-                match &f.left {
-                    ForStatementInit::VariableDeclaration(v) => self.print_variable_declaration(v),
-                    ForStatementInit::Pattern(p) => self.print_pattern(p),
-                    ForStatementInit::Expression(e) => self.print_expression(e),
-                };
+                self.print_for_loop_init(&f.left);
                 self.print(" in ");
-                self.print_expression(&f.right);
+                self.print_expression(&f.right, Precedence::Lowest);
                 self.print(")");
                 self.print_space();
                 self.print_statement(&f.body);
@@ -114,13 +100,9 @@ impl Printer {
                 self.print("for");
                 self.print_space();
                 self.print("(");
-                match &f.left {
-                    ForStatementInit::Expression(e) => self.print_expression(e),
-                    ForStatementInit::VariableDeclaration(v) => self.print_variable_declaration(v),
-                    ForStatementInit::Pattern(p) => self.print_pattern(p),
-                };
+                self.print_for_loop_init(&f.left);
                 self.print(" of ");
-                self.print_expression(&f.right);
+                self.print_expression(&f.right, Precedence::Lowest);
                 self.print(")");
                 self.print_space();
                 self.print_statement(&f.body);
@@ -134,7 +116,7 @@ impl Printer {
                 self.print("while");
                 self.print_space();
                 self.print("(");
-                self.print_expression(&d.test);
+                self.print_expression(&d.test, Precedence::Lowest);
                 self.print(")");
             }
 
@@ -142,7 +124,7 @@ impl Printer {
                 self.print("while");
                 self.print_space();
                 self.print("(");
-                self.print_expression(&w.test);
+                self.print_expression(&w.test, Precedence::Lowest);
                 self.print(")");
                 self.print_space();
                 self.print_statement(&w.body);
@@ -152,7 +134,7 @@ impl Printer {
                 self.print("switch");
                 self.print_space();
                 self.print("(");
-                self.print_expression(&s.discriminant);
+                self.print_expression(&s.discriminant, Precedence::Lowest);
                 self.print(")");
 
                 self.print_space();
@@ -169,7 +151,7 @@ impl Printer {
                     }
                     self.print("case ");
                     // Cases needs to have a test, only the default case is allowed to be none.
-                    self.print_expression(case.test.as_ref().unwrap());
+                    self.print_expression(case.test.as_ref().unwrap(), Precedence::LogicalAnd);
                     self.print(":");
                     self.print_space();
                     for consequent in &case.consequent {
@@ -202,7 +184,7 @@ impl Printer {
 
             Statement::ThrowStatement(t) => {
                 self.print("throw ");
-                self.print_expression(&t.argument);
+                self.print_expression(&t.argument, Precedence::Lowest);
             }
 
             Statement::TryStatement(t) => {
@@ -305,13 +287,13 @@ impl Printer {
                 self.print("with");
                 self.print_space();
                 self.print("(");
-                self.print_expression(&w.object);
+                self.print_expression(&w.object, Precedence::Lowest);
                 self.print(")");
                 self.print_space();
                 self.print_statement(&w.body);
             }
 
-            Statement::Block(b) => self.print_block_statement(b),
+            Statement::BlockStatement(b) => self.print_block_statement(b),
             Statement::FunctionDeclaration(f) => self.print_function_declaration(f),
 
             // export * from "a";
@@ -383,7 +365,7 @@ impl Printer {
                         self.print_function_declaration(f);
                     }
                     ExportDefaultDeclarationKind::Expression(exp) => {
-                        self.print_expression(exp);
+                        self.print_expression(exp, Precedence::Comma);
                         self.print(";");
                     }
                     ExportDefaultDeclarationKind::AnonymousDefaultExportedFunctionDeclaration(
@@ -396,6 +378,16 @@ impl Printer {
                 self.print_anonymous_default_exported_function_declaration(a)
             }
         };
+    }
+
+    fn print_for_loop_init(&mut self, init: &Statement) {
+        match init {
+            Statement::Expression(exp) => {
+                self.print_expression(&exp.expression, Precedence::Lowest)
+            }
+            Statement::VariableDeclaration(v) => self.print_variable_declaration(v),
+            _ => panic!("Internal server error"),
+        }
     }
 
     fn print_string_literal(&mut self, string_literal: &StringLiteral) {
@@ -434,7 +426,7 @@ impl Printer {
                 self.print_space();
                 self.print("=");
                 self.print_space();
-                self.print_expression(expression);
+                self.print_expression(expression, Precedence::Comma);
             }
         }
     }
@@ -458,7 +450,7 @@ impl Printer {
         self.print("if");
         self.print_space();
         self.print("(");
-        self.print_expression(&if_statement.test);
+        self.print_expression(&if_statement.test, Precedence::Lowest);
         self.print(")");
         self.print_space();
         self.print_statement(&if_statement.consequent);
@@ -503,7 +495,7 @@ impl Printer {
         self.print_block_statement(&function_declaration.body);
     }
 
-    fn print_expression(&mut self, expression: &Expression) {
+    fn print_expression(&mut self, expression: &Expression, precedence: Precedence) {
         match &expression {
             Expression::NullLiteral(_) => self.print("null"),
             Expression::BooleanExpression(e) => {
@@ -522,39 +514,13 @@ impl Printer {
                 self.print(&r.value);
             }
             Expression::ThisExpression(_) => self.print("this"),
-            Expression::UpdateExpression(u) => self.print_update_expression(u),
-            Expression::AssignmentExpression(a) => {
-                match a.left.as_ref() {
-                    AssignmentExpressionLeft::Expression(exp) => self.print_expression(exp),
-                    AssignmentExpressionLeft::Pattern(p) => self.print_pattern(p),
-                }
-                self.print_space();
-                match &a.operator {
-                    AssignmentOperator::Equals => self.print("="),
-                    AssignmentOperator::PlusEquals => self.print("+="),
-                    AssignmentOperator::MinusEquals => self.print("-="),
-                    AssignmentOperator::AsteriskEquals => self.print("*="),
-                    AssignmentOperator::SlashEquals => self.print("/="),
-                    AssignmentOperator::PercentEquals => self.print("%="),
-                    AssignmentOperator::LessThanLessThanEquals => self.print("<<="),
-                    AssignmentOperator::GreaterThanGreaterThanEquals => self.print(">>="),
-                    AssignmentOperator::GreaterThanGreaterThanGreaterThanEquals => {
-                        self.print(">>>=")
-                    }
-                    AssignmentOperator::BarEquals => self.print("|="),
-                    AssignmentOperator::CaretEquals => self.print("^="),
-                    AssignmentOperator::AmpersandEquals => self.print("&="),
-                }
-                self.print_space();
-                self.print_expression(&a.right);
-            }
             Expression::ArrayExpression(a) => {
                 self.print("[");
                 for (idx, element) in a.elements.iter().enumerate() {
                     let is_last_element = idx < a.elements.len() - 1;
                     match element {
                         Some(expression) => {
-                            self.print_expression(expression);
+                            self.print_expression(expression, Precedence::Comma);
                             if is_last_element {
                                 self.print(",");
                             }
@@ -571,57 +537,88 @@ impl Printer {
                 }
                 self.print("]");
             }
-            Expression::LogicalExpression(l) => {
-                self.print_expression(&l.left);
-                self.print_space();
-                match &l.operator {
-                    LogicalOperator::AmpersandAmpersand => self.print("&&"),
-                    LogicalOperator::BarBar => self.print("||"),
-                };
-                self.print_space();
-                self.print_expression(&l.right);
-            }
             Expression::BinaryExpression(e) => {
-                self.print_expression(e.left.as_ref());
-                self.print_space();
-                match e.operator {
-                    BinaryOperator::Ampersand => self.print("&"),
-                    BinaryOperator::EqualsEquals => self.print("=="),
-                    BinaryOperator::EqualsEqualsEquals => self.print("==="),
-                    BinaryOperator::ExclamationEquals => self.print("!="),
-                    BinaryOperator::ExclamationEqualsEquals => self.print("!=="),
-                    BinaryOperator::LessThan => self.print("<"),
-                    BinaryOperator::LessThanLessThan => self.print("<<"),
-                    BinaryOperator::LessThanEquals => self.print("<="),
-                    BinaryOperator::GreaterThan => self.print(">"),
-                    BinaryOperator::GreaterThanEquals => self.print(">="),
-                    BinaryOperator::GreaterThanGreaterThan => self.print(">>"),
-                    BinaryOperator::GreaterThanGreaterThanGreaterThan => self.print(">>>"),
-                    BinaryOperator::Plus => self.print("+"),
-                    BinaryOperator::Minus => self.print("-"),
-                    BinaryOperator::Asterisk => self.print("*"),
-                    BinaryOperator::Slash => self.print("/"),
-                    BinaryOperator::Percent => self.print("%"),
-                    BinaryOperator::Bar => self.print("|"),
-                    BinaryOperator::Caret => self.print("^"),
-                    BinaryOperator::In => self.print("in"),
-                    BinaryOperator::Instanceof => self.print("instanceof"),
+                let entry = get_op_entry(&e.op_code);
+                let wrap = precedence >= entry.precedence;
+                if wrap {
+                    self.print("(");
                 }
+                let mut left_precedence = entry.precedence.lower();
+                let mut right_precedence = entry.precedence.lower();
+                if e.op_code.is_right_associative() {
+                    left_precedence = entry.precedence.clone();
+                }
+                if e.op_code.is_left_associative() {
+                    right_precedence = entry.precedence.clone();
+                }
+
+                match &e.op_code {
+                    // "??" can't directly contain "||" or "&&" without being wrapped in parentheses
+                    OpCode::BinaryNullishCoalescing => {
+                        match e.left.as_ref() {
+                            Expression::BinaryExpression(ex) => {
+                                if ex.op_code == OpCode::BinaryLogicalOr
+                                    || ex.op_code == OpCode::BinaryLogicalAnd
+                                {
+                                    left_precedence = Precedence::Prefix;
+                                }
+                            }
+                            _ => {}
+                        };
+                        match e.right.as_ref() {
+                            Expression::BinaryExpression(ex) => {
+                                if ex.op_code == OpCode::BinaryLogicalOr
+                                    || ex.op_code == OpCode::BinaryLogicalAnd
+                                {
+                                    right_precedence = Precedence::Prefix;
+                                }
+                            }
+                            _ => {}
+                        };
+                    }
+
+                    // TODO: "**" can't contain certain unary expressions
+                    // https://github.com/evanw/esbuild/blob/c8eb58f7fa9dd6f17a062f269a2262b42f282671/internal/js_printer/js_printer.go#L2015
+                    _ => {}
+                }
+
+                self.print_expression(&e.left, left_precedence);
+
+                if e.op_code != OpCode::BinaryComma {
+                    self.print_space();
+                }
+
+                self.print(&entry.text);
+
                 self.print_space();
-                self.print_expression(e.right.as_ref());
+                self.print_expression(&e.right, right_precedence);
+
+                if wrap {
+                    self.print(")");
+                }
             }
 
             Expression::UnaryExpression(e) => {
-                match e.operator {
-                    UnaryOperator::Minus => self.print("-"),
-                    UnaryOperator::Plus => self.print("+"),
-                    UnaryOperator::Exclamation => self.print("!"),
-                    UnaryOperator::Tilde => self.print("~"),
-                    UnaryOperator::Typeof => self.print("typeof "),
-                    UnaryOperator::Void => self.print("void "),
-                    UnaryOperator::Delete => self.print("delete "),
+                let entry = get_op_entry(&e.op_code);
+                let wrap = precedence >= entry.precedence;
+                if wrap {
+                    self.print("(");
                 }
-                self.print_expression(e.argument.as_ref());
+                if !e.op_code.is_prefix() {
+                    self.print_expression(&e.expression, Precedence::Postfix.lower());
+                }
+                if entry.is_keyword {
+                    self.print(&entry.text);
+                    self.print(" ");
+                } else {
+                    self.print(&entry.text);
+                }
+                if e.op_code.is_prefix() {
+                    self.print_expression(&e.expression, Precedence::Prefix.lower());
+                }
+                if wrap {
+                    self.print(")");
+                }
             }
 
             Expression::StringLiteral(e) => {
@@ -631,7 +628,7 @@ impl Printer {
             }
 
             Expression::CallExpression(c) => {
-                self.print_expression(&c.callee);
+                self.print_expression(&c.callee, Precedence::Postfix);
                 self.print("(");
 
                 for (idx, argument) in c.arguments.iter().enumerate() {
@@ -639,7 +636,7 @@ impl Printer {
                         self.print(",");
                         self.print_space();
                     }
-                    self.print_expression(&argument);
+                    self.print_expression(&argument, Precedence::Comma);
                 }
                 self.print(")");
             }
@@ -672,35 +669,35 @@ impl Printer {
             }
 
             Expression::ConditionalExpression(c) => {
-                self.print_expression(&c.test);
+                self.print_expression(&c.test, Precedence::Lowest);
                 self.print(" ? ");
-                self.print_expression(&c.consequence);
+                self.print_expression(&c.consequence, Precedence::Lowest);
                 self.print(" : ");
-                self.print_expression(&c.alternate);
+                self.print_expression(&c.alternate, Precedence::Lowest);
             }
 
             Expression::NewExpression(n) => {
                 self.print("new ");
-                self.print_expression(&n.callee);
+                self.print_expression(&n.callee, Precedence::New);
                 self.print("(");
                 for (idx, argument) in n.arguments.iter().enumerate() {
                     if idx != 0 {
                         self.print(",");
                         self.print_space();
                     }
-                    self.print_expression(argument);
+                    self.print_expression(argument, Precedence::Comma);
                 }
                 self.print(")");
             }
 
             Expression::MemberExpression(m) => {
-                self.print_expression(&m.object);
+                self.print_expression(&m.object, Precedence::Postfix);
                 if m.computed {
                     self.print("[");
                 } else {
                     self.print(".");
                 }
-                self.print_expression(&m.property);
+                self.print_expression(&m.property, Precedence::Lowest);
                 if m.computed {
                     self.print("]");
                 }
@@ -738,7 +735,7 @@ impl Printer {
                     }
                     self.print(":");
                     self.print_space();
-                    self.print_expression(&property.value);
+                    self.print_expression(&property.value, Precedence::Comma);
 
                     if idx == o.properties.len() - 1 {
                         self.print_space();
@@ -746,24 +743,6 @@ impl Printer {
                 }
                 self.print("}");
             }
-        }
-    }
-
-    fn print_update_expression(&mut self, update_expression: &UpdateExpression) {
-        if update_expression.prefix {
-            match update_expression.operator {
-                UpdateOperator::Increment => self.print("++"),
-                UpdateOperator::Decrement => self.print("--"),
-            };
-        }
-
-        self.print_expression(&update_expression.argument);
-
-        if update_expression.prefix == false {
-            match update_expression.operator {
-                UpdateOperator::Increment => self.print("++"),
-                UpdateOperator::Decrement => self.print("--"),
-            };
         }
     }
 
@@ -866,7 +845,7 @@ impl Printer {
     fn print_assignment_pattern(&mut self, assignment_pattern: &AssignmentPattern) {
         self.print("=");
         self.print_space();
-        self.print_expression(&assignment_pattern.right);
+        self.print_expression(&assignment_pattern.right, Precedence::Comma);
     }
 
     fn print_pattern(&mut self, pattern: &Pattern) {
