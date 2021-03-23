@@ -73,6 +73,24 @@ fn test_identifiers() {
     expect_identifier("_$", "_$");
 }
 
+fn expect_regexp(content: &str, expected: &str) {
+    let logger = LoggerImpl::new();
+    let mut lexer = Lexer::new(content, &logger);
+    assert_eq!(lexer.token, Token::Slash);
+    lexer.scan_regexp();
+    assert_eq!(lexer.raw(), expected);
+}
+
+#[test]
+fn test_regexp() {
+    expect_regexp("/hello/gi", "/hello/gi");
+    expect_regexp("/hello/", "/hello/");
+    expect_regexp(
+        "/^<(\\w+)\\s*\\/?>(?:<\\/\\1>|)$/",
+        "/^<(\\w+)\\s*\\/?>(?:<\\/\\1>|)$/",
+    )
+}
+
 #[test]
 fn test_tokens() {
     let tests = vec![

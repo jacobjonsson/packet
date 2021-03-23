@@ -115,6 +115,68 @@ impl<'a> Lexer<'a> {
         std::process::exit(1);
     }
 
+    // Returns the raw slice of input related to the current token.
+    pub fn raw(&self) -> String {
+        self.input[self.start..self.end + 1].into()
+    }
+
+    pub fn scan_regexp(&mut self) {
+        loop {
+            match self.character {
+                Some('/') => {
+                    self.step();
+                    'inner: loop {
+                        let character = match self.character {
+                            Some(v) => v,
+                            None => break 'inner,
+                        };
+
+                        if Lexer::is_letter(character) {
+                            match character {
+                                'g' | 'i' | 'm' | 's' | 'u' | 'y' => self.step(),
+                                _ => self.unexpected(),
+                            }
+                        } else {
+                            break 'inner;
+                        }
+                    }
+
+                    return;
+                }
+
+                Some('[') => {
+                    self.step();
+                    while self.character != Some(']') {
+                        if self.character == Some('\\') {
+                            self.step();
+                        }
+
+                        match self.character {
+                            Some('\r') | Some('\n') | None => {
+                                self.unexpected();
+                            }
+                            _ => self.step(),
+                        };
+                    }
+                    self.step();
+                }
+
+                _ => {
+                    if self.character == Some('\\') {
+                        self.step();
+                    }
+
+                    match self.character {
+                        Some('\r') | Some('\n') | None => {
+                            self.unexpected();
+                        }
+                        _ => self.step(),
+                    };
+                }
+            };
+        }
+    }
+
     pub fn next_token(&mut self) {
         self.skip_whitespace();
 

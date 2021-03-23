@@ -541,3 +541,10 @@ fn test_export_default_declaration() {
     expect_printed("export default 3 + 3", "export default 3 + 3;");
     expect_printed("export default { a: c }", "export default { a: c };");
 }
+
+#[test]
+fn test_regexp_literal() {
+    expect_printed("/hello/", "/hello/");
+    expect_printed("/hello/gi", "/hello/gi");
+    expect_printed("/hello/gi.test(\"hello\")", "/hello/gi.test(\"hello\")");
+}

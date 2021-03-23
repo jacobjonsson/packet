@@ -10,6 +10,7 @@ pub enum Expression {
     BooleanExpression(BooleanExpression),
     FunctionExpression(FunctionExpression),
     StringLiteral(StringLiteral),
+    RegexpLiteral(RegexpLiteral),
     NullLiteral(NullLiteral),
     CallExpression(CallExpression),
     ConditionalExpression(ConditionalExpression),
@@ -71,6 +72,11 @@ pub struct Property {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct StringLiteral {
+    pub value: String,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct RegexpLiteral {
     pub value: String,
 }
 

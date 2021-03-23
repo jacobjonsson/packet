@@ -518,6 +518,9 @@ impl Printer {
             Expression::IntegerLiteral(e) => {
                 self.print(&e.value.to_string());
             }
+            Expression::RegexpLiteral(r) => {
+                self.print(&r.value);
+            }
             Expression::ThisExpression(_) => self.print("this"),
             Expression::UpdateExpression(u) => self.print_update_expression(u),
             Expression::AssignmentExpression(a) => {
