@@ -1,7 +1,7 @@
 use js_ast::{expression::*, statement::*};
 use js_token::Token;
 
-use crate::{OperatorPrecedence, ParseResult, Parser};
+use crate::{ParseResult, Parser};
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_statement(&mut self) -> ParseResult<Statement> {
@@ -14,9 +14,11 @@ impl<'a> Parser<'a> {
             Token::Function => self
                 .parse_function_declaration()
                 .map(Statement::FunctionDeclaration),
-            Token::Return => self.parse_return_statement().map(Statement::Return),
-            Token::If => self.parse_if_statement().map(Statement::If),
-            Token::OpenBrace => self.parse_block_statement().map(Statement::Block),
+            Token::Return => self
+                .parse_return_statement()
+                .map(Statement::ReturnStatement),
+            Token::If => self.parse_if_statement().map(Statement::IfStatement),
+            Token::OpenBrace => self.parse_block_statement().map(Statement::BlockStatement),
             Token::For => self.parse_for_statement(),
             Token::Continue => {
                 self.lexer.next_token();
@@ -44,7 +46,7 @@ impl<'a> Parser<'a> {
                 self.lexer.next_token();
                 self.lexer.expect_token(Token::OpenParen);
                 self.lexer.next_token();
-                let test = self.parse_expression(OperatorPrecedence::Lowest)?;
+                let test = self.parse_expression(Precedence::Lowest)?;
                 self.lexer.expect_token(Token::CloseParen);
                 self.lexer.next_token();
                 let body = self.parse_statement()?;
@@ -60,7 +62,7 @@ impl<'a> Parser<'a> {
                 self.lexer.next_token();
                 self.lexer.expect_token(Token::OpenParen);
                 self.lexer.next_token();
-                let test = self.parse_expression(OperatorPrecedence::Lowest)?;
+                let test = self.parse_expression(Precedence::Lowest)?;
                 self.lexer.expect_token(Token::CloseParen);
                 self.lexer.next_token();
                 Ok(Statement::DoWhileStatement(DoWhileStatement {
@@ -72,7 +74,7 @@ impl<'a> Parser<'a> {
                 self.lexer.next_token();
                 self.lexer.expect_token(Token::OpenParen);
                 self.lexer.next_token();
-                let discriminant = self.parse_expression(OperatorPrecedence::Lowest)?;
+                let discriminant = self.parse_expression(Precedence::Lowest)?;
                 self.lexer.expect_token(Token::CloseParen);
                 self.lexer.next_token();
                 self.lexer.expect_token(Token::OpenBrace);
@@ -95,7 +97,7 @@ impl<'a> Parser<'a> {
                     } else {
                         self.lexer.expect_token(Token::Case);
                         self.lexer.next_token();
-                        test = Some(self.parse_expression(OperatorPrecedence::Lowest)?);
+                        test = Some(self.parse_expression(Precedence::Lowest)?);
                         self.lexer.expect_token(Token::Colon);
                         self.lexer.next_token();
                     }
@@ -124,7 +126,7 @@ impl<'a> Parser<'a> {
                 self.lexer.next_token();
                 self.lexer.expect_token(Token::OpenParen);
                 self.lexer.next_token();
-                let object = self.parse_expression(OperatorPrecedence::Lowest)?;
+                let object = self.parse_expression(Precedence::Lowest)?;
                 self.lexer.expect_token(Token::CloseParen);
                 self.lexer.next_token();
                 let body = self.parse_statement()?;
@@ -145,16 +147,14 @@ impl<'a> Parser<'a> {
                     }));
                 } else {
                     // Parse a normal expression
-                    let expression = self.parse_suffix(
-                        OperatorPrecedence::Lowest,
-                        Expression::Identifier(identifier),
-                    )?;
+                    let expression =
+                        self.parse_suffix(Precedence::Lowest, Expression::Identifier(identifier))?;
                     return Ok(Statement::Expression(ExpressionStatement { expression }));
                 }
             }
             Token::Throw => {
                 self.lexer.next_token();
-                let argument = self.parse_expression(OperatorPrecedence::Lowest)?;
+                let argument = self.parse_expression(Precedence::Lowest)?;
                 Ok(Statement::ThrowStatement(ThrowStatement { argument }))
             }
             Token::Try => {
@@ -211,7 +211,7 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_expression_statement(&mut self) -> ParseResult<Statement> {
-        let expression = self.parse_expression(OperatorPrecedence::Lowest)?;
+        let expression = self.parse_expression(Precedence::Lowest)?;
         self.consume_semicolon();
 
         Ok(Statement::Expression(ExpressionStatement { expression }))
@@ -243,7 +243,7 @@ impl<'a> Parser<'a> {
             return Ok(ReturnStatement { expression: None });
         }
 
-        let expression = self.parse_expression(OperatorPrecedence::Lowest)?;
+        let expression = self.parse_expression(Precedence::Lowest)?;
         self.consume_semicolon();
         Ok(ReturnStatement {
             expression: Some(expression),
@@ -257,7 +257,7 @@ impl<'a> Parser<'a> {
         self.lexer.next_token();
         self.lexer.expect_token(Token::OpenParen);
         self.lexer.next_token();
-        let test = self.parse_expression(OperatorPrecedence::Lowest)?;
+        let test = self.parse_expression(Precedence::Lowest)?;
         self.lexer.expect_token(Token::CloseParen);
         self.lexer.next_token();
         // TODO: Function declarations are not valid in strict mode.
@@ -292,27 +292,29 @@ impl<'a> Parser<'a> {
 
         self.allow_in = false;
 
+        let mut test: Option<Expression> = None;
+        let mut update: Option<Expression> = None;
+
         let init = match self.lexer.token {
             Token::Const | Token::Let | Token::Var => self
                 .parse_variable_declaration()
-                .map(ForStatementInit::VariableDeclaration)
+                .map(Statement::VariableDeclaration)
+                .map(Box::new)
                 .map(Some)?,
             Token::Semicolon => None,
             _ => self
-                .parse_expression(OperatorPrecedence::Lowest)
-                .map(ForStatementInit::Expression)
+                .parse_expression(Precedence::Lowest)
+                .map(|expression| Statement::Expression(ExpressionStatement { expression }))
+                .map(Box::new)
                 .map(Some)?,
         };
 
         self.allow_in = true;
 
-        let mut test: Option<Expression> = None;
-        let mut update: Option<Expression> = None;
-
         if self.lexer.token == Token::Of {
             // TODO: We should check for declarations here and forbid them if they exist.
             self.lexer.next_token();
-            let right = self.parse_expression(OperatorPrecedence::Lowest)?;
+            let right = self.parse_expression(Precedence::Lowest)?;
             self.lexer.expect_token(Token::CloseParen);
             self.lexer.next_token();
             let body = self.parse_statement()?;
@@ -332,7 +334,7 @@ impl<'a> Parser<'a> {
         if self.lexer.token == Token::In {
             // TODO: We should check for declarations here and forbid them if they exist.
             self.lexer.next_token();
-            let right = self.parse_expression(OperatorPrecedence::Lowest)?;
+            let right = self.parse_expression(Precedence::Lowest)?;
             self.lexer.expect_token(Token::CloseParen);
             self.lexer.next_token();
             let body = self.parse_statement()?;
@@ -354,25 +356,21 @@ impl<'a> Parser<'a> {
         }
 
         if self.lexer.token != Token::Semicolon {
-            test = self
-                .parse_expression(OperatorPrecedence::Lowest)
-                .map(Some)?;
+            test = self.parse_expression(Precedence::Lowest).map(Some)?;
         }
 
         self.lexer.expect_token(Token::Semicolon);
         self.lexer.next_token();
 
         if self.lexer.token != Token::CloseParen {
-            update = self
-                .parse_expression(OperatorPrecedence::Lowest)
-                .map(Some)?;
+            update = self.parse_expression(Precedence::Lowest).map(Some)?;
         }
 
         self.lexer.expect_token(Token::CloseParen);
         self.lexer.next_token();
 
         let body = self.parse_statement().map(Box::new)?;
-        Ok(Statement::For(ForStatement {
+        Ok(Statement::ForStatement(ForStatement {
             body,
             init,
             test,
@@ -399,7 +397,7 @@ impl<'a> Parser<'a> {
             let id = self.parse_pattern()?;
             if self.lexer.token == Token::Equals {
                 self.lexer.next_token();
-                init = Some(self.parse_expression(OperatorPrecedence::Assignment)?);
+                init = Some(self.parse_expression(Precedence::Assign)?);
             }
             declarations.push(VariableDeclarator { id, init });
             if self.lexer.token != Token::Comma {

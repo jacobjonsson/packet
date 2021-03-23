@@ -2,11 +2,11 @@ use crate::expression::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
-    Block(BlockStatement),
-    Return(ReturnStatement),
-    If(IfStatement),
-    For(ForStatement),
+    BlockStatement(BlockStatement),
+    ReturnStatement(ReturnStatement),
+    IfStatement(IfStatement),
     DebuggerStatement(DebuggerStatement),
+    ForStatement(ForStatement),
     ForInStatement(ForInStatement),
     ForOfStatement(ForOfStatement),
     EmptyStatement(EmptyStatement),
@@ -86,7 +86,7 @@ pub enum ForStatementInit {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ForStatement {
-    pub init: Option<ForStatementInit>,
+    pub init: Option<Box<Statement>>,
     pub test: Option<Expression>,
     pub update: Option<Expression>,
     pub body: Box<Statement>,
@@ -94,14 +94,14 @@ pub struct ForStatement {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ForInStatement {
-    pub left: ForStatementInit,
+    pub left: Box<Statement>,
     pub right: Expression,
     pub body: Box<Statement>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ForOfStatement {
-    pub left: ForStatementInit,
+    pub left: Box<Statement>,
     pub right: Expression,
     pub body: Box<Statement>,
 }

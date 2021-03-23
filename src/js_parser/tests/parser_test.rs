@@ -1,11 +1,3 @@
-use js_ast::{
-    expression::{
-        BinaryExpression, BinaryOperator, BooleanExpression, Expression, Identifier,
-        IntegerLiteral, LogicalExpression, LogicalOperator,
-    },
-    statement::{ExpressionStatement, Statement},
-    Program,
-};
 use js_lexer::Lexer;
 use js_parser::Parser;
 use js_printer::Printer;
@@ -18,14 +10,6 @@ fn expect_printed(content: &str, expected: &str) {
     let program = parser.parse_program();
     let output = Printer::new().print_program(&program);
     assert_eq!(output, expected);
-}
-
-fn expect_ast(content: &str, expected: Program) {
-    let logger = LoggerImpl::new();
-    let lexer = Lexer::new(content, &logger);
-    let mut parser = Parser::new(lexer, &logger);
-    let program = parser.parse_program();
-    assert_eq!(program, expected);
 }
 
 #[test]
@@ -96,88 +80,12 @@ fn test_binary_expressions() {
 
 #[test]
 fn test_operator_precedence_parsing() {
-    expect_ast(
-        "5 + 5",
-        Program {
-            statements: vec![Statement::Expression(ExpressionStatement {
-                expression: Expression::BinaryExpression(BinaryExpression {
-                    left: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 5 })),
-                    operator: BinaryOperator::Plus,
-                    right: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 5 })),
-                }),
-            })],
-        },
-    );
-    expect_ast(
-        "true",
-        Program {
-            statements: vec![Statement::Expression(ExpressionStatement {
-                expression: Expression::BooleanExpression(BooleanExpression { value: true }),
-            })],
-        },
-    );
-    expect_ast(
-        "false",
-        Program {
-            statements: vec![Statement::Expression(ExpressionStatement {
-                expression: Expression::BooleanExpression(BooleanExpression { value: false }),
-            })],
-        },
-    );
-    expect_ast(
-        "5 + 5 + 5",
-        Program {
-            statements: vec![Statement::Expression(ExpressionStatement {
-                expression: Expression::BinaryExpression(BinaryExpression {
-                    left: Box::new(Expression::BinaryExpression(BinaryExpression {
-                        left: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 5 })),
-                        operator: BinaryOperator::Plus,
-                        right: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 5 })),
-                    })),
-                    operator: BinaryOperator::Plus,
-                    right: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 5 })),
-                }),
-            })],
-        },
-    );
-
-    expect_ast(
+    expect_printed("5 + 5", "5 + 5");
+    expect_printed("5 + 5 * 5", "5 + 5 * 5");
+    expect_printed("(5 + 5) * 5", "(5 + 5) * 5");
+    expect_printed(
         "3 + 4 * 5 == 3 * (1 + 4) * 5",
-        Program {
-            statements: vec![Statement::Expression(ExpressionStatement {
-                expression: Expression::BinaryExpression(BinaryExpression {
-                    left: Box::new(Expression::BinaryExpression(BinaryExpression {
-                        left: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 3 })),
-                        operator: BinaryOperator::Plus,
-                        right: Box::new(Expression::BinaryExpression(BinaryExpression {
-                            left: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 4 })),
-                            operator: BinaryOperator::Asterisk,
-                            right: Box::new(Expression::IntegerLiteral(IntegerLiteral {
-                                value: 5,
-                            })),
-                        })),
-                    })),
-                    operator: BinaryOperator::EqualsEquals,
-                    right: Box::new(Expression::BinaryExpression(BinaryExpression {
-                        left: Box::new(Expression::BinaryExpression(BinaryExpression {
-                            left: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 3 })),
-                            operator: BinaryOperator::Asterisk,
-                            right: Box::new(Expression::BinaryExpression(BinaryExpression {
-                                left: Box::new(Expression::IntegerLiteral(IntegerLiteral {
-                                    value: 1,
-                                })),
-                                operator: BinaryOperator::Plus,
-                                right: Box::new(Expression::IntegerLiteral(IntegerLiteral {
-                                    value: 4,
-                                })),
-                            })),
-                        })),
-                        operator: BinaryOperator::Asterisk,
-                        right: Box::new(Expression::IntegerLiteral(IntegerLiteral { value: 5 })),
-                    })),
-                }),
-            })],
-        },
+        "3 + 4 * 5 == 3 * (1 + 4) * 5",
     );
 }
 
@@ -291,6 +199,10 @@ fn test_for_statement() {
         "for (let a = 1; a < 10; a++) {}",
     );
     expect_printed("for (; a < 10; a++) {}", "for (; a < 10; a++) {}");
+    expect_printed(
+        "for (i = 0, l = 10; i < l; i++) {}",
+        "for (i = 0, l = 10; i < l; i++) {}",
+    );
 }
 
 #[test]
@@ -356,22 +268,7 @@ fn test_assignment_expression() {
 fn test_logical_expression() {
     expect_printed("3 + 3 || 1 * 2", "3 + 3 || 1 * 2");
     expect_printed("3 + 3 && 1 * 2", "3 + 3 && 1 * 2");
-    expect_ast(
-        "a || b && c",
-        Program {
-            statements: vec![Statement::Expression(ExpressionStatement {
-                expression: Expression::LogicalExpression(LogicalExpression {
-                    left: Box::new(Expression::Identifier(Identifier { name: "a".into() })),
-                    operator: LogicalOperator::BarBar,
-                    right: Box::new(Expression::LogicalExpression(LogicalExpression {
-                        left: Box::new(Expression::Identifier(Identifier { name: "b".into() })),
-                        operator: LogicalOperator::AmpersandAmpersand,
-                        right: Box::new(Expression::Identifier(Identifier { name: "c".into() })),
-                    })),
-                }),
-            })],
-        },
-    )
+    expect_printed("a || b && c", "a || b && c");
 }
 
 #[test]
