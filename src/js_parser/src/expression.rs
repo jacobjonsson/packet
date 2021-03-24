@@ -33,6 +33,10 @@ impl<'a> Parser<'a> {
             Token::Identifier => self.parse_identifer().map(Expression::Identifier),
             Token::StringLiteral => self.parse_string_literal().map(Expression::StringLiteral),
 
+            Token::Class => self
+                .parse_class_expression()
+                .map(Expression::ClassExpression),
+
             // !a
             Token::Exclamation => {
                 self.lexer.next_token();
@@ -175,6 +179,7 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_object_expression_property(
         &mut self,
         kind: ObjectExpressionPropertyKind,
+        conditional_key: Option<&str>,
     ) -> ParseResult<ObjectExpressionProperty> {
         let key: Expression;
         let mut is_computed = false;
@@ -200,11 +205,15 @@ impl<'a> Parser<'a> {
 
             _ => {
                 let name = self.lexer.token_value.clone();
-                if !self.lexer.is_identifier_or_keyword() {
-                    self.lexer.expect_token(Token::Identifier);
+                if let Some(ck) = conditional_key {
+                    key = Expression::Identifier(Identifier { name: ck.into() });
+                } else {
+                    if !self.lexer.is_identifier_or_keyword() {
+                        self.lexer.expect_token(Token::Identifier);
+                    }
+                    self.lexer.next_token();
+                    key = Expression::Identifier(Identifier { name });
                 }
-                self.lexer.next_token();
-                key = Expression::Identifier(Identifier { name });
                 // If the key is not followed by a colon then it means we've hit a shorthand syntax
                 // { a } = b
                 if self.lexer.token != Token::Colon {
@@ -258,28 +267,46 @@ impl<'a> Parser<'a> {
 
         while self.lexer.token != Token::CloseBrace {
             match self.lexer.token {
-                Token::Identifier => {
-                    match self.lexer.token_value.as_str() {
-                        "get" => {
-                            self.lexer.next_token();
+                Token::Identifier => match self.lexer.token_value.as_str() {
+                    "get" => {
+                        self.lexer.next_token();
+                        if self.lexer.token != Token::Identifier {
+                            properties.push(self.parse_object_expression_property(
+                                ObjectExpressionPropertyKind::Init,
+                                Some("get"),
+                            )?);
+                        } else {
                             properties.push(self.parse_object_expression_property(
                                 ObjectExpressionPropertyKind::Get,
+                                None,
                             )?);
                         }
-                        "set" => {
-                            self.lexer.next_token();
+                    }
+                    "set" => {
+                        self.lexer.next_token();
+                        if self.lexer.token != Token::Identifier {
+                            properties.push(self.parse_object_expression_property(
+                                ObjectExpressionPropertyKind::Init,
+                                Some("set"),
+                            )?);
+                        } else {
                             properties.push(self.parse_object_expression_property(
                                 ObjectExpressionPropertyKind::Set,
+                                None,
                             )?);
                         }
-                        _ => properties.push(self.parse_object_expression_property(
-                            ObjectExpressionPropertyKind::Init,
-                        )?),
                     }
+                    _ => properties.push(self.parse_object_expression_property(
+                        ObjectExpressionPropertyKind::Init,
+                        None,
+                    )?),
+                },
+                _ => {
+                    properties.push(self.parse_object_expression_property(
+                        ObjectExpressionPropertyKind::Init,
+                        None,
+                    )?)
                 }
-                _ => properties.push(
-                    self.parse_object_expression_property(ObjectExpressionPropertyKind::Init)?,
-                ),
             }
 
             if self.lexer.token == Token::Comma {

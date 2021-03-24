@@ -1,4 +1,4 @@
-use js_ast::{expression::*, statement::*, Program};
+use js_ast::{class::*, expression::*, statement::*, Program};
 
 pub struct Printer {
     text: String,
@@ -29,7 +29,20 @@ impl Printer {
                 self.print_variable_declaration(v);
                 self.print_semicolon_after_statement();
             }
+
             Statement::EmptyStatement(_) => self.print(";\n"),
+
+            Statement::ClassDeclaration(c) => {
+                self.print("class ");
+                self.print_identifier(&c.identifier);
+                self.print_space();
+                if let Some(super_class) = &c.extends {
+                    self.print("extends ");
+                    self.print_expression(super_class, Precedence::Comma);
+                    self.print_space();
+                }
+                self.print_class_body(&c.body);
+            }
 
             Statement::ReturnStatement(r) => {
                 self.print("return");
@@ -512,6 +525,22 @@ impl Printer {
                     false => self.print("false"),
                 };
             }
+            Expression::ClassExpression(c) => {
+                self.print("class");
+                if let Some(id) = &c.identifier {
+                    self.print(" ");
+                    self.print_identifier(id);
+                    self.print_space();
+                } else {
+                    self.print_space();
+                }
+                if let Some(super_class) = &c.extends {
+                    self.print("extends ");
+                    self.print_expression(super_class, Precedence::Comma);
+                    self.print_space();
+                }
+                self.print_class_body(&c.body);
+            }
             Expression::Identifier(e) => {
                 self.print(&e.name);
             }
@@ -746,6 +775,103 @@ impl Printer {
         }
     }
 
+    fn print_class_body(&mut self, properties: &Vec<ClassProperty>) {
+        if properties.len() == 0 {
+            self.print("{}");
+            return;
+        }
+        self.print("{");
+        self.print_space();
+        for (idx, item) in properties.iter().enumerate() {
+            if idx != 0 {
+                self.print_newline();
+            }
+
+            match item {
+                ClassProperty::ClassConstructor(c) => {
+                    self.print("constructor(");
+                    self.print_function_parameters(&c.value.parameters);
+                    self.print(")");
+                    self.print_space();
+                    self.print_block_statement(&c.value.body);
+                }
+                ClassProperty::ClassMethod(c) => {
+                    self.print_identifier(&c.identifier);
+                    self.print("(");
+                    self.print_function_parameters(&c.value.parameters);
+                    self.print(")");
+                    self.print_space();
+                    self.print_block_statement(&c.value.body);
+                }
+                ClassProperty::ComputedClassMethod(c) => {
+                    self.print("[");
+                    self.print_expression(&c.key, Precedence::Comma);
+                    self.print("]");
+                    self.print("(");
+                    self.print_function_parameters(&c.value.parameters);
+                    self.print(")");
+                    self.print_space();
+                    self.print_block_statement(&c.value.body);
+                }
+                ClassProperty::ClassGetMethod(c) => {
+                    self.print("get ");
+                    self.print_identifier(&c.identifier);
+                    self.print("(");
+                    self.print_function_parameters(&c.value.parameters);
+                    self.print(")");
+                    self.print_space();
+                    self.print_block_statement(&c.value.body);
+                }
+                ClassProperty::ComputedClassGetMethod(c) => {
+                    self.print("get");
+                    self.print_space();
+                    self.print("[");
+                    self.print_expression(&c.key, Precedence::Comma);
+                    self.print("]");
+                    self.print("(");
+                    self.print_function_parameters(&c.value.parameters);
+                    self.print(")");
+                    self.print_space();
+                    self.print_block_statement(&c.value.body);
+                }
+                ClassProperty::ClassSetMethod(c) => {
+                    self.print("set ");
+                    self.print_identifier(&c.identifier);
+                    self.print("(");
+                    self.print_function_parameters(&c.value.parameters);
+                    self.print(")");
+                    self.print_space();
+                    self.print_block_statement(&c.value.body);
+                }
+                ClassProperty::ComputedClassSetMethod(c) => {
+                    self.print("set");
+                    self.print_space();
+                    self.print("[");
+                    self.print_expression(&c.key, Precedence::Comma);
+                    self.print("]");
+                    self.print("(");
+                    self.print_function_parameters(&c.value.parameters);
+                    self.print(")");
+                    self.print_space();
+                    self.print_block_statement(&c.value.body);
+                }
+            }
+        }
+
+        self.print_space();
+        self.print("}");
+    }
+
+    fn print_function_parameters(&mut self, parameters: &Vec<Pattern>) {
+        for (idx, parameter) in parameters.iter().enumerate() {
+            if idx != 0 {
+                self.print(",");
+                self.print_space();
+            }
+            self.print_pattern(parameter);
+        }
+    }
+
     fn print_object_expression_property(&mut self, property: &ObjectExpressionProperty) {
         match &property.kind {
             ObjectExpressionPropertyKind::Init => {}
@@ -903,6 +1029,10 @@ impl Printer {
             Pattern::ObjectPattern(o) => self.print_object_pattern(o),
             Pattern::ArrayPattern(a) => self.print_array_pattern(a),
         };
+    }
+
+    fn print_newline(&mut self) {
+        self.print("\n");
     }
 
     fn print_semicolon_after_statement(&mut self) {

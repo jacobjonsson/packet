@@ -42,6 +42,11 @@ impl<'a> Parser<'a> {
                 self.lexer.next_token();
                 Ok(Statement::EmptyStatement(EmptyStatement {}))
             }
+
+            Token::Class => self
+                .parse_class_declaration()
+                .map(Statement::ClassDeclaration),
+
             Token::While => {
                 self.lexer.next_token();
                 self.lexer.expect_token(Token::OpenParen);

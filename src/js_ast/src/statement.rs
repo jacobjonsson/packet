@@ -1,4 +1,4 @@
-use crate::expression::*;
+use crate::{class::ClassDeclaration, expression::*};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
@@ -27,6 +27,7 @@ pub enum Statement {
     ExportAllDeclaration(ExportAllDeclaration),
     ExportNamedDeclaration(ExportNamedDeclaration),
     ExportDefaultDeclaration(ExportDefaultDeclaration),
+    ClassDeclaration(ClassDeclaration),
 }
 
 #[derive(Debug, PartialEq, Clone)]

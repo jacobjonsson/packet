@@ -1,3 +1,4 @@
+mod class;
 mod expression;
 mod module;
 mod statement;

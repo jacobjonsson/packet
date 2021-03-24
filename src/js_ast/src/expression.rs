@@ -1,4 +1,4 @@
-use crate::statement::BlockStatement;
+use crate::{class::ClassExpression, statement::BlockStatement};
 
 /// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_Precedence#table
 /// https://github.com/evanw/esbuild/blob/51b785f89933426afe675b4e633cf531d5a9890d/internal/js_ast/js_ast.go#L29
@@ -474,6 +474,7 @@ pub enum Expression {
     ObjectExpression(ObjectExpression),
     NewExpression(NewExpression),
     MemberExpression(MemberExpression),
+    ClassExpression(ClassExpression),
 }
 
 #[derive(Debug, PartialEq, Clone)]
