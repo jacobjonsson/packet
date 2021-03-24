@@ -408,6 +408,7 @@ fn test_object_expression() {
     expect_printed("({ get a() {} })", "({ get a() {} });\n");
     expect_printed("({ set a() {} })", "({ set a() {} });\n");
     expect_printed("({ a() {} })", "({ a() {} });\n");
+    expect_printed("({ get() {} })", "({ get() {} });\n");
 }
 
 #[test]
@@ -468,4 +469,51 @@ fn test_regexp_literal() {
     expect_printed("/hello/", "/hello/;\n");
     expect_printed("/hello/gi", "/hello/gi;\n");
     expect_printed("/hello/gi.test(\"hello\")", "/hello/gi.test(\"hello\");\n");
+}
+
+#[test]
+fn test_class_declaration() {
+    expect_printed("class A {}", "class A {}");
+    expect_printed("class A extends B {}", "class A extends B {}");
+    expect_printed("class A { b() {} }", "class A { b() {} }");
+    expect_printed(
+        "class A { constructor(a) {}\nb() {} }",
+        "class A { constructor(a) {}\nb() {} }",
+    );
+    expect_printed("class A { get b() {} }", "class A { get b() {} }");
+    expect_printed("class A { get [b]() {} }", "class A { get [b]() {} }");
+    expect_printed("class A { set [b]() {} }", "class A { set [b]() {} }");
+}
+
+#[test]
+fn test_class_expression() {
+    expect_printed("let a = class {}", "let a = class {};\n");
+    expect_printed(
+        "let a = class extends B {}",
+        "let a = class extends B {};\n",
+    );
+    expect_printed(
+        "let a = class B extends C {}",
+        "let a = class B extends C {};\n",
+    );
+    expect_printed(
+        "let a = class A { b() {} }",
+        "let a = class A { b() {} };\n",
+    );
+    expect_printed(
+        "let a = class A { constructor(a) {}\nb() {} }",
+        "let a = class A { constructor(a) {}\nb() {} };\n",
+    );
+    expect_printed(
+        "let a = class A { get b() {} }",
+        "let a = class A { get b() {} };\n",
+    );
+    expect_printed(
+        "let a = class A { get [b]() {} }",
+        "let a = class A { get [b]() {} };\n",
+    );
+    expect_printed(
+        "let a = class A { set [b]() {} }",
+        "let a = class A { set [b]() {} };\n",
+    );
 }
