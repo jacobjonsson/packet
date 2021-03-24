@@ -498,23 +498,24 @@ pub struct ArrayExpression {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct ObjectExpression {
-    pub properties: Vec<Property>,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum PropertyKind {
+pub enum ObjectExpressionPropertyKind {
     Init,
     Get,
     Set,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Property {
-    pub computed: bool,
-    pub key: Expression,
+pub struct ObjectExpressionProperty {
+    pub is_computed: bool,
+    pub is_method: bool,
+    pub key: Option<Expression>,
     pub value: Expression,
-    pub kind: PropertyKind,
+    pub kind: ObjectExpressionPropertyKind,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ObjectExpression {
+    pub properties: Vec<ObjectExpressionProperty>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -580,8 +581,6 @@ pub enum Pattern {
     Identifier(Identifier),
     ObjectPattern(ObjectPattern),
     ArrayPattern(ArrayPattern),
-    RestElement(RestElement),
-    AssignmentPattern(AssignmentPattern),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -590,21 +589,12 @@ pub struct Identifier {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum PropertyKey {
-    StringLiteral(StringLiteral),
-    Identifier(Identifier),
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct AssignmentProperty {
-    pub key: PropertyKey,
-    pub value: Box<Pattern>,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum ObjectPatternProperty {
-    AssignmentProperty(AssignmentProperty),
-    RestElement(RestElement),
+pub struct ObjectPatternProperty {
+    pub is_computed: bool,
+    pub is_rest: bool,
+    pub key: Option<Expression>,
+    pub value: Pattern,
+    pub default_value: Option<Expression>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -613,8 +603,15 @@ pub struct ObjectPattern {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct ArrayPatternItem {
+    pub is_rest: bool,
+    pub value: Pattern,
+    pub default_value: Option<Expression>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct ArrayPattern {
-    pub properties: Vec<Option<Pattern>>,
+    pub properties: Vec<Option<ArrayPatternItem>>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
