@@ -224,6 +224,11 @@ fn expect_number(content: &str, expected: f64) {
 fn test_numeric_literals() {
     expect_number("1", 1.);
     expect_number("120", 120.);
+    expect_number("120.2", 120.2);
+    expect_number("1_2_0_2", 1202.);
+    expect_number("0b10", 2.);
+    expect_number("0o10", 8.);
+    expect_number("0x10", 16.);
 }
 
 #[test]

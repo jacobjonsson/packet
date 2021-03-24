@@ -239,22 +239,6 @@ impl<'a> Lexer<'a> {
                         self.token = Token::Slash;
                     }
                 }
-                '.' => {
-                    self.step();
-                    if self.character == Some('.') {
-                        self.step();
-                        if self.character == Some('.') {
-                            self.step();
-                            self.token = Token::DotDotDot;
-                        } else {
-                            // Means we hit ".." but not "...",
-                            // should this be an error?
-                            self.token = Token::Dot;
-                        }
-                    } else {
-                        self.token = Token::Dot;
-                    }
-                }
                 '?' => {
                     self.step();
                     if self.character == Some('.') {
@@ -501,16 +485,14 @@ impl<'a> Lexer<'a> {
                     self.token = Token::StringLiteral;
                 }
 
+                '.' | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
+                    self.parse_numeric_literal_or_dot(character);
+                }
+
                 c if Lexer::is_letter(c) => {
                     let identifier = self.read_identifier();
                     self.token = lookup_identifer(&identifier);
                     self.token_value = identifier;
-                }
-
-                c if Lexer::is_digit(c) => {
-                    let number = self.read_number();
-                    self.number = number.parse::<f64>().expect("Failed to parse number");
-                    self.token = Token::NumericLiteral;
                 }
 
                 _ => {
@@ -535,7 +517,7 @@ impl<'a> Lexer<'a> {
     fn read_identifier(&mut self) -> String {
         let mut word = String::new();
         while let Some(character) = self.character {
-            if Lexer::is_letter(character) || Lexer::is_digit(character) {
+            if Lexer::is_letter(character) || character.is_digit(10) {
                 word.push(character);
                 self.step();
             } else {
@@ -545,24 +527,139 @@ impl<'a> Lexer<'a> {
         return word;
     }
 
-    fn read_number(&mut self) -> String {
-        let mut number = String::new();
-        while let Some(ch) = self.character {
-            if Lexer::is_digit(ch) {
-                number.push(ch);
-                self.step();
-            } else {
-                break;
-            }
-        }
-        return number;
-    }
-
     fn is_letter(character: char) -> bool {
         return character.is_alphabetic() || character == '_' || character == '$';
     }
 
-    fn is_digit(character: char) -> bool {
-        return character.is_numeric();
+    // We need to parse dots and numbers in the same function because a leading dot
+    // can be different tokens:
+    // . -> Token::Dot
+    // .1 -> Token::NumericLiteral
+    // ... -> Token::DotDotDot
+    fn parse_numeric_literal_or_dot(&mut self, first: char) {
+        self.step();
+        // Given that first is a dot and the following character is not a number,
+        // we either have Token::Dot or Token::DotDotDot.
+        if first == '.' && (self.character < Some('0') || self.character > Some('9')) {
+            if self.character == Some('.') {
+                self.step();
+                self.step();
+                self.token = Token::DotDotDot;
+                return;
+            }
+            self.token = Token::Dot;
+            return;
+        }
+
+        let mut radix = 0;
+        // Check for binary, octal, or hexadecimal literal
+        if first == '0' {
+            match self.character {
+                Some('b') | Some('B') => radix = 2,
+                Some('o') | Some('O') => radix = 8,
+                Some('x') | Some('X') => radix = 16,
+                // Octal literals starting with a 0 has been deprecated.
+                // Unsure if we should support this since they are only allowed
+                // in non strict mode and so far packet assumes everything is in strict mode.
+                // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Deprecated_octal
+                Some('0') | Some('1') | Some('2') | Some('3') | Some('4') | Some('5')
+                | Some('6') | Some('7') | Some('_') => self.unexpected(),
+                _ => {}
+            }
+        }
+
+        // Assume this is a number, but potentially change to a bigint later
+        self.token = Token::NumericLiteral;
+
+        if radix != 0 {
+            // TODO: Parse binary, octal and hexadecimal literal
+            self.number = 0.1;
+            self.step();
+            let mut num = String::new();
+
+            loop {
+                match self.character {
+                    Some('_') => {}
+                    Some('0') | Some('1') => {
+                        num.push(self.character.unwrap());
+                    }
+
+                    Some('2') | Some('3') | Some('4') | Some('5') | Some('6') | Some('7') => {
+                        if radix == 2 {
+                            self.unexpected();
+                        }
+                        num.push(self.character.unwrap());
+                    }
+
+                    Some('8') | Some('9') => {
+                        if radix < 10 {
+                            self.unexpected();
+                        }
+                        num.push(self.character.unwrap());
+                    }
+
+                    Some('A') | Some('B') | Some('C') | Some('D') | Some('E') | Some('F') => {
+                        if radix != 16 {
+                            self.unexpected();
+                        }
+                        num.push(self.character.unwrap());
+                    }
+
+                    Some('a') | Some('b') | Some('c') | Some('d') | Some('e') | Some('f') => {
+                        if radix != 16 {
+                            self.unexpected();
+                        }
+                        num.push(self.character.unwrap());
+                    }
+
+                    _ => {
+                        break;
+                    }
+                }
+                self.step();
+            }
+
+            self.number = i64::from_str_radix(&num, radix).unwrap() as f64;
+        } else {
+            // Skip over all the digits
+            loop {
+                if self.character < Some('0') || self.character > Some('9') {
+                    // The only non-numeric character allowed in numbers is underscores
+                    // 1_000_000 is valid javascript.
+                    if self.character != Some('_') {
+                        break;
+                    }
+
+                    // TODO: Two underscores in a row is not valid.
+                    // We should check for that here.
+                    // E.g 1___0 is not valid.
+                }
+                self.step();
+            }
+
+            // Fractional digits (1.1)
+            if first != '.' && self.character == Some('.') {
+                self.step();
+                loop {
+                    if self.character < Some('0') || self.character > Some('9') {
+                        if self.character != Some('_') {
+                            break;
+                        }
+
+                        // TODO: Check multiple underscores in a row
+                    }
+                    self.step();
+                }
+            }
+
+            // Exponent
+            if self.character == Some('e') || self.character == Some('E') {
+                todo!()
+            }
+
+            let text: String = self.raw().chars().filter(|c| c != &'_').collect();
+            self.number = text.parse::<f64>().unwrap();
+            self.token = Token::NumericLiteral;
+        }
     }
 }

@@ -2,9 +2,9 @@ use js_lexer::Lexer;
 use js_parser::Parser;
 use js_printer::Printer;
 use logger::LoggerImpl;
-use std::env;
 use std::fs;
 use std::path::PathBuf;
+use std::{env, time::Instant};
 
 struct Arguments {
     input_file: PathBuf,
@@ -12,6 +12,7 @@ struct Arguments {
 }
 
 fn main() {
+    let now = Instant::now();
     let input_file = env::args().nth(1).expect("Input file is required");
     let out_file = env::args().nth(2).map(PathBuf::from);
     let args = Arguments {
@@ -27,4 +28,5 @@ fn main() {
         let output = Printer::new().print_program(&program);
         fs::write(out_file, output).expect("Failed to write to file");
     }
+    println!("Done in {}ms", now.elapsed().as_millis());
 }
