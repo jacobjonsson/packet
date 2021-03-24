@@ -27,9 +27,9 @@ impl Printer {
         match statement {
             Statement::VariableDeclaration(v) => {
                 self.print_variable_declaration(v);
-                self.print(";");
+                self.print_semicolon_after_statement();
             }
-            Statement::EmptyStatement(_) => self.print(";"),
+            Statement::EmptyStatement(_) => self.print(";\n"),
 
             Statement::ReturnStatement(r) => {
                 self.print("return");
@@ -37,12 +37,13 @@ impl Printer {
                     self.print(" ");
                     self.print_expression(expression, Precedence::Lowest);
                 }
-                self.print(";");
+                self.print_semicolon_after_statement();
             }
 
             Statement::Expression(e) => {
                 self.statement_start = self.text.len();
                 self.print_expression(&e.expression, Precedence::Lowest);
+                self.print_semicolon_after_statement();
             }
 
             Statement::IfStatement(i) => self.print_if_statement(i),
@@ -53,6 +54,7 @@ impl Printer {
                     self.print_space();
                     self.print_identifier(label);
                 }
+                self.print_semicolon_after_statement();
             }
             Statement::BreakStatement(b) => {
                 self.print("break");
@@ -60,6 +62,7 @@ impl Printer {
                     self.print_space();
                     self.print_identifier(label);
                 }
+                self.print_semicolon_after_statement();
             }
 
             Statement::ForStatement(f) => {
@@ -118,6 +121,7 @@ impl Printer {
                 self.print("(");
                 self.print_expression(&d.test, Precedence::Lowest);
                 self.print(")");
+                self.print_semicolon_after_statement();
             }
 
             Statement::WhileStatement(w) => {
@@ -173,7 +177,10 @@ impl Printer {
                 self.print("}");
             }
 
-            Statement::DebuggerStatement(_) => self.print("debugger"),
+            Statement::DebuggerStatement(_) => {
+                self.print("debugger");
+                self.print_semicolon_after_statement();
+            }
 
             Statement::LabeledStatement(l) => {
                 self.print_identifier(&l.identifier);
@@ -185,6 +192,7 @@ impl Printer {
             Statement::ThrowStatement(t) => {
                 self.print("throw ");
                 self.print_expression(&t.argument, Precedence::Lowest);
+                self.print_semicolon_after_statement();
             }
 
             Statement::TryStatement(t) => {
@@ -280,7 +288,7 @@ impl Printer {
                 self.print("\"");
                 self.print(&i.source.value);
                 self.print("\"");
-                self.print(";");
+                self.print_semicolon_after_statement();
             }
 
             Statement::WithStatement(w) => {
@@ -300,7 +308,7 @@ impl Printer {
             Statement::ExportAllDeclaration(e) => {
                 self.print("export * from ");
                 self.print_string_literal(&e.source);
-                self.print(";");
+                self.print_semicolon_after_statement();
             }
 
             // export {a}
@@ -317,7 +325,7 @@ impl Printer {
                         Declaration::FunctionDeclaration(f) => self.print_function_declaration(f),
                         Declaration::VariableDeclaration(v) => {
                             self.print_variable_declaration(v);
-                            self.print(";")
+                            self.print_semicolon_after_statement();
                         }
                     }
                 } else {
@@ -350,7 +358,7 @@ impl Printer {
                         self.print_space();
                         self.print_string_literal(source);
                     }
-                    self.print(";");
+                    self.print_semicolon_after_statement();
                 }
             }
 
@@ -366,7 +374,7 @@ impl Printer {
                     }
                     ExportDefaultDeclarationKind::Expression(exp) => {
                         self.print_expression(exp, Precedence::Comma);
-                        self.print(";");
+                        self.print_semicolon_after_statement();
                     }
                     ExportDefaultDeclarationKind::AnonymousDefaultExportedFunctionDeclaration(
                         a,
@@ -669,11 +677,18 @@ impl Printer {
             }
 
             Expression::ConditionalExpression(c) => {
-                self.print_expression(&c.test, Precedence::Lowest);
+                let wrap = precedence >= Precedence::Conditional;
+                if wrap {
+                    self.print("(");
+                }
+                self.print_expression(&c.test, Precedence::Conditional);
                 self.print(" ? ");
-                self.print_expression(&c.consequence, Precedence::Lowest);
+                self.print_expression(&c.consequence, Precedence::Yield);
                 self.print(" : ");
-                self.print_expression(&c.alternate, Precedence::Lowest);
+                self.print_expression(&c.alternate, Precedence::Yield);
+                if wrap {
+                    self.print(")");
+                }
             }
 
             Expression::NewExpression(n) => {
@@ -704,6 +719,10 @@ impl Printer {
             }
 
             Expression::ObjectExpression(o) => {
+                let wrap = self.text.len() == self.statement_start;
+                if wrap {
+                    self.print("(");
+                }
                 self.print("{");
                 for (idx, property) in o.properties.iter().enumerate() {
                     if idx == 0 {
@@ -713,44 +732,118 @@ impl Printer {
                         self.print(",");
                         self.print_space();
                     }
-                    self.print_property(&property);
+                    self.print_object_expression_property(&property);
 
                     if idx == o.properties.len() - 1 {
                         self.print_space();
                     }
                 }
                 self.print("}");
+                if wrap {
+                    self.print(")");
+                }
             }
         }
     }
 
-    fn print_property(&mut self, property: &Property) {
-        // { [a]: b }
-        // { "a": b, "c": d }
-        if property.computed {
+    fn print_object_expression_property(&mut self, property: &ObjectExpressionProperty) {
+        match &property.kind {
+            ObjectExpressionPropertyKind::Init => {}
+            ObjectExpressionPropertyKind::Get => {
+                self.print("get");
+                self.print(" ");
+            }
+            ObjectExpressionPropertyKind::Set => {
+                self.print("set");
+                self.print(" ");
+            }
+        }
+
+        if property.is_method {
+            if property.is_computed {
+                self.print("[");
+                // We can safely unwrap here since a method requires an expression.
+                self.print_expression(property.key.as_ref().unwrap(), Precedence::Comma);
+                self.print("]");
+            } else {
+                // We can safely unwrap here since a method requires an identifier.
+                // We can also assume that the given expression is an identifier since methods require it.
+                match property.key.as_ref().unwrap() {
+                    Expression::Identifier(i) => self.print_identifier(i),
+                    _ => panic!("Internal server error"),
+                }
+            }
+            match &property.value {
+                Expression::FunctionExpression(f) => {
+                    self.print("(");
+                    for (idx, argument) in f.parameters.iter().enumerate() {
+                        if idx != 0 {
+                            self.print(",");
+                            self.print_space();
+                        }
+                        self.print_pattern(argument);
+                    }
+                    self.print(")");
+                    self.print_space();
+                    self.print_block_statement(&f.body);
+                }
+                _ => panic!("Internal server error"),
+            }
+        } else if property.is_computed {
+            // { [a]: b }
+            // { "a": b, "c": d }
             self.print("[");
-            self.print_expression(&property.key, Precedence::Comma);
+            // We can unwrap here since a computed node requires a value
+            self.print_expression(property.key.as_ref().unwrap(), Precedence::Comma);
             self.print("]");
             self.print(":");
             self.print_space();
             self.print_expression(&property.value, Precedence::Comma);
         } else {
-            self.print_expression(&property.key, Precedence::Comma);
+            if let Some(key) = &property.key {
+                self.print_expression(key, Precedence::Comma);
+                self.print(":");
+                self.print_space();
+            }
+            self.print_expression(&property.value, Precedence::Comma);
+        }
+    }
+
+    fn print_object_pattern_property(&mut self, property: &ObjectPatternProperty) {
+        // { [a]: b }
+        // { "a": b, "c": d }
+        if property.is_rest {
+            self.print("...");
+            self.print_pattern(&property.value);
+        } else if property.is_computed {
+            self.print("[");
+            // We can unwrap here since a computed node requires a proper key-value pair
+            self.print_expression(property.key.as_ref().unwrap(), Precedence::Comma);
+            self.print("]");
             self.print(":");
             self.print_space();
-            self.print_expression(&property.value, Precedence::Comma);
+            self.print_pattern(&property.value);
+        } else if let Some(default_value) = &property.default_value {
+            self.print_pattern(&property.value);
+            self.print_space();
+            self.print("=");
+            self.print_space();
+            self.print_expression(default_value, Precedence::Comma);
+        } else {
+            if let Some(key) = &property.key {
+                match key {
+                    Expression::StringLiteral(s) => self.print(&s.value),
+                    _ => self.print_expression(key, Precedence::Comma),
+                }
+                self.print(":");
+                self.print_space();
+            }
+            self.print_pattern(&property.value);
         }
     }
 
     fn print_identifier(&mut self, id: &Identifier) {
         self.print(&id.name);
-    }
-
-    fn print_property_key(&mut self, property_key: &PropertyKey) {
-        match property_key {
-            PropertyKey::StringLiteral(s) => self.print_string_literal(s),
-            PropertyKey::Identifier(i) => self.print_identifier(i),
-        };
     }
 
     fn print_object_pattern(&mut self, object_pattern: &ObjectPattern) {
@@ -763,45 +856,7 @@ impl Printer {
                 self.print(",");
                 self.print_space();
             }
-            match property {
-                ObjectPatternProperty::AssignmentProperty(a) => {
-                    self.print_property_key(&a.key);
-
-                    // The only reason we don't call self.print_pattern here is because we need to insert : for some of the cases.
-                    // a: b
-                    // a: { b: c }
-                    // a: [b]
-                    // a = b
-                    match a.value.as_ref() {
-                        Pattern::Identifier(i) => {
-                            self.print(":");
-                            self.print_space();
-                            self.print_identifier(i);
-                        }
-                        Pattern::ObjectPattern(o) => {
-                            self.print(":");
-                            self.print_space();
-                            self.print_object_pattern(o);
-                        }
-                        Pattern::ArrayPattern(a) => {
-                            self.print(":");
-                            self.print_space();
-                            self.print_array_pattern(a);
-                        }
-                        Pattern::AssignmentPattern(a) => {
-                            self.print_space();
-                            self.print_assignment_pattern(a);
-                        }
-                        Pattern::RestElement(_) => {
-                            // This should be impossible, means the user entered: a: ...b which is not valid javascript.
-                            panic!("Rest element as property value is not valid")
-                        }
-                    }
-                }
-                ObjectPatternProperty::RestElement(r) => {
-                    self.print_rest_element(r);
-                }
-            }
+            self.print_object_pattern_property(property);
         }
         if object_pattern.properties.len() > 0 {
             self.print_space();
@@ -809,14 +864,23 @@ impl Printer {
         self.print("}");
     }
 
+    fn print_array_pattern_item(&mut self, item: &ArrayPatternItem) {
+        if item.is_rest {
+            self.print("...");
+            self.print_pattern(&item.value);
+        } else {
+            self.print_pattern(&item.value);
+        }
+    }
+
     fn print_array_pattern(&mut self, array_pattern: &ArrayPattern) {
         self.print("[");
         for (idx, property) in array_pattern.properties.iter().enumerate() {
-            let is_last_element = idx < array_pattern.properties.len() - 1;
+            let is_not_last_element = idx < array_pattern.properties.len() - 1;
             match property {
-                Some(pattern) => {
-                    self.print_pattern(pattern);
-                    if is_last_element {
+                Some(item) => {
+                    self.print_array_pattern_item(item);
+                    if is_not_last_element {
                         self.print(",");
                     }
                 }
@@ -826,22 +890,11 @@ impl Printer {
             }
 
             // Do not print spaces for the last element
-            if is_last_element {
+            if is_not_last_element {
                 self.print_space();
             }
         }
         self.print("]");
-    }
-
-    fn print_rest_element(&mut self, rest_element: &RestElement) {
-        self.print("...");
-        self.print_pattern(&rest_element.argument);
-    }
-
-    fn print_assignment_pattern(&mut self, assignment_pattern: &AssignmentPattern) {
-        self.print("=");
-        self.print_space();
-        self.print_expression(&assignment_pattern.right, Precedence::Comma);
     }
 
     fn print_pattern(&mut self, pattern: &Pattern) {
@@ -849,9 +902,11 @@ impl Printer {
             Pattern::Identifier(i) => self.print_identifier(i),
             Pattern::ObjectPattern(o) => self.print_object_pattern(o),
             Pattern::ArrayPattern(a) => self.print_array_pattern(a),
-            Pattern::RestElement(r) => self.print_rest_element(r),
-            Pattern::AssignmentPattern(a) => self.print_assignment_pattern(a),
         };
+    }
+
+    fn print_semicolon_after_statement(&mut self) {
+        self.print(";\n");
     }
 
     fn print_space(&mut self) {

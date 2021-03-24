@@ -172,14 +172,115 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub(crate) fn parse_object_expression_property(
+        &mut self,
+        kind: ObjectExpressionPropertyKind,
+    ) -> ParseResult<ObjectExpressionProperty> {
+        let key: Expression;
+        let mut is_computed = false;
+
+        match self.lexer.token {
+            Token::OpenBracket => {
+                is_computed = true;
+                self.lexer.next_token();
+                key = self.parse_expression(Precedence::Comma)?;
+                self.lexer.expect_token(Token::CloseBracket);
+                self.lexer.next_token();
+            }
+
+            Token::NumericLiteral => {
+                key = Expression::IntegerLiteral(IntegerLiteral {
+                    value: self.lexer.number,
+                });
+            }
+
+            Token::StringLiteral => {
+                key = Expression::StringLiteral(self.parse_string_literal()?);
+            }
+
+            _ => {
+                let name = self.lexer.token_value.clone();
+                if !self.lexer.is_identifier_or_keyword() {
+                    self.lexer.expect_token(Token::Identifier);
+                }
+                self.lexer.next_token();
+                key = Expression::Identifier(Identifier { name });
+                // If the key is not followed by a colon then it means we've hit a shorthand syntax
+                // { a } = b
+                if self.lexer.token != Token::Colon {
+                    let value: Expression;
+
+                    // { a() {} }
+                    if self.lexer.token == Token::OpenParen {
+                        let parameters = self.parse_function_parameters()?;
+                        let body = self.parse_block_statement()?;
+                        value = Expression::FunctionExpression(FunctionExpression {
+                            body,
+                            parameters,
+                            id: None,
+                        });
+                        return Ok(ObjectExpressionProperty {
+                            is_computed: false,
+                            is_method: true,
+                            key: Some(key),
+                            value,
+                            kind,
+                        });
+                    }
+
+                    return Ok(ObjectExpressionProperty {
+                        is_computed: false,
+                        is_method: false,
+                        key: None,
+                        value: key,
+                        kind,
+                    });
+                }
+            }
+        };
+
+        self.lexer.expect_token(Token::Colon);
+        self.lexer.next_token();
+        let value = self.parse_expression(Precedence::Comma)?;
+        Ok(ObjectExpressionProperty {
+            is_computed,
+            is_method: false,
+            key: Some(key),
+            kind,
+            value,
+        })
+    }
+
     fn parse_object_expression(&mut self) -> ParseResult<ObjectExpression> {
         self.lexer.next_token();
 
-        let mut properties: Vec<Property> = Vec::new();
+        let mut properties: Vec<ObjectExpressionProperty> = Vec::new();
 
         while self.lexer.token != Token::CloseBrace {
-            let property = self.parse_property()?;
-            properties.push(property);
+            match self.lexer.token {
+                Token::Identifier => {
+                    match self.lexer.token_value.as_str() {
+                        "get" => {
+                            self.lexer.next_token();
+                            properties.push(self.parse_object_expression_property(
+                                ObjectExpressionPropertyKind::Get,
+                            )?);
+                        }
+                        "set" => {
+                            self.lexer.next_token();
+                            properties.push(self.parse_object_expression_property(
+                                ObjectExpressionPropertyKind::Set,
+                            )?);
+                        }
+                        _ => properties.push(self.parse_object_expression_property(
+                            ObjectExpressionPropertyKind::Init,
+                        )?),
+                    }
+                }
+                _ => properties.push(
+                    self.parse_object_expression_property(ObjectExpressionPropertyKind::Init)?,
+                ),
+            }
 
             if self.lexer.token == Token::Comma {
                 self.lexer.next_token();
@@ -792,33 +893,34 @@ impl<'a> Parser<'a> {
         Ok(arguments)
     }
 
-    pub(crate) fn parse_property_key(&mut self) -> ParseResult<(PropertyKey, bool)> {
-        let (property_key, computed) = match self.lexer.token {
-            Token::OpenBracket => {
-                self.lexer.next_token();
-                let pk = PropertyKey::Identifier(self.parse_identifer()?);
-                self.lexer.expect_token(Token::CloseBracket);
-                self.lexer.next_token();
-                (pk, true)
-            }
-            Token::Identifier => (PropertyKey::Identifier(self.parse_identifer()?), false),
-            Token::StringLiteral => (
-                PropertyKey::StringLiteral(self.parse_string_literal()?),
-                false,
-            ),
-            _ => self.lexer.unexpected(),
-        };
-
-        Ok((property_key, computed))
+    pub(crate) fn parse_pattern(&mut self) -> ParseResult<Pattern> {
+        match &self.lexer.token {
+            Token::Identifier => Ok(Pattern::Identifier(self.parse_identifer()?)),
+            Token::OpenBrace => Ok(Pattern::ObjectPattern(self.parse_object_pattern()?)),
+            Token::OpenBracket => Ok(Pattern::ArrayPattern(self.parse_array_pattern()?)),
+            _ => todo!(),
+        }
     }
 
-    pub(crate) fn parse_property(&mut self) -> ParseResult<Property> {
+    fn parse_object_pattern_property(&mut self) -> ParseResult<ObjectPatternProperty> {
         let key: Expression;
-        let mut computed = false;
+        let mut is_computed = false;
 
         match self.lexer.token {
+            Token::DotDotDot => {
+                self.lexer.next_token();
+                let value = Pattern::Identifier(self.parse_identifer()?);
+                return Ok(ObjectPatternProperty {
+                    is_computed: false,
+                    is_rest: true,
+                    key: None,
+                    value,
+                    default_value: None,
+                });
+            }
+
             Token::OpenBracket => {
-                computed = true;
+                is_computed = true;
                 self.lexer.next_token();
                 key = self.parse_expression(Precedence::Comma)?;
                 self.lexer.expect_token(Token::CloseBracket);
@@ -829,6 +931,7 @@ impl<'a> Parser<'a> {
                 key = Expression::IntegerLiteral(IntegerLiteral {
                     value: self.lexer.number,
                 });
+                self.lexer.next_token();
             }
 
             Token::StringLiteral => {
@@ -841,75 +944,105 @@ impl<'a> Parser<'a> {
                     self.lexer.expect_token(Token::Identifier);
                 }
                 self.lexer.next_token();
-                key = Expression::Identifier(Identifier { name });
-                // TODO: Support shorthand syntax here.
+                key = Expression::StringLiteral(StringLiteral {
+                    value: name.clone(),
+                });
+
+                // If the key is not followed by colon then it means we've hit a shorthand syntax
+                // { a } = b
+                if self.lexer.token != Token::Colon {
+                    let value = Pattern::Identifier(Identifier { name: name.clone() });
+
+                    // { a = b } = c
+                    let mut default_value: Option<Expression> = None;
+                    if self.lexer.token == Token::Equals {
+                        self.lexer.next_token();
+                        default_value = Some(self.parse_expression(Precedence::Comma)?);
+                    }
+
+                    return Ok(ObjectPatternProperty {
+                        is_computed: false,
+                        is_rest: false,
+                        key: Some(key),
+                        value,
+                        default_value,
+                    });
+                }
             }
-        };
+        }
+
         self.lexer.expect_token(Token::Colon);
         self.lexer.next_token();
-        let value = self.parse_expression(Precedence::Comma)?;
-        Ok(Property {
-            computed,
-            key,
-            kind: PropertyKind::Init,
+        let value = self.parse_pattern()?;
+
+        Ok(ObjectPatternProperty {
+            default_value: None,
+            is_computed,
+            is_rest: false,
+            key: Some(key),
             value,
         })
-    }
-
-    pub(crate) fn parse_pattern(&mut self) -> ParseResult<Pattern> {
-        match &self.lexer.token {
-            Token::Identifier => Ok(Pattern::Identifier(self.parse_identifer()?)),
-            Token::OpenBrace => Ok(Pattern::ObjectPattern(self.parse_object_pattern()?)),
-            Token::OpenBracket => Ok(Pattern::ArrayPattern(self.parse_array_pattern()?)),
-            Token::DotDotDot => Ok(Pattern::RestElement(self.parse_rest_element()?)),
-            Token::Equals => Ok(Pattern::AssignmentPattern(self.parse_assignment_pattern()?)),
-            _ => todo!(),
-        }
     }
 
     pub(crate) fn parse_object_pattern(&mut self) -> ParseResult<ObjectPattern> {
         self.lexer.next_token();
         let mut properties: Vec<ObjectPatternProperty> = Vec::new();
         while self.lexer.token != Token::CloseBrace {
-            if self.lexer.token == Token::DotDotDot {
-                properties.push(ObjectPatternProperty::RestElement(
-                    self.parse_rest_element()?,
-                ))
-            } else {
-                let (key, _) = self.parse_property_key()?;
-                let value: Pattern;
-                if self.lexer.token == Token::Equals {
-                    value = self.parse_pattern()?;
-                } else {
-                    self.lexer.expect_token(Token::Colon);
-                    self.lexer.next_token();
-                    value = self.parse_pattern()?;
-                }
-                properties.push(ObjectPatternProperty::AssignmentProperty(
-                    AssignmentProperty {
-                        key,
-                        value: Box::new(value),
-                    },
-                ));
-            }
+            properties.push(self.parse_object_pattern_property()?);
         }
         self.lexer.expect_token(Token::CloseBrace);
         self.lexer.next_token();
         Ok(ObjectPattern { properties })
     }
 
+    pub fn parse_array_pattern_item(&mut self) -> ParseResult<ArrayPatternItem> {
+        match self.lexer.token {
+            Token::DotDotDot => {
+                self.lexer.next_token();
+                let value = self.parse_pattern()?;
+                if self.lexer.token == Token::Comma {
+                    panic!("Comma is not allowed after rest element");
+                }
+                return Ok(ArrayPatternItem {
+                    default_value: None,
+                    is_rest: true,
+                    value: value,
+                });
+            }
+
+            _ => {
+                let value = self.parse_pattern()?;
+                // [a = b]
+                let mut default_value: Option<Expression> = None;
+                if self.lexer.token == Token::Equals {
+                    self.lexer.next_token();
+                    default_value = Some(self.parse_expression(Precedence::Comma)?);
+                }
+
+                if self.lexer.token == Token::Comma {
+                    self.lexer.next_token();
+                }
+
+                return Ok(ArrayPatternItem {
+                    default_value,
+                    is_rest: false,
+                    value,
+                });
+            }
+        }
+    }
+
     pub(crate) fn parse_array_pattern(&mut self) -> ParseResult<ArrayPattern> {
         self.lexer.next_token();
-        let mut properties: Vec<Option<Pattern>> = Vec::new();
+        let mut properties: Vec<Option<ArrayPatternItem>> = Vec::new();
         while self.lexer.token != Token::CloseBracket {
-            if self.lexer.token == Token::Comma {
+            if self.lexer.token != Token::Comma {
+                properties.push(Some(self.parse_array_pattern_item()?));
+            } else {
                 self.lexer.next_token();
                 properties.push(None);
-            } else if self.lexer.token == Token::DotDotDot {
-                properties.push(Some(Pattern::RestElement(self.parse_rest_element()?)));
-            } else {
-                properties.push(Some(self.parse_pattern()?));
             }
+
             if self.lexer.token == Token::Comma {
                 self.lexer.next_token();
             }
@@ -917,20 +1050,6 @@ impl<'a> Parser<'a> {
         self.lexer.expect_token(Token::CloseBracket);
         self.lexer.next_token();
         Ok(ArrayPattern { properties })
-    }
-
-    pub(crate) fn parse_rest_element(&mut self) -> ParseResult<RestElement> {
-        self.lexer.next_token();
-        Ok(RestElement {
-            argument: Box::new(self.parse_pattern()?),
-        })
-    }
-
-    pub(crate) fn parse_assignment_pattern(&mut self) -> ParseResult<AssignmentPattern> {
-        self.lexer.next_token();
-        Ok(AssignmentPattern {
-            right: Box::new(self.parse_expression(Precedence::Assign)?),
-        })
     }
 
     /// Parse function expression
