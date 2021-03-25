@@ -1,4 +1,4 @@
-use js_ast::{class::LiteralPropertyName, expression::Identifier, literal::NumericLiteral};
+use js_ast::{expression::Identifier, literal::NumericLiteral, object::LiteralPropertyName};
 use js_token::Token;
 
 use crate::{ParseResult, Parser};

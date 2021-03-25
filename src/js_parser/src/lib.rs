@@ -2,6 +2,7 @@ mod class;
 mod expression;
 mod literal;
 mod module;
+mod object;
 mod statement;
 
 use js_ast::{statement::*, Program};
