@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
             Token::NumericLiteral => {
                 let value = self.lexer.number;
                 self.lexer.next_token();
-                Ok(Expression::NumberLiteral(NumberLiteral { value }))
+                Ok(Expression::NumericLiteral(NumericLiteral { value }))
             }
 
             Token::Slash | Token::SlashEquals => {
@@ -190,7 +190,7 @@ impl<'a> Parser<'a> {
             }
 
             Token::NumericLiteral => {
-                key = Expression::NumberLiteral(NumberLiteral {
+                key = Expression::NumericLiteral(NumericLiteral {
                     value: self.lexer.number,
                 });
             }
@@ -951,7 +951,7 @@ impl<'a> Parser<'a> {
             }
 
             Token::NumericLiteral => {
-                key = Expression::NumberLiteral(NumberLiteral {
+                key = Expression::NumericLiteral(NumericLiteral {
                     value: self.lexer.number,
                 });
                 self.lexer.next_token();

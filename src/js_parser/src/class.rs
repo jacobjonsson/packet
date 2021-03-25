@@ -58,7 +58,6 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_class_property(&mut self) -> ParseResult<ClassProperty> {
-        self.lexer.expect_token(Token::Identifier);
         let is_static = match self.lexer.identifier.as_str() {
             "static" => {
                 self.lexer.next_token();
@@ -106,7 +105,7 @@ impl<'a> Parser<'a> {
                 },
             }))
         } else {
-            let identifier = self.parse_identifer()?;
+            let identifier = self.parse_literal_property_name()?;
             let parameters = self.parse_function_parameters()?;
             let body = self.parse_block_statement()?;
             Ok(ClassProperty::ClassMethod(ClassMethod {
@@ -142,7 +141,7 @@ impl<'a> Parser<'a> {
                 },
             ))
         } else {
-            let identifier = self.parse_identifer()?;
+            let identifier = self.parse_literal_property_name()?;
             let parameters = self.parse_function_parameters()?;
             let body = self.parse_block_statement()?;
             Ok(ClassProperty::ClassGetMethod(ClassGetMethod {
@@ -178,7 +177,7 @@ impl<'a> Parser<'a> {
                 },
             ))
         } else {
-            let identifier = self.parse_identifer()?;
+            let identifier = self.parse_literal_property_name()?;
             let parameters = self.parse_function_parameters()?;
             let body = self.parse_block_statement()?;
             Ok(ClassProperty::ClassSetMethod(ClassSetMethod {

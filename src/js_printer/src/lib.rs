@@ -401,6 +401,20 @@ impl Printer {
         };
     }
 
+    fn print_literal_property_name(&mut self, literal_property_name: &LiteralPropertyName) {
+        match literal_property_name {
+            LiteralPropertyName::Identifier(i) => self.print_identifier(i),
+            LiteralPropertyName::StringLiteral(s) => self.print_string_literal(s),
+            LiteralPropertyName::NumericLiteral(n) => self.print_numeric_literal(n),
+        }
+    }
+
+    fn print_computed_property_name(&mut self, expression: &Expression) {
+        self.print("[");
+        self.print_expression(expression, Precedence::Comma);
+        self.print("]");
+    }
+
     fn print_for_loop_init(&mut self, init: &Statement) {
         match init {
             Statement::Expression(exp) => {
@@ -544,7 +558,7 @@ impl Printer {
             Expression::Identifier(e) => {
                 self.print(&e.name);
             }
-            Expression::NumberLiteral(e) => {
+            Expression::NumericLiteral(e) => {
                 self.print(&e.value.to_string());
             }
             Expression::RegexpLiteral(r) => {
@@ -796,7 +810,7 @@ impl Printer {
                     self.print_block_statement(&c.value.body);
                 }
                 ClassProperty::ClassMethod(c) => {
-                    self.print_identifier(&c.identifier);
+                    self.print_literal_property_name(&c.identifier);
                     self.print("(");
                     self.print_function_parameters(&c.value.parameters);
                     self.print(")");
@@ -804,9 +818,7 @@ impl Printer {
                     self.print_block_statement(&c.value.body);
                 }
                 ClassProperty::ComputedClassMethod(c) => {
-                    self.print("[");
-                    self.print_expression(&c.key, Precedence::Comma);
-                    self.print("]");
+                    self.print_computed_property_name(&c.key);
                     self.print("(");
                     self.print_function_parameters(&c.value.parameters);
                     self.print(")");
@@ -815,7 +827,7 @@ impl Printer {
                 }
                 ClassProperty::ClassGetMethod(c) => {
                     self.print("get ");
-                    self.print_identifier(&c.identifier);
+                    self.print_literal_property_name(&c.identifier);
                     self.print("(");
                     self.print_function_parameters(&c.value.parameters);
                     self.print(")");
@@ -825,9 +837,7 @@ impl Printer {
                 ClassProperty::ComputedClassGetMethod(c) => {
                     self.print("get");
                     self.print_space();
-                    self.print("[");
-                    self.print_expression(&c.key, Precedence::Comma);
-                    self.print("]");
+                    self.print_computed_property_name(&c.key);
                     self.print("(");
                     self.print_function_parameters(&c.value.parameters);
                     self.print(")");
@@ -836,7 +846,7 @@ impl Printer {
                 }
                 ClassProperty::ClassSetMethod(c) => {
                     self.print("set ");
-                    self.print_identifier(&c.identifier);
+                    self.print_literal_property_name(&c.identifier);
                     self.print("(");
                     self.print_function_parameters(&c.value.parameters);
                     self.print(")");
@@ -846,9 +856,7 @@ impl Printer {
                 ClassProperty::ComputedClassSetMethod(c) => {
                     self.print("set");
                     self.print_space();
-                    self.print("[");
-                    self.print_expression(&c.key, Precedence::Comma);
-                    self.print("]");
+                    self.print_computed_property_name(&c.key);
                     self.print("(");
                     self.print_function_parameters(&c.value.parameters);
                     self.print(")");
@@ -1029,6 +1037,10 @@ impl Printer {
             Pattern::ObjectPattern(o) => self.print_object_pattern(o),
             Pattern::ArrayPattern(a) => self.print_array_pattern(a),
         };
+    }
+
+    fn print_numeric_literal(&mut self, numeric_literal: &NumericLiteral) {
+        self.print(&format!("{}", numeric_literal.value));
     }
 
     fn print_newline(&mut self) {

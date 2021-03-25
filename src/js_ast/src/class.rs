@@ -1,4 +1,7 @@
-use crate::expression::{Expression, FunctionExpression, Identifier};
+use crate::{
+    expression::{Expression, FunctionExpression, Identifier},
+    literal::{NumericLiteral, StringLiteral},
+};
 
 /// Class declaration
 /// class A {}
@@ -39,9 +42,15 @@ pub struct ClassConstructor {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum LiteralPropertyName {
+    Identifier(Identifier),
+    StringLiteral(StringLiteral),
+    NumericLiteral(NumericLiteral),
+}
+#[derive(Debug, PartialEq, Clone)]
 pub struct ClassMethod {
     pub is_static: bool,
-    pub identifier: Identifier,
+    pub identifier: LiteralPropertyName,
     pub value: FunctionExpression,
 }
 
@@ -55,7 +64,7 @@ pub struct ComputedClassMethod {
 #[derive(Debug, PartialEq, Clone)]
 pub struct ClassGetMethod {
     pub is_static: bool,
-    pub identifier: Identifier,
+    pub identifier: LiteralPropertyName,
     pub value: FunctionExpression,
 }
 
@@ -69,7 +78,7 @@ pub struct ComputedClassGetMethod {
 #[derive(Debug, PartialEq, Clone)]
 pub struct ClassSetMethod {
     pub is_static: bool,
-    pub identifier: Identifier,
+    pub identifier: LiteralPropertyName,
     pub value: FunctionExpression,
 }
 

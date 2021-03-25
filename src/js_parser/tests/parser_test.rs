@@ -476,6 +476,11 @@ fn test_class_declaration() {
     expect_printed("class A {}", "class A {}");
     expect_printed("class A extends B {}", "class A extends B {}");
     expect_printed("class A { b() {} }", "class A { b() {} }");
+    expect_printed("class A { null() {} }", "class A { null() {} }");
+    expect_printed("class A { undefined() {} }", "class A { undefined() {} }");
+    expect_printed("class A { 123() {} }", "class A { 123() {} }");
+    expect_printed("class A { \"abc\"() {} }", "class A { \"abc\"() {} }");
+    expect_printed("class A { [b]() {} }", "class A { [b]() {} }");
     expect_printed(
         "class A { constructor(a) {}\nb() {} }",
         "class A { constructor(a) {}\nb() {} }",

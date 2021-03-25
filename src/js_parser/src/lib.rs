@@ -1,5 +1,6 @@
 mod class;
 mod expression;
+mod literal;
 mod module;
 mod statement;
 

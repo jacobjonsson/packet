@@ -1,7 +1,7 @@
 #[derive(Debug, PartialEq, Clone)]
 pub enum Literal {
     StringLiteral(StringLiteral),
-    NumberLiteral(NumberLiteral),
+    NumberLiteral(NumericLiteral),
     BooleanLiteral(BooleanLiteral),
     RegexpLiteral(RegexpLiteral),
     NullLiteral(NullLiteral),
@@ -13,7 +13,7 @@ pub struct StringLiteral {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct NumberLiteral {
+pub struct NumericLiteral {
     pub value: f64,
 }
 
