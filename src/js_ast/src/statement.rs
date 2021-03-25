@@ -1,4 +1,4 @@
-use crate::{class::ClassDeclaration, expression::*};
+use crate::{class::ClassDeclaration, expression::*, literal::StringLiteral};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {

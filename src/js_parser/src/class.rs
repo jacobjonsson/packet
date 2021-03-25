@@ -59,7 +59,7 @@ impl<'a> Parser<'a> {
 
     fn parse_class_property(&mut self) -> ParseResult<ClassProperty> {
         self.lexer.expect_token(Token::Identifier);
-        let is_static = match self.lexer.token_value.as_str() {
+        let is_static = match self.lexer.identifier.as_str() {
             "static" => {
                 self.lexer.next_token();
                 true
@@ -67,7 +67,7 @@ impl<'a> Parser<'a> {
             _ => false,
         };
 
-        match self.lexer.token_value.as_str() {
+        match self.lexer.identifier.as_str() {
             "constructor" => self.parse_class_constructor(),
             "get" => self.parse_class_get_method(is_static),
             "set" => self.parse_class_set_method(is_static),

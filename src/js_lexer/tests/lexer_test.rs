@@ -43,7 +43,7 @@ fn tokenize_multiple_lines() {
         if let Some(value) = &token.1 {
             match value {
                 StringOrFloat::Float(f) => assert_eq!(&lexer.number, f),
-                StringOrFloat::String(s) => assert_eq!(&lexer.token_value, s),
+                StringOrFloat::String(s) => assert_eq!(&lexer.identifier, s),
             }
         }
     }
@@ -53,7 +53,7 @@ fn expect_string_literal(content: &str, expected: &str) {
     let logger = LoggerImpl::new();
     let lexer = Lexer::new(content, &logger);
     assert_eq!(lexer.token, Token::StringLiteral);
-    assert_eq!(lexer.token_value, expected);
+    assert_eq!(lexer.identifier, expected);
 }
 
 #[test]
@@ -70,7 +70,7 @@ fn expect_identifier(content: &str, expected: &str) {
     let logger = LoggerImpl::new();
     let lexer = Lexer::new(content, &logger);
     assert_eq!(lexer.token, Token::Identifier);
-    assert_eq!(lexer.token_value, expected);
+    assert_eq!(lexer.identifier, expected);
 }
 
 #[test]

@@ -1,4 +1,4 @@
-use js_ast::{expression::*, statement::*};
+use js_ast::{expression::*, literal::*, statement::*};
 use js_token::Token;
 
 use crate::{ParseResult, Parser, ParserError};
@@ -246,7 +246,7 @@ impl<'a> Parser<'a> {
             }
 
             let local = Identifier {
-                name: self.lexer.token_value.clone(),
+                name: self.lexer.identifier.clone(),
             };
             self.lexer.next_token();
             let mut exported: Option<Identifier> = None;

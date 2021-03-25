@@ -1,4 +1,4 @@
-use js_ast::{class::*, expression::*, statement::*, Program};
+use js_ast::{class::*, expression::*, literal::*, statement::*, Program};
 
 pub struct Printer {
     text: String,
@@ -519,7 +519,7 @@ impl Printer {
     fn print_expression(&mut self, expression: &Expression, precedence: Precedence) {
         match &expression {
             Expression::NullLiteral(_) => self.print("null"),
-            Expression::BooleanExpression(e) => {
+            Expression::BooleanLiteral(e) => {
                 match e.value {
                     true => self.print("true"),
                     false => self.print("false"),
@@ -544,7 +544,7 @@ impl Printer {
             Expression::Identifier(e) => {
                 self.print(&e.name);
             }
-            Expression::IntegerLiteral(e) => {
+            Expression::NumberLiteral(e) => {
                 self.print(&e.value.to_string());
             }
             Expression::RegexpLiteral(r) => {

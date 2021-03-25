@@ -1,4 +1,4 @@
-use js_ast::expression::*;
+use js_ast::{expression::*, literal::*};
 use js_token::Token;
 
 use crate::{ParseResult, Parser};
@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
             Token::NumericLiteral => {
                 let value = self.lexer.number;
                 self.lexer.next_token();
-                Ok(Expression::IntegerLiteral(IntegerLiteral { value }))
+                Ok(Expression::NumberLiteral(NumberLiteral { value }))
             }
 
             Token::Slash | Token::SlashEquals => {
@@ -121,15 +121,11 @@ impl<'a> Parser<'a> {
 
             Token::True => {
                 self.lexer.next_token();
-                Ok(Expression::BooleanExpression(BooleanExpression {
-                    value: true,
-                }))
+                Ok(Expression::BooleanLiteral(BooleanLiteral { value: true }))
             }
             Token::False => {
                 self.lexer.next_token();
-                Ok(Expression::BooleanExpression(BooleanExpression {
-                    value: false,
-                }))
+                Ok(Expression::BooleanLiteral(BooleanLiteral { value: false }))
             }
             Token::OpenParen => {
                 self.lexer.next_token();
@@ -194,7 +190,7 @@ impl<'a> Parser<'a> {
             }
 
             Token::NumericLiteral => {
-                key = Expression::IntegerLiteral(IntegerLiteral {
+                key = Expression::NumberLiteral(NumberLiteral {
                     value: self.lexer.number,
                 });
             }
@@ -204,7 +200,7 @@ impl<'a> Parser<'a> {
             }
 
             _ => {
-                let name = self.lexer.token_value.clone();
+                let name = self.lexer.identifier.clone();
                 if let Some(ck) = conditional_key {
                     key = Expression::Identifier(Identifier { name: ck.into() });
                 } else {
@@ -267,7 +263,7 @@ impl<'a> Parser<'a> {
 
         while self.lexer.token != Token::CloseBrace {
             match self.lexer.token {
-                Token::Identifier => match self.lexer.token_value.as_str() {
+                Token::Identifier => match self.lexer.identifier.as_str() {
                     "get" => {
                         self.lexer.next_token();
                         if self.lexer.token != Token::Identifier {
@@ -955,7 +951,7 @@ impl<'a> Parser<'a> {
             }
 
             Token::NumericLiteral => {
-                key = Expression::IntegerLiteral(IntegerLiteral {
+                key = Expression::NumberLiteral(NumberLiteral {
                     value: self.lexer.number,
                 });
                 self.lexer.next_token();
@@ -966,7 +962,7 @@ impl<'a> Parser<'a> {
             }
 
             _ => {
-                let name = self.lexer.token_value.clone();
+                let name = self.lexer.identifier.clone();
                 if !self.lexer.is_identifier_or_keyword() {
                     self.lexer.expect_token(Token::Identifier);
                 }
@@ -1127,7 +1123,7 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_identifer(&mut self) -> ParseResult<Identifier> {
         self.lexer.expect_token(Token::Identifier);
         let identifier = Identifier {
-            name: self.lexer.token_value.clone(),
+            name: self.lexer.identifier.clone(),
         };
         self.lexer.next_token();
         Ok(identifier)
@@ -1135,7 +1131,7 @@ impl<'a> Parser<'a> {
 
     pub(crate) fn parse_string_literal(&mut self) -> ParseResult<StringLiteral> {
         let string_literal = StringLiteral {
-            value: self.lexer.token_value.clone(),
+            value: self.lexer.identifier.clone(),
         };
         self.lexer.next_token();
         Ok(string_literal)

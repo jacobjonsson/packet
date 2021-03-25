@@ -1,4 +1,4 @@
-use crate::{class::ClassExpression, statement::BlockStatement};
+use crate::{class::ClassExpression, literal::*, statement::BlockStatement};
 
 /// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_Precedence#table
 /// https://github.com/evanw/esbuild/blob/51b785f89933426afe675b4e633cf531d5a9890d/internal/js_ast/js_ast.go#L29
@@ -458,14 +458,14 @@ pub fn get_op_entry(op_code: &OpCode) -> OpEntry {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
-    Identifier(Identifier),
-    IntegerLiteral(IntegerLiteral),
-    BinaryExpression(BinaryExpression),
-    BooleanExpression(BooleanExpression),
-    FunctionExpression(FunctionExpression),
+    NumberLiteral(NumberLiteral),
+    BooleanLiteral(BooleanLiteral),
     StringLiteral(StringLiteral),
     RegexpLiteral(RegexpLiteral),
     NullLiteral(NullLiteral),
+    Identifier(Identifier),
+    BinaryExpression(BinaryExpression),
+    FunctionExpression(FunctionExpression),
     CallExpression(CallExpression),
     ConditionalExpression(ConditionalExpression),
     UnaryExpression(UnaryExpression),
@@ -517,28 +517,6 @@ pub struct ObjectExpressionProperty {
 #[derive(Debug, PartialEq, Clone)]
 pub struct ObjectExpression {
     pub properties: Vec<ObjectExpressionProperty>,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct StringLiteral {
-    pub value: String,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct RegexpLiteral {
-    pub value: String,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct NullLiteral {}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct IntegerLiteral {
-    pub value: f64,
-}
-#[derive(Debug, PartialEq, Clone)]
-pub struct BooleanExpression {
-    pub value: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]

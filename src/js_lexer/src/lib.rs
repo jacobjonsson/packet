@@ -14,8 +14,8 @@ pub struct Lexer<'a> {
     end: usize,
     /// The next character to parsed
     character: Option<char>,
-    /// The value of the currently parsed token.
-    pub token_value: String,
+    /// The value of the currently parsed string or identifier.
+    pub identifier: String,
     /// The number of the currently parsed token.
     pub number: f64,
     /// The currently parsed token
@@ -29,7 +29,7 @@ impl<'a> Lexer<'a> {
     pub fn new<'b>(input: &'b str, logger: &'b impl Logger) -> Lexer<'b> {
         let mut lexer = Lexer {
             input: input.into(),
-            token_value: String::new(),
+            identifier: String::new(),
             number: 0.,
             token: Token::EndOfFile,
             start: 0,
@@ -481,7 +481,7 @@ impl<'a> Lexer<'a> {
                         self.step();
                     }
 
-                    self.token_value = self.input[self.start + 1..self.end - 1].into();
+                    self.identifier = self.input[self.start + 1..self.end - 1].into();
                     self.token = Token::StringLiteral;
                 }
 
@@ -492,7 +492,7 @@ impl<'a> Lexer<'a> {
                 c if Lexer::is_letter(c) => {
                     let identifier = self.read_identifier();
                     self.token = lookup_identifer(&identifier);
-                    self.token_value = identifier;
+                    self.identifier = identifier;
                 }
 
                 _ => {
