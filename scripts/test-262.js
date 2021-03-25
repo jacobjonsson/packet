@@ -7,7 +7,7 @@ const test262Dir = path.join(__dirname, "..", "github", "test262");
 
 const debugPass = false;
 const debugPassExplicit = false;
-const debugFail = false;
+// const debugFail = false;
 
 function findFiles() {
     let pass = fs
@@ -57,25 +57,25 @@ function main() {
         }
     }
 
-    console.log("> Running fail files");
-    for (file of files.fail) {
-        try {
-            if (debugFail) {
-                console.log(`\n----- ${file} -----`);
-            }
-            execSync(`${packet} ${file}`, {
-                stdio: debugFail ? "inherit" : "ignore",
-            });
-            shouldHaveFailed += 1;
-        } catch {}
-    }
+    // console.log("> Running fail files");
+    // for (file of files.fail) {
+    //     try {
+    //         if (debugFail) {
+    //             console.log(`\n----- ${file} -----`);
+    //         }
+    //         execSync(`${packet} ${file}`, {
+    //             stdio: debugFail ? "inherit" : "ignore",
+    //         });
+    //         shouldHaveFailed += 1;
+    //     } catch {}
+    // }
 
     console.log("\n--- Summary ---");
     console.log(`[Pass] ${shouldHavePassed} / ${files.pass.length}`);
     console.log(
         `[Pass explicit] ${shouldHavePassedExplicit} / ${files.passExplicit.length}`
     );
-    console.log(`[Fail] ${shouldHaveFailed} / ${files.fail.length}`);
+    // console.log(`[Fail] ${shouldHaveFailed} / ${files.fail.length}`);
 }
 
 main();

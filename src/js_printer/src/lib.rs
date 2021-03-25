@@ -1,4 +1,4 @@
-use js_ast::{class::*, expression::*, literal::*, statement::*, Program};
+use js_ast::{class::*, expression::*, literal::*, object::*, statement::*, Program};
 
 pub struct Printer {
     text: String,
@@ -881,65 +881,74 @@ impl Printer {
     }
 
     fn print_object_expression_property(&mut self, property: &ObjectExpressionProperty) {
-        match &property.kind {
-            ObjectExpressionPropertyKind::Init => {}
-            ObjectExpressionPropertyKind::Get => {
-                self.print("get");
-                self.print(" ");
-            }
-            ObjectExpressionPropertyKind::Set => {
-                self.print("set");
-                self.print(" ");
-            }
-        }
-
-        if property.is_method {
-            if property.is_computed {
-                self.print("[");
-                // We can safely unwrap here since a method requires an expression.
-                self.print_expression(property.key.as_ref().unwrap(), Precedence::Comma);
-                self.print("]");
-            } else {
-                // We can safely unwrap here since a method requires an identifier.
-                // We can also assume that the given expression is an identifier since methods require it.
-                match property.key.as_ref().unwrap() {
-                    Expression::Identifier(i) => self.print_identifier(i),
-                    _ => panic!("Internal server error"),
-                }
-            }
-            match &property.value {
-                Expression::FunctionExpression(f) => {
-                    self.print("(");
-                    for (idx, argument) in f.parameters.iter().enumerate() {
-                        if idx != 0 {
-                            self.print(",");
-                            self.print_space();
-                        }
-                        self.print_pattern(argument);
-                    }
-                    self.print(")");
-                    self.print_space();
-                    self.print_block_statement(&f.body);
-                }
-                _ => panic!("Internal server error"),
-            }
-        } else if property.is_computed {
-            // { [a]: b }
-            // { "a": b, "c": d }
-            self.print("[");
-            // We can unwrap here since a computed node requires a value
-            self.print_expression(property.key.as_ref().unwrap(), Precedence::Comma);
-            self.print("]");
-            self.print(":");
-            self.print_space();
-            self.print_expression(&property.value, Precedence::Comma);
-        } else {
-            if let Some(key) = &property.key {
-                self.print_expression(key, Precedence::Comma);
+        match property {
+            ObjectExpressionProperty::ObjectProperty(p) => {
+                self.print_literal_property_name(&p.identifier);
                 self.print(":");
                 self.print_space();
+                self.print_expression(&p.value, Precedence::Comma);
             }
-            self.print_expression(&property.value, Precedence::Comma);
+            ObjectExpressionProperty::ObjectPropertyShorthand(p) => {
+                self.print_identifier(&p.identifier);
+            }
+            ObjectExpressionProperty::ComputedObjectProperty(p) => {
+                self.print_computed_property_name(&p.key);
+                self.print(":");
+                self.print_space();
+                self.print_expression(&p.value, Precedence::Comma);
+            }
+            ObjectExpressionProperty::ObjectMethod(m) => {
+                self.print_literal_property_name(&m.identifier);
+                self.print("(");
+                self.print_function_parameters(&m.value.parameters);
+                self.print(")");
+                self.print_space();
+                self.print_block_statement(&m.value.body);
+            }
+            ObjectExpressionProperty::ComputedObjectMethod(m) => {
+                self.print_computed_property_name(&m.key);
+                self.print("(");
+                self.print_function_parameters(&m.value.parameters);
+                self.print(")");
+                self.print_space();
+                self.print_block_statement(&m.value.body);
+            }
+            ObjectExpressionProperty::ObjectGetMethod(m) => {
+                self.print("get ");
+                self.print_literal_property_name(&m.identifier);
+                self.print("(");
+                self.print_function_parameters(&m.value.parameters);
+                self.print(")");
+                self.print_space();
+                self.print_block_statement(&m.value.body);
+            }
+            ObjectExpressionProperty::ComputedObjectGetMethod(m) => {
+                self.print("get ");
+                self.print_computed_property_name(&m.key);
+                self.print("(");
+                self.print_function_parameters(&m.value.parameters);
+                self.print(")");
+                self.print_space();
+                self.print_block_statement(&m.value.body);
+            }
+            ObjectExpressionProperty::ObjectSetMethod(m) => {
+                self.print("set ");
+                self.print_literal_property_name(&m.identifier);
+                self.print("(");
+                self.print_function_parameters(&m.value.parameters);
+                self.print(")");
+                self.print_space();
+                self.print_block_statement(&m.value.body);
+            }
+            ObjectExpressionProperty::ComputedObjectSetMethod(m) => {
+                self.print("set ");
+                self.print_computed_property_name(&m.key);
+                self.print("(");
+                self.print_function_parameters(&m.value.parameters);
+                self.print(")");
+                self.print_space();
+                self.print_block_statement(&m.value.body);
+            }
         }
     }
 

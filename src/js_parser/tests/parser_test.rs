@@ -388,7 +388,14 @@ fn test_array_expression() {
 
 #[test]
 fn test_object_expression() {
+    expect_printed("({ [a]: b })", "({ [a]: b });\n");
+    expect_printed("({ [a]() {} })", "({ [a]() {} });\n");
     expect_printed("({ a: b })", "({ a: b });\n");
+    expect_printed("({ \"a\": b })", "({ \"a\": b });\n");
+    expect_printed("({ 3: b })", "({ 3: b });\n");
+    expect_printed("({ null: b })", "({ null: b });\n");
+    expect_printed("({ undefined() {} })", "({ undefined() {} });\n");
+    expect_printed("({ undefined(a, b) {} })", "({ undefined(a, b) {} });\n");
     expect_printed("({ \"a\": \"hello\" })", "({ \"a\": \"hello\" });\n");
     expect_printed("({})", "({});\n");
     expect_printed("({ a: b, c: d })", "({ a: b, c: d });\n");
@@ -409,6 +416,9 @@ fn test_object_expression() {
     expect_printed("({ set a() {} })", "({ set a() {} });\n");
     expect_printed("({ a() {} })", "({ a() {} });\n");
     expect_printed("({ get() {} })", "({ get() {} });\n");
+    expect_printed("({ set() {} })", "({ set() {} });\n");
+    expect_printed("({ get: 3 * 3 })", "({ get: 3 * 3 });\n");
+    expect_printed("({ set: 3 * 3 })", "({ set: 3 * 3 });\n");
 }
 
 #[test]

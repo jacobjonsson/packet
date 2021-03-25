@@ -1,6 +1,6 @@
 use crate::{
     expression::{Expression, FunctionExpression, Identifier},
-    literal::{NumericLiteral, StringLiteral},
+    object::LiteralPropertyName,
 };
 
 /// Class declaration
@@ -41,12 +41,6 @@ pub struct ClassConstructor {
     pub value: FunctionExpression,
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum LiteralPropertyName {
-    Identifier(Identifier),
-    StringLiteral(StringLiteral),
-    NumericLiteral(NumericLiteral),
-}
 #[derive(Debug, PartialEq, Clone)]
 pub struct ClassMethod {
     pub is_static: bool,

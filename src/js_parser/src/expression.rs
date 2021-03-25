@@ -31,6 +31,7 @@ impl<'a> Parser<'a> {
             }
 
             Token::Identifier => self.parse_identifer().map(Expression::Identifier),
+
             Token::StringLiteral => self.parse_string_literal().map(Expression::StringLiteral),
 
             Token::Class => self
@@ -46,6 +47,7 @@ impl<'a> Parser<'a> {
                     expression: Box::new(right),
                 }))
             }
+
             // ~a
             Token::Tilde => {
                 self.lexer.next_token();
@@ -55,6 +57,7 @@ impl<'a> Parser<'a> {
                     expression: Box::new(right),
                 }))
             }
+
             // +a
             Token::Plus => {
                 self.lexer.next_token();
@@ -64,6 +67,7 @@ impl<'a> Parser<'a> {
                     expression: Box::new(right),
                 }))
             }
+
             // ++a
             Token::PlusPlus => {
                 self.lexer.next_token();
@@ -73,6 +77,7 @@ impl<'a> Parser<'a> {
                     expression: Box::new(right),
                 }))
             }
+
             // -a
             Token::Minus => {
                 self.lexer.next_token();
@@ -82,6 +87,7 @@ impl<'a> Parser<'a> {
                     expression: Box::new(right),
                 }))
             }
+
             // --a
             Token::MinusMinus => {
                 self.lexer.next_token();
@@ -100,6 +106,7 @@ impl<'a> Parser<'a> {
                     expression: Box::new(right),
                 }))
             }
+
             // delete a
             Token::Delete => {
                 self.lexer.next_token();
@@ -109,6 +116,7 @@ impl<'a> Parser<'a> {
                     expression: Box::new(right),
                 }))
             }
+
             // void a
             Token::Void => {
                 self.lexer.next_token();
@@ -123,10 +131,12 @@ impl<'a> Parser<'a> {
                 self.lexer.next_token();
                 Ok(Expression::BooleanLiteral(BooleanLiteral { value: true }))
             }
+
             Token::False => {
                 self.lexer.next_token();
                 Ok(Expression::BooleanLiteral(BooleanLiteral { value: false }))
             }
+
             Token::OpenParen => {
                 self.lexer.next_token();
                 let expression = self.parse_expression(Precedence::Lowest)?;
@@ -134,6 +144,7 @@ impl<'a> Parser<'a> {
                 self.lexer.next_token();
                 Ok(expression)
             }
+
             Token::OpenBrace => self
                 .parse_object_expression()
                 .map(Expression::ObjectExpression),
@@ -157,163 +168,22 @@ impl<'a> Parser<'a> {
                     callee,
                 }))
             }
+
             Token::Function => self
                 .parse_function_expression()
                 .map(Expression::FunctionExpression),
+
             Token::This => {
                 self.lexer.next_token();
                 Ok(Expression::ThisExpression(ThisExpression {}))
             }
+
             Token::OpenBracket => self
                 .parse_array_expression()
                 .map(Expression::ArrayExpression),
 
             _ => self.lexer.unexpected(),
         }
-    }
-
-    pub(crate) fn parse_object_expression_property(
-        &mut self,
-        kind: ObjectExpressionPropertyKind,
-        conditional_key: Option<&str>,
-    ) -> ParseResult<ObjectExpressionProperty> {
-        let key: Expression;
-        let mut is_computed = false;
-
-        match self.lexer.token {
-            Token::OpenBracket => {
-                is_computed = true;
-                self.lexer.next_token();
-                key = self.parse_expression(Precedence::Comma)?;
-                self.lexer.expect_token(Token::CloseBracket);
-                self.lexer.next_token();
-            }
-
-            Token::NumericLiteral => {
-                key = Expression::NumericLiteral(NumericLiteral {
-                    value: self.lexer.number,
-                });
-            }
-
-            Token::StringLiteral => {
-                key = Expression::StringLiteral(self.parse_string_literal()?);
-            }
-
-            _ => {
-                let name = self.lexer.identifier.clone();
-                if let Some(ck) = conditional_key {
-                    key = Expression::Identifier(Identifier { name: ck.into() });
-                } else {
-                    if !self.lexer.is_identifier_or_keyword() {
-                        self.lexer.expect_token(Token::Identifier);
-                    }
-                    self.lexer.next_token();
-                    key = Expression::Identifier(Identifier { name });
-                }
-                // If the key is not followed by a colon then it means we've hit a shorthand syntax
-                // { a } = b
-                if self.lexer.token != Token::Colon {
-                    let value: Expression;
-
-                    // { a() {} }
-                    if self.lexer.token == Token::OpenParen {
-                        let parameters = self.parse_function_parameters()?;
-                        let body = self.parse_block_statement()?;
-                        value = Expression::FunctionExpression(FunctionExpression {
-                            body,
-                            parameters,
-                            id: None,
-                        });
-                        return Ok(ObjectExpressionProperty {
-                            is_computed: false,
-                            is_method: true,
-                            key: Some(key),
-                            value,
-                            kind,
-                        });
-                    }
-
-                    return Ok(ObjectExpressionProperty {
-                        is_computed: false,
-                        is_method: false,
-                        key: None,
-                        value: key,
-                        kind,
-                    });
-                }
-            }
-        };
-
-        self.lexer.expect_token(Token::Colon);
-        self.lexer.next_token();
-        let value = self.parse_expression(Precedence::Comma)?;
-        Ok(ObjectExpressionProperty {
-            is_computed,
-            is_method: false,
-            key: Some(key),
-            kind,
-            value,
-        })
-    }
-
-    fn parse_object_expression(&mut self) -> ParseResult<ObjectExpression> {
-        self.lexer.next_token();
-
-        let mut properties: Vec<ObjectExpressionProperty> = Vec::new();
-
-        while self.lexer.token != Token::CloseBrace {
-            match self.lexer.token {
-                Token::Identifier => match self.lexer.identifier.as_str() {
-                    "get" => {
-                        self.lexer.next_token();
-                        if self.lexer.token != Token::Identifier {
-                            properties.push(self.parse_object_expression_property(
-                                ObjectExpressionPropertyKind::Init,
-                                Some("get"),
-                            )?);
-                        } else {
-                            properties.push(self.parse_object_expression_property(
-                                ObjectExpressionPropertyKind::Get,
-                                None,
-                            )?);
-                        }
-                    }
-                    "set" => {
-                        self.lexer.next_token();
-                        if self.lexer.token != Token::Identifier {
-                            properties.push(self.parse_object_expression_property(
-                                ObjectExpressionPropertyKind::Init,
-                                Some("set"),
-                            )?);
-                        } else {
-                            properties.push(self.parse_object_expression_property(
-                                ObjectExpressionPropertyKind::Set,
-                                None,
-                            )?);
-                        }
-                    }
-                    _ => properties.push(self.parse_object_expression_property(
-                        ObjectExpressionPropertyKind::Init,
-                        None,
-                    )?),
-                },
-                _ => {
-                    properties.push(self.parse_object_expression_property(
-                        ObjectExpressionPropertyKind::Init,
-                        None,
-                    )?)
-                }
-            }
-
-            if self.lexer.token == Token::Comma {
-                self.lexer.next_token();
-            }
-        }
-
-        self.lexer.expect_token(Token::CloseBrace);
-        self.lexer.next_token();
-
-        Ok(ObjectExpression { properties })
     }
 
     fn parse_array_expression(&mut self) -> ParseResult<ArrayExpression> {
