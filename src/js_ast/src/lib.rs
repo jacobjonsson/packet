@@ -1,3 +1,4 @@
+pub mod binding;
 pub mod class;
 pub mod expression;
 pub mod literal;

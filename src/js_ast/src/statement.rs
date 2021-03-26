@@ -1,4 +1,4 @@
-use crate::{class::ClassDeclaration, expression::*, literal::StringLiteral};
+use crate::{binding::Binding, class::ClassDeclaration, expression::*, literal::StringLiteral};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
@@ -50,7 +50,7 @@ pub struct TryStatement {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CatchClause {
-    pub param: Pattern,
+    pub param: Binding,
     pub body: BlockStatement,
 }
 
@@ -82,7 +82,7 @@ pub struct IfStatement {
 pub enum ForStatementInit {
     VariableDeclaration(VariableDeclaration),
     Expression(Expression),
-    Pattern(Pattern),
+    Pattern(Binding),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -156,14 +156,14 @@ pub struct LabeledStatement {
 #[derive(Debug, PartialEq, Clone)]
 pub struct FunctionDeclaration {
     pub id: Identifier,
-    pub parameters: Vec<Pattern>,
+    pub parameters: Vec<Binding>,
     pub body: BlockStatement,
 }
 
 /// This is only allowed in export statements.
 #[derive(Debug, PartialEq, Clone)]
 pub struct AnonymousDefaultExportedFunctionDeclaration {
-    pub parameters: Vec<Pattern>,
+    pub parameters: Vec<Binding>,
     pub body: BlockStatement,
 }
 
@@ -180,7 +180,7 @@ pub enum VariableDeclarationKind {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct VariableDeclarator {
-    pub id: Pattern,
+    pub id: Binding, // NB: IdentifierBinding is not permitted here.
     pub init: Option<Expression>,
 }
 

@@ -1,3 +1,4 @@
+mod binding;
 mod class;
 mod expression;
 mod literal;

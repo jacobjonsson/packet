@@ -1,5 +1,6 @@
 use crate::{
-    class::ClassExpression, literal::*, object::ObjectExpression, statement::BlockStatement,
+    binding::Binding, class::ClassExpression, literal::*, object::ObjectExpression,
+    statement::BlockStatement,
 };
 
 /// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_Precedence#table
@@ -480,6 +481,11 @@ pub enum Expression {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct Identifier {
+    pub name: String,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct NewExpression {
     pub callee: Box<Expression>,
     pub arguments: Vec<Expression>,
@@ -503,7 +509,7 @@ pub struct ArrayExpression {
 #[derive(Debug, PartialEq, Clone)]
 pub struct FunctionExpression {
     pub id: Option<Identifier>,
-    pub parameters: Vec<Pattern>,
+    pub parameters: Vec<Binding>,
     pub body: BlockStatement,
 }
 
@@ -529,57 +535,5 @@ pub struct UnaryExpression {
 pub struct BinaryExpression {
     pub left: Box<Expression>,
     pub op_code: OpCode,
-    pub right: Box<Expression>,
-}
-
-/* -------------------------------------------------------------------------- */
-/*                                  Patterns                                  */
-/* -------------------------------------------------------------------------- */
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum Pattern {
-    Identifier(Identifier),
-    ObjectPattern(ObjectPattern),
-    ArrayPattern(ArrayPattern),
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Identifier {
-    pub name: String,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct ObjectPatternProperty {
-    pub is_computed: bool,
-    pub is_rest: bool,
-    pub key: Option<Expression>,
-    pub value: Pattern,
-    pub default_value: Option<Expression>,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct ObjectPattern {
-    pub properties: Vec<ObjectPatternProperty>,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct ArrayPatternItem {
-    pub is_rest: bool,
-    pub value: Pattern,
-    pub default_value: Option<Expression>,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct ArrayPattern {
-    pub properties: Vec<Option<ArrayPatternItem>>,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct RestElement {
-    pub argument: Box<Pattern>,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct AssignmentPattern {
     pub right: Box<Expression>,
 }

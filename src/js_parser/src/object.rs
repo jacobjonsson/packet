@@ -183,7 +183,7 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    fn parse_computed_property_name(&mut self) -> ParseResult<Expression> {
+    pub(crate) fn parse_computed_property_name(&mut self) -> ParseResult<Expression> {
         self.lexer.next_token();
         let key = self.parse_expression(Precedence::Comma)?;
         self.lexer.expect_token(Token::CloseBracket);
