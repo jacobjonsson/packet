@@ -1,7 +1,4 @@
-use crate::{
-    expression::{Expression, FunctionExpression, Identifier},
-    object::LiteralPropertyName,
-};
+use crate::{expression::*, function::*, object::*};
 
 /// Class declaration
 /// class A {}

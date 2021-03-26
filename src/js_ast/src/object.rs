@@ -1,4 +1,4 @@
-use crate::{expression::*, literal::*};
+use crate::{expression::*, function::*, literal::*};
 
 /// This is shared with the class ast.
 #[derive(Debug, PartialEq, Clone)]

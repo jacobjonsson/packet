@@ -1,7 +1,4 @@
-use crate::{
-    binding::Binding, class::ClassExpression, literal::*, object::ObjectExpression,
-    statement::BlockStatement,
-};
+use crate::{class::*, function::*, literal::*, object::*};
 
 /// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_Precedence#table
 /// https://github.com/evanw/esbuild/blob/51b785f89933426afe675b4e633cf531d5a9890d/internal/js_ast/js_ast.go#L29
@@ -504,13 +501,6 @@ pub struct ThisExpression {}
 #[derive(Debug, PartialEq, Clone)]
 pub struct ArrayExpression {
     pub elements: Vec<Option<Box<Expression>>>,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct FunctionExpression {
-    pub id: Option<Identifier>,
-    pub parameters: Vec<Binding>,
-    pub body: BlockStatement,
 }
 
 #[derive(Debug, PartialEq, Clone)]

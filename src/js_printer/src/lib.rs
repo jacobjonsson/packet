@@ -1,4 +1,6 @@
-use js_ast::{binding::*, class::*, expression::*, literal::*, object::*, statement::*, Program};
+use js_ast::{
+    binding::*, class::*, expression::*, function::*, literal::*, object::*, statement::*, Program,
+};
 
 pub struct Printer {
     text: String,
@@ -501,12 +503,12 @@ impl Printer {
         self.print("function ");
         self.print_identifier(&function_declaration.id);
         self.print("(");
-        for (idx, argument) in function_declaration.parameters.iter().enumerate() {
+        for (idx, parameter) in function_declaration.parameters.iter().enumerate() {
             if idx != 0 {
                 self.print(",");
                 self.print_space();
             }
-            self.print_binding(argument);
+            self.print_parameter(parameter);
         }
         self.print(")");
         self.print_space();
@@ -518,16 +520,34 @@ impl Printer {
         function_declaration: &AnonymousDefaultExportedFunctionDeclaration,
     ) {
         self.print("function(");
-        for (idx, argument) in function_declaration.parameters.iter().enumerate() {
+        for (idx, parameter) in function_declaration.parameters.iter().enumerate() {
             if idx != 0 {
                 self.print(",");
                 self.print_space();
             }
-            self.print_binding(argument);
+            self.print_parameter(parameter);
         }
         self.print(")");
         self.print_space();
         self.print_block_statement(&function_declaration.body);
+    }
+
+    fn print_parameter(&mut self, parameter: &ParameterKind) {
+        match &parameter {
+            ParameterKind::Parameter(p) => {
+                self.print_binding(&p.binding);
+                if let Some(default_value) = &p.default_value {
+                    self.print_space();
+                    self.print("=");
+                    self.print_space();
+                    self.print_expression(default_value, Precedence::Comma);
+                }
+            }
+            ParameterKind::RestParameter(r) => {
+                self.print("...");
+                self.print_binding(&r.binding);
+            }
+        }
     }
 
     fn print_expression(&mut self, expression: &Expression, precedence: Precedence) {
@@ -709,7 +729,7 @@ impl Printer {
                         self.print_space();
                     }
 
-                    self.print_binding(&parameter);
+                    self.print_parameter(&parameter);
                 }
                 self.print(")");
                 self.print_space();
@@ -870,13 +890,13 @@ impl Printer {
         self.print("}");
     }
 
-    fn print_function_parameters(&mut self, parameters: &Vec<Binding>) {
+    fn print_function_parameters(&mut self, parameters: &Vec<ParameterKind>) {
         for (idx, parameter) in parameters.iter().enumerate() {
             if idx != 0 {
                 self.print(",");
                 self.print_space();
             }
-            self.print_binding(parameter);
+            self.print_parameter(parameter);
         }
     }
 

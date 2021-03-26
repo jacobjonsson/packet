@@ -1,4 +1,4 @@
-use crate::{binding::Binding, class::ClassDeclaration, expression::*, literal::StringLiteral};
+use crate::{binding::*, class::*, expression::*, function::*, literal::*};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
@@ -147,24 +147,6 @@ pub struct SwitchStatement {
 pub struct LabeledStatement {
     pub identifier: Identifier,
     pub body: Box<Statement>,
-}
-
-/* -------------------------------------------------------------------------- */
-/*                                  Function                                  */
-/* -------------------------------------------------------------------------- */
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct FunctionDeclaration {
-    pub id: Identifier,
-    pub parameters: Vec<Binding>,
-    pub body: BlockStatement,
-}
-
-/// This is only allowed in export statements.
-#[derive(Debug, PartialEq, Clone)]
-pub struct AnonymousDefaultExportedFunctionDeclaration {
-    pub parameters: Vec<Binding>,
-    pub body: BlockStatement,
 }
 
 /* -------------------------------------------------------------------------- */

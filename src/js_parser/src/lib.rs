@@ -1,6 +1,7 @@
 mod binding;
 mod class;
 mod expression;
+mod function;
 mod literal;
 mod module;
 mod object;

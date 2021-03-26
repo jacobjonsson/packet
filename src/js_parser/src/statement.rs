@@ -198,23 +198,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parses function declarations
-    /// function a() {}
-    /// function a(arg1) {}
-    pub(crate) fn parse_function_declaration(&mut self) -> ParseResult<FunctionDeclaration> {
-        self.lexer.next_token(); // Skip the function keyword.
-        let identifier = self.parse_identifer()?;
-        self.lexer.expect_token(Token::OpenParen);
-        let parameters = self.parse_function_parameters()?;
-        self.lexer.expect_token(Token::OpenBrace);
-        let body = self.parse_block_statement()?;
-        Ok(FunctionDeclaration {
-            id: identifier,
-            parameters,
-            body,
-        })
-    }
-
     pub(crate) fn parse_expression_statement(&mut self) -> ParseResult<Statement> {
         let expression = self.parse_expression(Precedence::Lowest)?;
         self.consume_semicolon();

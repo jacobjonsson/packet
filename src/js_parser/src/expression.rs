@@ -1,4 +1,4 @@
-use js_ast::{binding::Binding, expression::*, literal::*};
+use js_ast::{expression::*, literal::*};
 use js_token::Token;
 
 use crate::{ParseResult, Parser};
@@ -784,51 +784,6 @@ impl<'a> Parser<'a> {
         self.lexer.expect_token(Token::CloseParen);
         self.lexer.next_token();
         Ok(arguments)
-    }
-
-    /// Parse function expression
-    /// let a = function() {}
-    /// a(function() {})
-    pub(crate) fn parse_function_expression(&mut self) -> ParseResult<FunctionExpression> {
-        self.lexer.next_token();
-        let mut id: Option<Identifier> = None;
-        if self.lexer.token == Token::Identifier {
-            id = Some(self.parse_identifer()?);
-        }
-        self.lexer.expect_token(Token::OpenParen);
-        let parameters = self.parse_function_parameters()?;
-        self.lexer.expect_token(Token::OpenBrace);
-        let body = self.parse_block_statement()?;
-
-        Ok(FunctionExpression {
-            parameters,
-            body,
-            id,
-        })
-    }
-
-    /// Parses function parameters
-    pub(crate) fn parse_function_parameters(&mut self) -> ParseResult<Vec<Binding>> {
-        let mut parameters: Vec<Binding> = Vec::new();
-
-        // Means there aren't any parameters to parse
-        self.lexer.next_token();
-        if self.lexer.token == Token::CloseParen {
-            self.lexer.next_token(); // Skip the closing paren
-            return Ok(Vec::new());
-        }
-
-        while self.lexer.token != Token::CloseParen {
-            // Parse the first parameter
-            parameters.push(self.parse_binding()?);
-            if self.lexer.token == Token::Comma {
-                self.lexer.next_token();
-            }
-        }
-        self.lexer.expect_token(Token::CloseParen);
-        self.lexer.next_token();
-
-        Ok(parameters)
     }
 
     pub(crate) fn parse_identifer(&mut self) -> ParseResult<Identifier> {

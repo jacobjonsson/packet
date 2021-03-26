@@ -160,6 +160,7 @@ fn test_function_declaration() {
         "function a(b, c) { return b + c;\n }",
     );
     expect_printed("function a({ b }) {}", "function a({ b }) {}");
+    expect_printed("function a(...b) {}", "function a(...b) {}");
 }
 
 #[test]

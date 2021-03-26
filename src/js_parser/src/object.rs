@@ -1,4 +1,4 @@
-use js_ast::{expression::*, object::*};
+use js_ast::{expression::*, function::*, object::*};
 use js_token::Token;
 
 use crate::{ParseResult, Parser};
