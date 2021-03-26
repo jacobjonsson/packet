@@ -50,7 +50,13 @@ impl<'a> Parser<'a> {
         self.lexer.next_token();
         let mut properties: Vec<ClassProperty> = Vec::new();
         while self.lexer.token != Token::CloseBrace {
-            properties.push(self.parse_class_property()?)
+            if self.lexer.token == Token::Semicolon {
+                self.lexer.next_token();
+                continue;
+            }
+
+            properties.push(self.parse_class_property()?);
+            self.consume_semicolon();
         }
         self.lexer.expect_token(Token::CloseBrace);
         self.lexer.next_token();

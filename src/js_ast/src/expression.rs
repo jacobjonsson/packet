@@ -471,11 +471,26 @@ pub enum Expression {
     ConditionalExpression(ConditionalExpression),
     UnaryExpression(UnaryExpression),
     ThisExpression(ThisExpression),
+    SuperExpression(SuperExpression),
     ArrayExpression(ArrayExpression),
     ObjectExpression(ObjectExpression),
     NewExpression(NewExpression),
     MemberExpression(MemberExpression),
     ClassExpression(ClassExpression),
+}
+
+/// NB: The spread expression is not allowed in all the places
+/// where a normal expression is allowed so the spread expression needs to be explicitly
+/// opt in. (object, array, argument)
+#[derive(Debug, PartialEq, Clone)]
+pub struct SpreadExpression {
+    pub value: Expression,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Argument {
+    Expression(Expression),
+    SpreadExpression(SpreadExpression),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -486,7 +501,7 @@ pub struct Identifier {
 #[derive(Debug, PartialEq, Clone)]
 pub struct NewExpression {
     pub callee: Box<Expression>,
-    pub arguments: Vec<Expression>,
+    pub arguments: Vec<Argument>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -500,14 +515,23 @@ pub struct MemberExpression {
 pub struct ThisExpression {}
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct SuperExpression {}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum ArrayExpressionItem {
+    SpreadExpression(SpreadExpression),
+    Expression(Expression),
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct ArrayExpression {
-    pub elements: Vec<Option<Box<Expression>>>,
+    pub elements: Vec<Option<ArrayExpressionItem>>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CallExpression {
     pub callee: Box<Expression>,
-    pub arguments: Vec<Box<Expression>>,
+    pub arguments: Vec<Argument>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

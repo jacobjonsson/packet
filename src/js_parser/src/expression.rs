@@ -158,17 +158,27 @@ impl<'a> Parser<'a> {
             Token::New => {
                 self.lexer.next_token();
                 let callee = Box::new(self.parse_expression(Precedence::Member)?);
-                self.lexer.expect_token(Token::OpenParen);
-                self.lexer.next_token();
-                let mut arguments: Vec<Expression> = Vec::new();
-                while self.lexer.token != Token::CloseParen {
-                    arguments.push(self.parse_expression(Precedence::Comma)?);
-                    if self.lexer.token == Token::Comma {
-                        self.lexer.next_token();
+                let mut arguments: Vec<Argument> = Vec::new();
+                // The actual () expression in a new expression is optional.
+                if self.lexer.token == Token::OpenParen {
+                    self.lexer.next_token();
+                    while self.lexer.token != Token::CloseParen {
+                        if self.lexer.token == Token::DotDotDot {
+                            self.lexer.next_token();
+                            let value = self.parse_expression(Precedence::Comma)?;
+                            arguments.push(Argument::SpreadExpression(SpreadExpression { value }))
+                        } else {
+                            let expression = self.parse_expression(Precedence::Comma)?;
+                            arguments.push(Argument::Expression(expression));
+                        }
+
+                        if self.lexer.token == Token::Comma {
+                            self.lexer.next_token();
+                        }
                     }
+                    self.lexer.expect_token(Token::CloseParen);
+                    self.lexer.next_token();
                 }
-                self.lexer.expect_token(Token::CloseParen);
-                self.lexer.next_token();
                 Ok(Expression::NewExpression(NewExpression {
                     arguments,
                     callee,
@@ -184,6 +194,11 @@ impl<'a> Parser<'a> {
                 Ok(Expression::ThisExpression(ThisExpression {}))
             }
 
+            Token::Super => {
+                self.lexer.next_token();
+                Ok(Expression::SuperExpression(SuperExpression {}))
+            }
+
             Token::OpenBracket => self
                 .parse_array_expression()
                 .map(Expression::ArrayExpression),
@@ -194,12 +209,21 @@ impl<'a> Parser<'a> {
 
     fn parse_array_expression(&mut self) -> ParseResult<ArrayExpression> {
         self.lexer.next_token();
-        let mut elements: Vec<Option<Box<Expression>>> = Vec::new();
+        let mut elements: Vec<Option<ArrayExpressionItem>> = Vec::new();
         while self.lexer.token != Token::CloseBracket {
             match self.lexer.token {
                 Token::Comma => elements.push(None),
-                Token::DotDotDot => self.lexer.unexpected(),
-                _ => elements.push(Some(Box::new(self.parse_expression(Precedence::Comma)?))),
+                Token::DotDotDot => {
+                    self.lexer.next_token();
+                    let value = self.parse_expression(Precedence::Comma)?;
+                    elements.push(Some(ArrayExpressionItem::SpreadExpression(
+                        SpreadExpression { value },
+                    )))
+                }
+                _ => {
+                    let expression = self.parse_expression(Precedence::Comma)?;
+                    elements.push(Some(ArrayExpressionItem::Expression(expression)));
+                }
             };
 
             if self.lexer.token != Token::Comma {
@@ -399,6 +423,19 @@ impl<'a> Parser<'a> {
                     expression = Expression::BinaryExpression(BinaryExpression {
                         left: Box::new(expression),
                         op_code: OpCode::BinaryBitwiseAndAssign,
+                        right: Box::new(self.parse_expression(Precedence::Assign.lower())?),
+                    })
+                }
+
+                // a **= 1
+                Token::AsteriskAsteriskEquals => {
+                    if precedence >= Precedence::Assign {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        left: Box::new(expression),
+                        op_code: OpCode::BinaryPowerAssign,
                         right: Box::new(self.parse_expression(Precedence::Assign.lower())?),
                     })
                 }
@@ -775,12 +812,20 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub(crate) fn parse_call_expression_arguments(&mut self) -> ParseResult<Vec<Box<Expression>>> {
+    pub(crate) fn parse_call_expression_arguments(&mut self) -> ParseResult<Vec<Argument>> {
         self.lexer.next_token();
-        let mut arguments: Vec<Box<Expression>> = Vec::new();
+        let mut arguments: Vec<Argument> = Vec::new();
 
         while self.lexer.token != Token::CloseParen {
-            arguments.push(self.parse_expression(Precedence::Comma).map(Box::new)?);
+            if self.lexer.token == Token::DotDotDot {
+                self.lexer.next_token();
+                let value = self.parse_expression(Precedence::Comma)?;
+                arguments.push(Argument::SpreadExpression(SpreadExpression { value }));
+            } else {
+                let expression = self.parse_expression(Precedence::Comma)?;
+                arguments.push(Argument::Expression(expression));
+            }
+
             if self.lexer.token == Token::Comma {
                 self.lexer.next_token();
             }

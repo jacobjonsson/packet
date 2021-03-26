@@ -14,6 +14,7 @@ pub struct ObjectExpression {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ObjectExpressionProperty {
+    SpreadExpression(SpreadExpression),
     ObjectProperty(ObjectProperty),
     ObjectPropertyShorthand(ObjectPropertyShorthand),
     ComputedObjectProperty(ComputedObjectProperty),
@@ -23,6 +24,11 @@ pub enum ObjectExpressionProperty {
     ComputedObjectGetMethod(ComputedObjectGetMethod),
     ObjectSetMethod(ObjectSetMethod),
     ComputedObjectSetMethod(ComputedObjectSetMethod),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ObjectSpreadProperty {
+    pub value: Expression,
 }
 
 #[derive(Debug, PartialEq, Clone)]

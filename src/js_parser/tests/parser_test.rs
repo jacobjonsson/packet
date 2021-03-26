@@ -38,6 +38,7 @@ fn test_variable_declaration() {
     expect_printed("const a = 1, b = 2, c = 3", "const a = 1, b = 2, c = 3;\n");
     expect_printed("var a = 1, b = 2, c = 3", "var a = 1, b = 2, c = 3;\n");
     expect_printed("let { a: b } = c;", "let { a: b } = c;\n");
+    expect_printed("let { [a]: b } = c;", "let { [a]: b } = c;\n");
     expect_printed("let [ a ] = b;", "let [a] = b;\n");
     expect_printed("let { ...a } = b;", "let { ...a } = b;\n");
     expect_printed("let [...a] = b;", "let [...a] = b;\n");
@@ -181,6 +182,7 @@ fn test_call_expression() {
     expect_printed("a(a, b)", "a(a, b);\n");
     expect_printed("a(3 + 3)", "a(3 + 3);\n");
     expect_printed("a();b();", "a();\nb();\n");
+    expect_printed("a(b, ...c, d)", "a(b, ...c, d);\n");
 }
 
 #[test]
@@ -313,6 +315,7 @@ fn test_assignment_expression() {
     expect_printed("a ^= 3 * 3", "a ^= 3 * 3;\n");
     expect_printed("a &= 1", "a &= 1;\n");
     expect_printed("a &= 3 * 3", "a &= 3 * 3;\n");
+    expect_printed("a **= 3 * 3", "a **= 3 * 3;\n");
 }
 
 #[test]
@@ -326,12 +329,14 @@ fn test_logical_expression() {
 fn test_continue_statement() {
     expect_printed("continue;", "continue;\n");
     expect_printed("continue label1;", "continue label1;\n");
+    expect_printed("continue", "continue;\n")
 }
 
 #[test]
 fn test_break_statement() {
     expect_printed("break;", "break;\n");
     expect_printed("break label1;", "break label1;\n");
+    expect_printed("break", "break;\n")
 }
 
 #[test]
@@ -412,12 +417,19 @@ fn test_this_expression() {
 }
 
 #[test]
+fn test_super_expression() {
+    expect_printed("super", "super;\n");
+    expect_printed("super.hello()", "super.hello();\n");
+}
+
+#[test]
 fn test_array_expression() {
     expect_printed("[1, 2, 3, 4, 5]", "[1, 2, 3, 4, 5];\n");
     expect_printed("[\"a\", 2]", "[\"a\", 2];\n");
     expect_printed("let a = []", "let a = [];\n");
     expect_printed("let a = [,,,]", "let a = [, , ,];\n");
     expect_printed("let a = [null, undefined];", "let a = [null, undefined];\n");
+    expect_printed("[...[...[ a]]]", "[...[...[a]]];\n");
 }
 
 #[test]
@@ -453,6 +465,11 @@ fn test_object_expression() {
     expect_printed("({ set() {} })", "({ set() {} });\n");
     expect_printed("({ get: 3 * 3 })", "({ get: 3 * 3 });\n");
     expect_printed("({ set: 3 * 3 })", "({ set: 3 * 3 });\n");
+    expect_printed("({ ...a })", "({ ...a });\n");
+    expect_printed(
+        "({ ...{ ...{ ...{ a } } } })",
+        "({ ...{ ...{ ...{ a } } } });\n",
+    );
 }
 
 #[test]
@@ -461,6 +478,8 @@ fn test_new_expression() {
     expect_printed("new MyClass(a, b, c)", "new MyClass(a, b, c);\n");
     expect_printed("new function() {}()", "new function() {}();\n");
     expect_printed("new a.b.c(e)", "new a.b.c(e);\n");
+    expect_printed("new a.b.c(...e, a)", "new a.b.c(...e, a);\n");
+    expect_printed("new a", "new a();\n");
 }
 
 #[test]
@@ -532,6 +551,8 @@ fn test_class_declaration() {
     expect_printed("class A { get b() {} }", "class A { get b() {} }");
     expect_printed("class A { get [b]() {} }", "class A { get [b]() {} }");
     expect_printed("class A { set [b]() {} }", "class A { set [b]() {} }");
+    expect_printed("class A { b() {}; c() {}; }", "class A { b() {}\nc() {} }");
+    expect_printed("class A {;}", "class A {}");
 }
 
 #[test]

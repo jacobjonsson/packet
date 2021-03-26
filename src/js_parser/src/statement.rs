@@ -23,7 +23,7 @@ impl<'a> Parser<'a> {
             Token::Continue => {
                 self.lexer.next_token();
                 let mut label: Option<Identifier> = None;
-                if self.lexer.token != Token::Semicolon {
+                if self.lexer.token == Token::Identifier {
                     label = Some(self.parse_identifer()?);
                 }
                 self.consume_semicolon();
@@ -32,7 +32,7 @@ impl<'a> Parser<'a> {
             Token::Break => {
                 self.lexer.next_token();
                 let mut label: Option<Identifier> = None;
-                if self.lexer.token != Token::Semicolon {
+                if self.lexer.token == Token::Identifier {
                     label = Some(self.parse_identifer()?);
                 }
                 self.consume_semicolon();

@@ -42,6 +42,7 @@ impl<'a> Parser<'a> {
                 Token::OpenBracket => {
                     let key = self.parse_computed_property_name()?;
                     self.lexer.expect_token(Token::Colon);
+                    self.lexer.next_token();
                     let value = self.parse_binding()?;
                     let default_value = self.parse_optional_default_value()?;
                     properties.push(ObjectBindingProperty {

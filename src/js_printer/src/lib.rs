@@ -589,13 +589,22 @@ impl Printer {
                 self.print(&r.value);
             }
             Expression::ThisExpression(_) => self.print("this"),
+            Expression::SuperExpression(_) => self.print("super"),
             Expression::ArrayExpression(a) => {
                 self.print("[");
                 for (idx, element) in a.elements.iter().enumerate() {
                     let is_last_element = idx < a.elements.len() - 1;
                     match element {
-                        Some(expression) => {
-                            self.print_expression(expression, Precedence::Comma);
+                        Some(item) => {
+                            match item {
+                                ArrayExpressionItem::SpreadExpression(s) => {
+                                    self.print_spread_expression(s)
+                                }
+                                ArrayExpressionItem::Expression(e) => {
+                                    self.print_expression(e, Precedence::Comma)
+                                }
+                            }
+
                             if is_last_element {
                                 self.print(",");
                             }
@@ -711,7 +720,11 @@ impl Printer {
                         self.print(",");
                         self.print_space();
                     }
-                    self.print_expression(&argument, Precedence::Comma);
+
+                    match &argument {
+                        Argument::Expression(e) => self.print_expression(e, Precedence::Comma),
+                        Argument::SpreadExpression(s) => self.print_spread_expression(s),
+                    }
                 }
                 self.print(")");
             }
@@ -767,7 +780,10 @@ impl Printer {
                         self.print(",");
                         self.print_space();
                     }
-                    self.print_expression(argument, Precedence::Comma);
+                    match &argument {
+                        Argument::Expression(e) => self.print_expression(e, Precedence::Comma),
+                        Argument::SpreadExpression(s) => self.print_spread_expression(s),
+                    }
                 }
                 self.print(")");
             }
@@ -904,8 +920,14 @@ impl Printer {
         }
     }
 
+    fn print_spread_expression(&mut self, spread_expression: &SpreadExpression) {
+        self.print("...");
+        self.print_expression(&spread_expression.value, Precedence::Comma);
+    }
+
     fn print_object_expression_property(&mut self, property: &ObjectExpressionProperty) {
         match property {
+            ObjectExpressionProperty::SpreadExpression(s) => self.print_spread_expression(s),
             ObjectExpressionProperty::ObjectProperty(p) => {
                 self.print_literal_property_name(&p.identifier);
                 self.print(":");

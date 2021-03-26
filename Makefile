@@ -16,3 +16,7 @@ github/test262:
 
 test262: packet
 	node ./scripts/test-262.js
+
+github/three:
+	mkdir -p github
+	git clone --depth 1 --branch r108 https://github.com/mrdoob/three.js.git github/three

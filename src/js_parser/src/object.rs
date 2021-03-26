@@ -49,6 +49,14 @@ impl<'a> Parser<'a> {
         &mut self,
         conditional_identifier: Option<Identifier>,
     ) -> ParseResult<ObjectExpressionProperty> {
+        if self.lexer.token == Token::DotDotDot {
+            self.lexer.next_token();
+            let value = self.parse_expression(Precedence::Comma)?;
+            return Ok(ObjectExpressionProperty::SpreadExpression(
+                SpreadExpression { value: value },
+            ));
+        }
+
         // This means we've hit a computed property.
         // Short syntax is not support here so we can assume
         // that the value or method must exist, otherwise it's a syntax error.
