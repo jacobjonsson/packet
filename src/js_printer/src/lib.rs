@@ -1,4 +1,4 @@
-use js_ast::{class::*, expression::*, literal::*, object::*, statement::*, Program};
+use js_ast::{binding::*, class::*, expression::*, literal::*, object::*, statement::*, Program};
 
 pub struct Printer {
     text: String,
@@ -30,7 +30,7 @@ impl Printer {
                 self.print_semicolon_after_statement();
             }
 
-            Statement::EmptyStatement(_) => self.print(";\n"),
+            Statement::EmptyStatement(_) => self.print(";"),
 
             Statement::ClassDeclaration(c) => {
                 self.print("class ");
@@ -217,7 +217,7 @@ impl Printer {
                     self.print("catch");
                     self.print_space();
                     self.print("(");
-                    self.print_pattern(&handler.param);
+                    self.print_binding(&handler.param);
                     self.print(")");
                     self.print_space();
                     self.print_block_statement(&handler.body);
@@ -456,7 +456,7 @@ impl Printer {
                 self.print(",");
                 self.print_space();
             }
-            self.print_pattern(&declaration.id);
+            self.print_binding(&declaration.id);
             if let Some(expression) = &declaration.init {
                 self.print_space();
                 self.print("=");
@@ -506,7 +506,7 @@ impl Printer {
                 self.print(",");
                 self.print_space();
             }
-            self.print_pattern(argument);
+            self.print_binding(argument);
         }
         self.print(")");
         self.print_space();
@@ -523,7 +523,7 @@ impl Printer {
                 self.print(",");
                 self.print_space();
             }
-            self.print_pattern(argument);
+            self.print_binding(argument);
         }
         self.print(")");
         self.print_space();
@@ -709,7 +709,7 @@ impl Printer {
                         self.print_space();
                     }
 
-                    self.print_pattern(&parameter);
+                    self.print_binding(&parameter);
                 }
                 self.print(")");
                 self.print_space();
@@ -870,13 +870,13 @@ impl Printer {
         self.print("}");
     }
 
-    fn print_function_parameters(&mut self, parameters: &Vec<Pattern>) {
+    fn print_function_parameters(&mut self, parameters: &Vec<Binding>) {
         for (idx, parameter) in parameters.iter().enumerate() {
             if idx != 0 {
                 self.print(",");
                 self.print_space();
             }
-            self.print_pattern(parameter);
+            self.print_binding(parameter);
         }
     }
 
@@ -952,99 +952,99 @@ impl Printer {
         }
     }
 
-    fn print_object_pattern_property(&mut self, property: &ObjectPatternProperty) {
-        // { [a]: b }
-        // { "a": b, "c": d }
-        if property.is_rest {
-            self.print("...");
-            self.print_pattern(&property.value);
-        } else if property.is_computed {
-            self.print("[");
-            // We can unwrap here since a computed node requires a proper key-value pair
-            self.print_expression(property.key.as_ref().unwrap(), Precedence::Comma);
-            self.print("]");
-            self.print(":");
-            self.print_space();
-            self.print_pattern(&property.value);
-        } else if let Some(default_value) = &property.default_value {
-            self.print_pattern(&property.value);
-            self.print_space();
-            self.print("=");
-            self.print_space();
-            self.print_expression(default_value, Precedence::Comma);
-        } else {
-            if let Some(key) = &property.key {
-                match key {
-                    Expression::StringLiteral(s) => self.print(&s.value),
-                    _ => self.print_expression(key, Precedence::Comma),
-                }
-                self.print(":");
-                self.print_space();
-            }
-            self.print_pattern(&property.value);
-        }
-    }
-
     fn print_identifier(&mut self, id: &Identifier) {
         self.print(&id.name);
     }
 
-    fn print_object_pattern(&mut self, object_pattern: &ObjectPattern) {
-        self.print("{");
-        if object_pattern.properties.len() > 0 {
-            self.print_space();
-        }
-        for (idx, property) in object_pattern.properties.iter().enumerate() {
-            if idx != 0 {
-                self.print(",");
-                self.print_space();
-            }
-            self.print_object_pattern_property(property);
-        }
-        if object_pattern.properties.len() > 0 {
-            self.print_space();
-        }
-        self.print("}");
+    /* -------------------------------------------------------------------------- */
+    /*                                   Binding                                  */
+    /* -------------------------------------------------------------------------- */
+
+    fn print_binding(&mut self, binding: &Binding) {
+        match binding {
+            Binding::Identifier(i) => self.print_identifier(i),
+            Binding::ObjectBinding(o) => self.print_object_binding(o),
+            Binding::ArrayBinding(a) => self.print_array_binding(a),
+            Binding::RestElementBinding(r) => self.print_rest_element_binding(r),
+        };
     }
 
-    fn print_array_pattern_item(&mut self, item: &ArrayPatternItem) {
-        if item.is_rest {
-            self.print("...");
-            self.print_pattern(&item.value);
+    fn print_object_binding(&mut self, object_binding: &ObjectBinding) {
+        if object_binding.properties.len() == 0 {
+            self.print("{}");
         } else {
-            self.print_pattern(&item.value);
-        }
-    }
+            self.print("{");
+            self.print_space();
+            for (idx, property) in object_binding.properties.iter().enumerate() {
+                if idx != 0 {
+                    self.print(",");
+                    self.print_newline();
+                }
 
-    fn print_array_pattern(&mut self, array_pattern: &ArrayPattern) {
-        self.print("[");
-        for (idx, property) in array_pattern.properties.iter().enumerate() {
-            let is_not_last_element = idx < array_pattern.properties.len() - 1;
-            match property {
-                Some(item) => {
-                    self.print_array_pattern_item(item);
-                    if is_not_last_element {
-                        self.print(",");
+                match &property.property {
+                    ObjectBindingPropertyKind::ObjectBindingStaticProperty(o) => {
+                        self.print_literal_property_name(&o.identifier);
+                        self.print(":");
+                        self.print_space();
+                        self.print_binding(&o.value);
+                    }
+                    ObjectBindingPropertyKind::ObjectBindingShorthandProperty(o) => {
+                        self.print_identifier(&o.identifier);
+                    }
+                    ObjectBindingPropertyKind::ObjectBindingComputedProperty(o) => {
+                        self.print_computed_property_name(&o.key);
+                        self.print(":");
+                        self.print_space();
+                        self.print_binding(&o.value);
+                    }
+                    ObjectBindingPropertyKind::ObjectBindingRestProperty(o) => {
+                        self.print("...");
+                        self.print_identifier(&o.identifier);
                     }
                 }
-                None => {
-                    self.print(",");
+
+                if let Some(expression) = &property.default_value {
+                    self.print_space();
+                    self.print("=");
+                    self.print_space();
+                    self.print_expression(expression, Precedence::Comma);
                 }
             }
-
-            // Do not print spaces for the last element
-            if is_not_last_element {
-                self.print_space();
-            }
+            self.print_space();
+            self.print("}");
         }
-        self.print("]");
     }
 
-    fn print_pattern(&mut self, pattern: &Pattern) {
-        match pattern {
-            Pattern::Identifier(i) => self.print_identifier(i),
-            Pattern::ObjectPattern(o) => self.print_object_pattern(o),
-            Pattern::ArrayPattern(a) => self.print_array_pattern(a),
+    fn print_array_binding(&mut self, array_binding: &ArrayBinding) {
+        if array_binding.items.len() == 0 {
+            self.print("[]");
+        } else {
+            self.print("[");
+            for (idx, item) in array_binding.items.iter().enumerate() {
+                if idx != 0 {
+                    self.print(",");
+                    self.print_space();
+                }
+
+                self.print_binding(&item.value);
+
+                if let Some(expression) = &item.default_value {
+                    self.print_space();
+                    self.print("=");
+                    self.print_space();
+                    self.print_expression(expression, Precedence::Comma);
+                }
+            }
+            self.print("]");
+        }
+    }
+
+    fn print_rest_element_binding(&mut self, rest_element_binding: &RestElementBinding) {
+        self.print("...");
+        match &rest_element_binding.key {
+            RestElementBindingKey::Identifier(i) => self.print_identifier(i),
+            RestElementBindingKey::ObjectBinding(o) => self.print_object_binding(o),
+            RestElementBindingKey::ArrayBinding(a) => self.print_array_binding(a),
         };
     }
 

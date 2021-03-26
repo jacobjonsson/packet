@@ -45,6 +45,25 @@ fn test_variable_declaration() {
 }
 
 #[test]
+fn test_binding() {
+    expect_printed("let a = b", "let a = b;\n");
+    expect_printed("let {} = b", "let {} = b;\n");
+    expect_printed("let { a } = b", "let { a } = b;\n");
+    expect_printed("let { ...a } = b", "let { ...a } = b;\n");
+    expect_printed(
+        "let { a: { b: [...a] } } = b",
+        "let { a: { b: [...a] } } = b;\n",
+    );
+    expect_printed(
+        "let { undefined: { null: { 3000: a } } } = b",
+        "let { undefined: { null: { 3000: a } } } = b;\n",
+    );
+    expect_printed("let [] = b", "let [] = b;\n");
+    expect_printed("let [a] = b", "let [a] = b;\n");
+    expect_printed("let [...[...[a]]] = b", "let [...[...[a]]] = b;\n");
+}
+
+#[test]
 fn test_prefix_expressions() {
     expect_printed("+5", "+5;\n");
     expect_printed("-5", "-5;\n");
@@ -140,6 +159,7 @@ fn test_function_declaration() {
         "function a(b, c) { return b + c; }",
         "function a(b, c) { return b + c;\n }",
     );
+    expect_printed("function a({ b }) {}", "function a({ b }) {}");
 }
 
 #[test]
@@ -173,6 +193,10 @@ fn test_if_statement() {
     expect_printed(
         "if (i in items && a[i] === elem) {}",
         "if (i in items && a[i] === elem) {}",
+    );
+    expect_printed(
+        "if (true) if (true) if (true) if (true) {}",
+        "if (true) if (true) if (true) if (true) {}",
     );
 }
 
@@ -302,7 +326,7 @@ fn test_break_statement() {
 
 #[test]
 fn test_empty_statement() {
-    expect_printed(";", ";\n");
+    expect_printed(";", ";");
 }
 
 #[test]
