@@ -1,5 +1,5 @@
 use js_ast::{
-    binding::*, class::*, expression::*, function::*, literal::*, object::*, statement::*, Program,
+    binding::*, class::*, expression::*, function::*, literal::*, object::*, statement::*, AST,
 };
 
 pub struct Printer {
@@ -15,7 +15,7 @@ impl Printer {
         }
     }
 
-    pub fn print_program(&mut self, program: &Program) -> String {
+    pub fn print_program(&mut self, program: &AST) -> String {
         for statement in &program.statements {
             self.print_statement(statement);
         }

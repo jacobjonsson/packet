@@ -11,6 +11,7 @@ js_lexer = { path = "../js_lexer" }
 js_ast = { path = "../js_ast" }
 js_token = { path = "../js_token" }
 logger = { path = "../logger" }
+source = { path = "../source" }
 
 [dev-dependencies]
 js_printer = { path = "../js_printer" }
