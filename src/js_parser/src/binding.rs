@@ -83,6 +83,10 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
+
+            if self.lexer.token == Token::Comma {
+                self.lexer.next_token();
+            }
         }
         self.lexer.expect_token(Token::CloseBrace);
         self.lexer.next_token();

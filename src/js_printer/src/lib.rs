@@ -1034,6 +1034,7 @@ impl Printer {
                     self.print_expression(expression, Precedence::Comma);
                 }
             }
+
             self.print_space();
             self.print("}");
         }

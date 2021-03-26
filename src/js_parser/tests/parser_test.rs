@@ -49,6 +49,8 @@ fn test_binding() {
     expect_printed("let a = b", "let a = b;\n");
     expect_printed("let {} = b", "let {} = b;\n");
     expect_printed("let { a } = b", "let { a } = b;\n");
+    expect_printed("let { a = c } = b", "let { a = c } = b;\n");
+    expect_printed("let { a, b } = c", "let { a,\nb } = c;\n");
     expect_printed("let { ...a } = b", "let { ...a } = b;\n");
     expect_printed(
         "let { a: { b: [...a] } } = b",
@@ -61,6 +63,8 @@ fn test_binding() {
     expect_printed("let [] = b", "let [] = b;\n");
     expect_printed("let [a] = b", "let [a] = b;\n");
     expect_printed("let [...[...[a]]] = b", "let [...[...[a]]] = b;\n");
+
+    expect_printed("let { a, b, c } = b", "let { a,\nb,\nc } = b;\n");
 }
 
 #[test]
