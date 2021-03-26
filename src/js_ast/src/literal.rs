@@ -18,6 +18,11 @@ pub struct NumericLiteral {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct BigIntLiteral {
+    pub value: String,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct BooleanLiteral {
     pub value: bool,
 }

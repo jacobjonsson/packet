@@ -176,6 +176,7 @@ fn test_call_expression() {
     expect_printed("a(a)", "a(a);\n");
     expect_printed("a(a, b)", "a(a, b);\n");
     expect_printed("a(3 + 3)", "a(3 + 3);\n");
+    expect_printed("a();b();", "a();\nb();\n");
 }
 
 #[test]
@@ -198,6 +199,10 @@ fn test_if_statement() {
     expect_printed(
         "if (true) if (true) if (true) if (true) {}",
         "if (true) if (true) if (true) if (true) {}",
+    );
+    expect_printed(
+        "if (a) a(); else if (b) b(); else c();",
+        "if (a) a();\n else if (b) b();\n else c();\n",
     );
 }
 

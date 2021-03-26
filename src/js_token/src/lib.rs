@@ -8,6 +8,7 @@ pub enum Token {
     // Literals
     StringLiteral,
     NumericLiteral,
+    BigIntegerLiteral,
 
     // Identifiers
     Identifier,
@@ -129,6 +130,7 @@ impl std::fmt::Display for Token {
             Token::Identifier => write!(f, "Identifier"),
             Token::NumericLiteral => write!(f, "NumericLiteral"),
             Token::StringLiteral => write!(f, "StringLiteral"),
+            Token::BigIntegerLiteral => write!(f, "BigIntegerLiteral"),
 
             // Punctuation
             Token::Ampersand => write!(f, "&"),

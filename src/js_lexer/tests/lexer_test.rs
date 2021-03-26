@@ -226,34 +226,43 @@ fn test_numeric_literals() {
     expect_number("120", 120.);
     expect_number("120.2", 120.2);
     expect_number("1_2_0_2", 1202.);
+    expect_number(".1", 0.1);
     expect_number("0b10", 2.);
     expect_number("0o10", 8.);
     expect_number("0x10", 16.);
 }
 
+fn expect_big_int(content: &str, expected: &str) {
+    let logger = LoggerImpl::new();
+    let lexer = Lexer::new(content, &logger);
+    assert_eq!(lexer.token, Token::BigIntegerLiteral);
+    assert_eq!(lexer.identifier, expected);
+}
+
+#[test]
+fn test_big_int_literal() {
+    expect_big_int("1n", "1");
+    expect_big_int("2000000000n", "2000000000");
+    expect_big_int("0b10n", "0b10");
+    expect_big_int("0o10n", "0o10");
+    expect_big_int("0x10n", "0x10");
+}
+
+fn expect_eof(content: &str) {
+    let logger = LoggerImpl::new();
+    let lexer = Lexer::new(content, &logger);
+    assert_eq!(lexer.token, Token::EndOfFile);
+}
+
 #[test]
 fn test_comments() {
-    let input = "// comment 1
-    let a;
-    /* comment 2 */
-    let b;
-    ";
-
-    let tokens = vec![
-        Token::Let,
-        Token::Identifier,
-        Token::Semicolon,
-        Token::Let,
-        Token::Identifier,
-        Token::Semicolon,
-    ];
-
-    let logger = LoggerImpl::new();
-    let mut lexer = Lexer::new(input, &logger);
-    for (idx, token) in tokens.iter().enumerate() {
-        if idx != 0 {
-            lexer.next_token();
-        }
-        assert_eq!(token, &lexer.token);
-    }
+    expect_eof("//");
+    expect_eof("/* */");
+    expect_eof("/**  **/");
+    expect_eof(
+        "/**
+    *
+    *
+    **/",
+    );
 }

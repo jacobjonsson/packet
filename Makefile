@@ -1,6 +1,9 @@
 packet:
 	cargo build --release
 
+angular: packet
+	./target/release/cli ./fixtures/angular-1.2.5.js
+
 jquery: packet
 	./target/release/cli ./fixtures/jquery-1.9.1.js
 

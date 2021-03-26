@@ -23,6 +23,12 @@ impl<'a> Parser<'a> {
                 Ok(Expression::NumericLiteral(NumericLiteral { value }))
             }
 
+            Token::BigIntegerLiteral => {
+                let value = self.lexer.identifier.clone();
+                self.lexer.next_token();
+                Ok(Expression::BigIntLiteral(BigIntLiteral { value }))
+            }
+
             Token::Slash | Token::SlashEquals => {
                 self.lexer.scan_regexp();
                 let value = self.lexer.raw();
@@ -770,16 +776,14 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_call_expression_arguments(&mut self) -> ParseResult<Vec<Box<Expression>>> {
-        let mut arguments: Vec<Box<Expression>> = Vec::new();
         self.lexer.next_token();
-        if self.lexer.token == Token::CloseParen {
-            self.lexer.next_token();
-            return Ok(arguments);
-        }
-        arguments.push(Box::new(self.parse_expression(Precedence::Comma)?));
-        while self.lexer.token == Token::Comma {
-            self.lexer.next_token();
-            arguments.push(Box::new(self.parse_expression(Precedence::Comma)?));
+        let mut arguments: Vec<Box<Expression>> = Vec::new();
+
+        while self.lexer.token != Token::CloseParen {
+            arguments.push(self.parse_expression(Precedence::Comma).map(Box::new)?);
+            if self.lexer.token == Token::Comma {
+                self.lexer.next_token();
+            }
         }
         self.lexer.expect_token(Token::CloseParen);
         self.lexer.next_token();

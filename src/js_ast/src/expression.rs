@@ -459,6 +459,7 @@ pub fn get_op_entry(op_code: &OpCode) -> OpEntry {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     NumericLiteral(NumericLiteral),
+    BigIntLiteral(BigIntLiteral),
     BooleanLiteral(BooleanLiteral),
     StringLiteral(StringLiteral),
     RegexpLiteral(RegexpLiteral),

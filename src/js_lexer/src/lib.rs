@@ -1,11 +1,11 @@
-use std::str::Chars;
+use std::{iter::Peekable, str::Chars};
 
 use js_token::{lookup_identifer, Token};
 use logger::Logger;
 
 pub struct Lexer<'a> {
     input: String,
-    chars: Chars<'a>,
+    chars: Peekable<Chars<'a>>,
     /// The position of the current character
     current: usize,
     /// The start position of the current token
@@ -35,7 +35,7 @@ impl<'a> Lexer<'a> {
             start: 0,
             current: 0,
             end: 0,
-            chars: input.chars(),
+            chars: input.chars().peekable(),
             character: None,
             logger,
         };
@@ -189,6 +189,44 @@ impl<'a> Lexer<'a> {
         loop {
             self.start = self.end;
 
+            // Skip over comments
+            if self.character == Some('/') {
+                // Single line comment
+                if self.peek() == Some(&'/') {
+                    self.step();
+                    'single_line_comment: loop {
+                        match self.character {
+                            Some('\n') | Some('\r') => {
+                                self.step();
+                                break 'single_line_comment;
+                            }
+                            None => {
+                                self.step();
+                                break 'single_line_comment;
+                            }
+                            _ => self.step(),
+                        }
+                    }
+                } else if self.peek() == Some(&'*') {
+                    // Multi line comment
+                    self.step();
+
+                    'multi_line_comment: loop {
+                        match self.character {
+                            Some('*') => {
+                                self.step();
+                                if self.character == Some('/') {
+                                    self.step();
+                                    break 'multi_line_comment;
+                                }
+                            }
+                            None => panic!("File ended without terminating multi-line comment"),
+                            _ => self.step(),
+                        }
+                    }
+                }
+            }
+
             let character = match self.character {
                 Some(v) => v,
                 None => {
@@ -211,30 +249,6 @@ impl<'a> Lexer<'a> {
                     if self.character == Some('=') {
                         self.step();
                         self.token = Token::SlashEquals;
-                    } else if self.character == Some('/') {
-                        'single_line_comment: loop {
-                            self.step();
-                            if self.character == Some('\n') || self.character == Some('\r') {
-                                break 'single_line_comment;
-                            } else if self.character == None {
-                                break 'single_line_comment;
-                            }
-                        }
-                        self.next_token();
-                    } else if self.character == Some('*') {
-                        'multi_line_comment: loop {
-                            self.step();
-                            if self.character == Some('*') {
-                                self.step();
-                                if self.character == Some('/') {
-                                    self.step();
-                                    break 'multi_line_comment;
-                                }
-                            } else if self.character == None {
-                                break 'multi_line_comment;
-                            }
-                        }
-                        self.next_token();
                     } else {
                         self.token = Token::Slash;
                     }
@@ -485,8 +499,29 @@ impl<'a> Lexer<'a> {
                     self.token = Token::StringLiteral;
                 }
 
-                '.' | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                    self.parse_numeric_literal_or_dot(character);
+                '.' => {
+                    if self.peek() == Some(&'.') {
+                        self.step();
+                        self.step();
+                        self.step();
+                        self.token = Token::DotDotDot;
+                    } else if self.peek() >= Some(&'0') && self.peek() <= Some(&'9') {
+                        self.read_number();
+                    } else {
+                        self.step();
+                        self.token = Token::Dot;
+                    }
+                }
+
+                '0' => match self.peek() {
+                    Some(&'b') => self.read_radix_number(2),
+                    Some(&'o') => self.read_radix_number(8),
+                    Some(&'x') => self.read_radix_number(16),
+                    _ => self.read_number(),
+                },
+
+                '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
+                    self.read_number();
                 }
 
                 c if Lexer::is_letter(c) => {
@@ -514,6 +549,10 @@ impl<'a> Lexer<'a> {
         self.current += 1;
     }
 
+    fn peek(&mut self) -> Option<&char> {
+        self.chars.peek()
+    }
+
     fn read_identifier(&mut self) -> String {
         let mut word = String::new();
         while let Some(character) = self.character {
@@ -531,135 +570,154 @@ impl<'a> Lexer<'a> {
         return character.is_alphabetic() || character == '_' || character == '$';
     }
 
-    // We need to parse dots and numbers in the same function because a leading dot
-    // can be different tokens:
-    // . -> Token::Dot
-    // .1 -> Token::NumericLiteral
-    // ... -> Token::DotDotDot
-    fn parse_numeric_literal_or_dot(&mut self, first: char) {
-        self.step();
-        // Given that first is a dot and the following character is not a number,
-        // we either have Token::Dot or Token::DotDotDot.
-        if first == '.' && (self.character < Some('0') || self.character > Some('9')) {
-            if self.character == Some('.') {
-                self.step();
-                self.step();
-                self.token = Token::DotDotDot;
-                return;
-            }
-            self.token = Token::Dot;
-            return;
+    fn read_number(&mut self) {
+        // 00
+        if self.character == Some('0') && self.peek() == Some(&'0') {
+            panic!("Legacy octal literals are not supported in strict mode");
         }
 
-        let mut radix = 0;
-        // Check for binary, octal, or hexadecimal literal
-        if first == '0' {
-            match self.character {
-                Some('b') | Some('B') => radix = 2,
-                Some('o') | Some('O') => radix = 8,
-                Some('x') | Some('X') => radix = 16,
-                // Octal literals starting with a 0 has been deprecated.
-                // Unsure if we should support this since they are only allowed
-                // in non strict mode and so far packet assumes everything is in strict mode.
-                // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Deprecated_octal
-                Some('0') | Some('1') | Some('2') | Some('3') | Some('4') | Some('5')
-                | Some('6') | Some('7') | Some('_') => self.unexpected(),
-                _ => {}
-            }
-        }
-
-        // Assume this is a number, but potentially change to a bigint later
-        self.token = Token::NumericLiteral;
-
-        if radix != 0 {
-            // TODO: Parse binary, octal and hexadecimal literal
-            self.number = 0.1;
+        // Means we've hit a fractal number .012
+        if self.character == Some('.') {
             self.step();
-            let mut num = String::new();
-
-            loop {
-                match self.character {
-                    Some('_') => {}
-                    Some('0') | Some('1') => {
-                        num.push(self.character.unwrap());
-                    }
-
-                    Some('2') | Some('3') | Some('4') | Some('5') | Some('6') | Some('7') => {
-                        if radix == 2 {
-                            self.unexpected();
-                        }
-                        num.push(self.character.unwrap());
-                    }
-
-                    Some('8') | Some('9') => {
-                        if radix < 10 {
-                            self.unexpected();
-                        }
-                        num.push(self.character.unwrap());
-                    }
-
-                    Some('A') | Some('B') | Some('C') | Some('D') | Some('E') | Some('F') => {
-                        if radix != 16 {
-                            self.unexpected();
-                        }
-                        num.push(self.character.unwrap());
-                    }
-
-                    Some('a') | Some('b') | Some('c') | Some('d') | Some('e') | Some('f') => {
-                        if radix != 16 {
-                            self.unexpected();
-                        }
-                        num.push(self.character.unwrap());
-                    }
-
-                    _ => {
-                        break;
-                    }
-                }
-                self.step();
-            }
-
-            self.number = i64::from_str_radix(&num, radix).unwrap() as f64;
-        } else {
-            // Skip over all the digits
-            loop {
-                if self.character < Some('0') || self.character > Some('9') {
-                    // The only non-numeric character allowed in numbers is underscores
-                    // 1_000_000 is valid javascript.
-                    if self.character != Some('_') {
-                        break;
-                    }
-
-                    // TODO: Two underscores in a row is not valid.
-                    // We should check for that here.
-                    // E.g 1___0 is not valid.
-                }
-                self.step();
-            }
-
-            // Fractional digits (1.1)
-            if first != '.' && self.character == Some('.') {
-                self.step();
-                loop {
-                    if self.character < Some('0') || self.character > Some('9') {
-                        if self.character != Some('_') {
-                            break;
-                        }
-
-                        // TODO: Check multiple underscores in a row
-                    }
-                    self.step();
-                }
-            }
+            let number = self.read_decimal_number();
 
             // Exponent
             if self.character == Some('e') || self.character == Some('E') {
                 todo!()
             }
 
-            let text: String = self.raw().chars().filter(|c| c != &'_').collect();
-            self.number = text.parse::<f64>().unwrap();
             self.token = Token::NumericLiteral;
+            self.number = format!("0.{}", number)
+                .parse::<f64>()
+                .expect(&format!("Failed to parse .{} into an f64", number));
+
+            return;
         }
+
+        let mut number = self.read_decimal_number();
+
+        // Exponent
+        if self.character == Some('e') || self.character == Some('E') {
+            todo!()
+        }
+
+        // Fractal 1.1
+        if self.character == Some('.') {
+            self.step();
+            number = format!("{}.{}", number, self.read_decimal_number());
+        }
+
+        // BitInt
+        if self.character == Some('n') {
+            self.step();
+            self.token = Token::BigIntegerLiteral;
+            self.identifier = number;
+            return;
+        }
+
+        self.token = Token::NumericLiteral;
+        self.number = number
+            .parse::<f64>()
+            .expect(&format!("Failed to parse .{} into an f64", number));
+    }
+
+    /// Reads a radix number (0b, 0x, 0o)
+    fn read_radix_number(&mut self, radix: u32) {
+        self.step(); // 0
+        self.step(); // x/b/o
+
+        let number = match radix {
+            2 => self.read_binary_number(),
+            8 => self.read_octal_number(),
+            16 => self.read_hexadecimal_number(),
+
+            _ => self.unexpected(),
+        };
+
+        // Exponent
+        if self.character == Some('e') || self.character == Some('E') {
+            todo!()
+        }
+
+        // Means we've hit a big int literal
+        // We do not attempt to convert the string into
+        // a number since that could mean precision loss.
+        if self.character == Some('n') {
+            self.step();
+            self.token = Token::BigIntegerLiteral;
+            self.identifier = match radix {
+                2 => format!("0b{}", number),
+                8 => format!("0o{}", number),
+                16 => format!("0x{}", number),
+                _ => self.unexpected(),
+            };
+            return;
+        }
+
+        self.number = i64::from_str_radix(&number, radix)
+            .expect(&format!("[Packet]: Failed to convert {} to an i64", number))
+            as f64;
+        self.token = Token::NumericLiteral;
+    }
+
+    fn read_binary_number(&mut self) -> String {
+        let mut num = String::new();
+        loop {
+            match self.character {
+                Some('0') | Some('1') => num.push(self.character.unwrap()),
+                Some('_') => {}
+                _ => break,
+            }
+            self.step();
+        }
+        return num;
+    }
+
+    fn read_octal_number(&mut self) -> String {
+        let mut num = String::new();
+        loop {
+            match self.character {
+                Some('0') | Some('1') | Some('2') | Some('3') | Some('4') | Some('5')
+                | Some('6') | Some('7') | Some('8') => num.push(self.character.unwrap()),
+                Some('_') => {}
+                _ => break,
+            }
+            self.step();
+        }
+        return num;
+    }
+
+    fn read_decimal_number(&mut self) -> String {
+        let mut num = String::new();
+        loop {
+            match self.character {
+                Some('0') | Some('1') | Some('2') | Some('3') | Some('4') | Some('5')
+                | Some('6') | Some('7') | Some('8') | Some('9') => {
+                    num.push(self.character.unwrap())
+                }
+                Some('_') => {}
+                _ => break,
+            }
+            self.step();
+        }
+        return num;
+    }
+
+    fn read_hexadecimal_number(&mut self) -> String {
+        let mut num = String::new();
+        loop {
+            match self.character {
+                Some('0') | Some('1') | Some('2') | Some('3') | Some('4') | Some('5')
+                | Some('6') | Some('7') | Some('8') | Some('9') | Some('A') | Some('B')
+                | Some('C') | Some('D') | Some('E') | Some('F') | Some('a') | Some('b')
+                | Some('c') | Some('d') | Some('e') | Some('f') => {
+                    num.push(self.character.unwrap())
+                }
+                Some('_') => {}
+                _ => break,
+            }
+            self.step();
+        }
+        return num;
     }
 }

@@ -42,7 +42,6 @@ impl<'a> Parser<'a> {
                 self.lexer.next_token();
                 Ok(Statement::EmptyStatement(EmptyStatement {}))
             }
-
             Token::Class => self
                 .parse_class_declaration()
                 .map(Statement::ClassDeclaration),
@@ -154,6 +153,7 @@ impl<'a> Parser<'a> {
                     // Parse a normal expression
                     let expression =
                         self.parse_suffix(Precedence::Lowest, Expression::Identifier(identifier))?;
+                    self.consume_semicolon();
                     return Ok(Statement::Expression(ExpressionStatement { expression }));
                 }
             }
@@ -194,15 +194,13 @@ impl<'a> Parser<'a> {
                     finalizer,
                 }))
             }
-            _ => self.parse_expression_statement(),
+            _ => {
+                let expression = self.parse_expression(Precedence::Lowest)?;
+                self.consume_semicolon();
+
+                Ok(Statement::Expression(ExpressionStatement { expression }))
+            }
         }
-    }
-
-    pub(crate) fn parse_expression_statement(&mut self) -> ParseResult<Statement> {
-        let expression = self.parse_expression(Precedence::Lowest)?;
-        self.consume_semicolon();
-
-        Ok(Statement::Expression(ExpressionStatement { expression }))
     }
 
     /// Parses a block statement
@@ -248,8 +246,10 @@ impl<'a> Parser<'a> {
         let test = self.parse_expression(Precedence::Lowest)?;
         self.lexer.expect_token(Token::CloseParen);
         self.lexer.next_token();
+
         // TODO: Function declarations are not valid in strict mode.
         let consequent = self.parse_statement()?;
+
         let mut alternate: Option<Box<Statement>> = None;
         if self.lexer.token == Token::Else {
             self.lexer.next_token();

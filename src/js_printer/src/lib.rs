@@ -559,6 +559,10 @@ impl Printer {
                     false => self.print("false"),
                 };
             }
+            Expression::BigIntLiteral(b) => {
+                self.print(&b.value);
+                self.print("n");
+            }
             Expression::ClassExpression(c) => {
                 self.print("class");
                 if let Some(id) = &c.identifier {
