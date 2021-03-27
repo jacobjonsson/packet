@@ -4,10 +4,11 @@ use js_ast::{
     object::LiteralPropertyName,
 };
 use js_token::Token;
+use logger::Logger;
 
 use crate::{ParseResult, Parser};
 
-impl<'a> Parser<'a> {
+impl<'a, L: Logger> Parser<'a, L> {
     pub(crate) fn parse_binding(&mut self) -> ParseResult<Binding> {
         match self.lexer.token {
             Token::Identifier => Ok(Binding::Identifier(self.parse_identifer()?)),

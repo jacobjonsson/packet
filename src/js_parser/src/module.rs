@@ -1,10 +1,11 @@
 use js_ast::{expression::*, function::*, literal::*, statement::*};
 use js_token::Token;
+use logger::Logger;
 
 use crate::{ParseResult, Parser, ParserError};
 
 // Import parsing
-impl<'a> Parser<'a> {
+impl<'a, L: Logger> Parser<'a, L> {
     pub(crate) fn parse_import_statement(&mut self) -> ParseResult<Statement> {
         let source: StringLiteral;
         let mut specifiers: Vec<ImportClause> = Vec::new();
@@ -118,7 +119,7 @@ impl<'a> Parser<'a> {
 }
 
 // Export
-impl<'a> Parser<'a> {
+impl<'a, L: Logger> Parser<'a, L> {
     pub(crate) fn parse_export_statement(&mut self) -> ParseResult<Statement> {
         self.lexer.next_token();
 

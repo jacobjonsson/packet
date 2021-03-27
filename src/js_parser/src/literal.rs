@@ -1,9 +1,10 @@
 use js_ast::{expression::Identifier, literal::NumericLiteral, object::LiteralPropertyName};
 use js_token::Token;
+use logger::Logger;
 
 use crate::{ParseResult, Parser};
 
-impl<'a> Parser<'a> {
+impl<'a, L: Logger> Parser<'a, L> {
     pub(crate) fn parse_literal_property_name(&mut self) -> ParseResult<LiteralPropertyName> {
         match self.lexer.token {
             Token::StringLiteral => {

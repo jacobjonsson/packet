@@ -1,9 +1,10 @@
 use js_ast::{expression::*, function::*, object::*};
 use js_token::Token;
+use logger::Logger;
 
 use crate::{ParseResult, Parser};
 
-impl<'a> Parser<'a> {
+impl<'a, L: Logger> Parser<'a, L> {
     pub(crate) fn parse_object_expression(&mut self) -> ParseResult<ObjectExpression> {
         self.lexer.next_token();
         let mut properties: Vec<ObjectExpressionProperty> = Vec::new();

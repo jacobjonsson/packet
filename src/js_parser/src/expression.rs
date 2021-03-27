@@ -1,9 +1,10 @@
 use js_ast::{expression::*, literal::*};
 use js_token::Token;
+use logger::Logger;
 
 use crate::{ParseResult, Parser};
 
-impl<'a> Parser<'a> {
+impl<'a, L: Logger> Parser<'a, L> {
     pub(crate) fn parse_expression(&mut self, precedence: Precedence) -> ParseResult<Expression> {
         let left = self.parse_prefix()?;
 

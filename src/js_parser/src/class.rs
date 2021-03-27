@@ -1,9 +1,10 @@
 use js_ast::{class::*, expression::*, function::*};
 use js_token::Token;
+use logger::Logger;
 
 use crate::{ParseResult, Parser};
 
-impl<'a> Parser<'a> {
+impl<'a, L: Logger> Parser<'a, L> {
     pub(crate) fn parse_class_declaration(&mut self) -> ParseResult<ClassDeclaration> {
         self.lexer.next_token();
         let identifier = self.parse_identifer()?;
@@ -45,7 +46,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    pub fn parse_class_body(&mut self) -> ParseResult<Vec<ClassProperty>> {
+    fn parse_class_body(&mut self) -> ParseResult<Vec<ClassProperty>> {
         self.lexer.expect_token(Token::OpenBrace);
         self.lexer.next_token();
         let mut properties: Vec<ClassProperty> = Vec::new();

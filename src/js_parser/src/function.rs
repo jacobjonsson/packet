@@ -1,9 +1,10 @@
 use js_ast::{expression::*, function::*};
 use js_token::Token;
+use logger::Logger;
 
 use crate::{ParseResult, Parser};
 
-impl<'a> Parser<'a> {
+impl<'a, L: Logger> Parser<'a, L> {
     /// function a() {}
     pub(crate) fn parse_function_declaration(&mut self) -> ParseResult<FunctionDeclaration> {
         self.lexer.next_token(); // Skip the function keyword.

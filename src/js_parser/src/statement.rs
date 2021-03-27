@@ -1,9 +1,10 @@
 use js_ast::{expression::*, statement::*};
 use js_token::Token;
+use logger::Logger;
 
 use crate::{ParseResult, Parser};
 
-impl<'a> Parser<'a> {
+impl<'a, L: Logger> Parser<'a, L> {
     pub(crate) fn parse_statement(&mut self) -> ParseResult<Statement> {
         match &self.lexer.token {
             Token::Const | Token::Var | Token::Let => self

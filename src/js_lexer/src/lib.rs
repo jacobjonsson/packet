@@ -3,7 +3,7 @@ use std::{iter::Peekable, str::Chars};
 use js_token::{lookup_identifer, Token};
 use logger::Logger;
 
-pub struct Lexer<'a> {
+pub struct Lexer<'a, L: Logger> {
     input: String,
     chars: Peekable<Chars<'a>>,
     /// The position of the current character
@@ -21,12 +21,12 @@ pub struct Lexer<'a> {
     /// The currently parsed token
     pub token: Token,
 
-    logger: &'a dyn Logger,
+    logger: &'a L,
 }
 
 /// Public
-impl<'a> Lexer<'a> {
-    pub fn new<'b>(input: &'b str, logger: &'b impl Logger) -> Lexer<'b> {
+impl<'a, L: Logger> Lexer<'a, L> {
+    pub fn new(input: &'a str, logger: &'a L) -> Lexer<'a, L> {
         let mut lexer = Lexer {
             input: input.into(),
             identifier: String::new(),
@@ -139,7 +139,7 @@ impl<'a> Lexer<'a> {
                             None => break 'inner,
                         };
 
-                        if Lexer::is_letter(character) {
+                        if self.is_letter(character) {
                             match character {
                                 'g' | 'i' | 'm' | 's' | 'u' | 'y' => self.step(),
                                 _ => self.unexpected(),
@@ -524,7 +524,7 @@ impl<'a> Lexer<'a> {
                     self.read_number();
                 }
 
-                c if Lexer::is_letter(c) => {
+                c if self.is_letter(c) => {
                     let identifier = self.read_identifier();
                     self.token = lookup_identifer(&identifier);
                     self.identifier = identifier;
@@ -542,7 +542,7 @@ impl<'a> Lexer<'a> {
 }
 
 /// Internal
-impl<'a> Lexer<'a> {
+impl<'a, L: Logger> Lexer<'a, L> {
     fn step(&mut self) {
         self.character = self.chars.next();
         self.end = self.current;
@@ -556,7 +556,7 @@ impl<'a> Lexer<'a> {
     fn read_identifier(&mut self) -> String {
         let mut word = String::new();
         while let Some(character) = self.character {
-            if Lexer::is_letter(character) || character.is_digit(10) {
+            if self.is_letter(character) || character.is_digit(10) {
                 word.push(character);
                 self.step();
             } else {
@@ -566,7 +566,7 @@ impl<'a> Lexer<'a> {
         return word;
     }
 
-    fn is_letter(character: char) -> bool {
+    fn is_letter(&self, character: char) -> bool {
         return character.is_alphabetic() || character == '_' || character == '$';
     }
 

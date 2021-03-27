@@ -14,7 +14,7 @@ use logger::Logger;
 use source::Source;
 
 /// Parses the given source into an AST.
-pub fn parse<'a>(source: &Source, logger: &'a impl Logger) -> AST {
+pub fn parse<L: Logger>(source: &Source, logger: &L) -> AST {
     let lexer = Lexer::new(source.content, logger);
     let mut parser = Parser::new(lexer, logger);
     let ast = parser.parse_program();
@@ -24,21 +24,20 @@ pub fn parse<'a>(source: &Source, logger: &'a impl Logger) -> AST {
 pub struct ParserError(String);
 pub type ParseResult<T> = Result<T, ParserError>;
 
-pub struct Parser<'a> {
-    lexer: Lexer<'a>,
-    #[allow(dead_code)]
-    logger: &'a dyn Logger,
+pub struct Parser<'a, L: Logger> {
+    lexer: Lexer<'a, L>,
+    logger: &'a L,
     /// in statement are only allowed in certain expressions.
     allow_in: bool,
 }
 
 /// Public
-impl<'a> Parser<'a> {
-    pub fn new<'b>(lexer: Lexer<'b>, logger: &'b impl Logger) -> Parser<'b> {
+impl<'a, L: Logger> Parser<'a, L> {
+    pub fn new(lexer: Lexer<'a, L>, logger: &'a L) -> Parser<'a, L> {
         Parser {
-            lexer: lexer,
-            logger,
             allow_in: true,
+            lexer,
+            logger,
         }
     }
 
@@ -54,10 +53,7 @@ impl<'a> Parser<'a> {
 
         AST { statements }
     }
-}
 
-/// Private
-impl<'a> Parser<'a> {
     /// Consumes the next semicolon
     fn consume_semicolon(&mut self) {
         if self.lexer.token == Token::Semicolon {
