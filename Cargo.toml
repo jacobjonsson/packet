@@ -6,6 +6,9 @@ members = [
     "src/js_ast",
     "src/js_parser",
     "src/js_printer",
+    "src/bundler",
+    "src/source",
+    "src/fs",
     "src/cli",
     "src/logger",
 ]

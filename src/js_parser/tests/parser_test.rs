@@ -1,14 +1,18 @@
-use js_lexer::Lexer;
-use js_parser::Parser;
+use js_parser::parse;
 use js_printer::Printer;
 use logger::LoggerImpl;
+use source::Source;
 
 fn expect_printed(content: &str, expected: &str) {
+    let source = Source {
+        absolute_path: "/test.js",
+        pretty_path: "./test.js",
+        content: content.into(),
+    };
+
     let logger = LoggerImpl::new();
-    let lexer = Lexer::new(content, &logger);
-    let mut parser = Parser::new(lexer, &logger);
-    let program = parser.parse_program();
-    let output = Printer::new().print_program(&program);
+    let ast = parse(&source, &logger);
+    let output = Printer::new().print_program(&ast);
     assert_eq!(output, expected);
 }
 

@@ -1,13 +1,14 @@
 [package]
-name = "cli"
+name = "bundler"
 version = "0.1.0"
-authors = ["Jacob Jonsson <jacob.jonsson@schibsted.com>"]
+authors = ["Jacob Jonsson <jacobjjonsson@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-source = { path = "../source" }
+fs = { path = "../fs" }
+js_ast = { path = "../js_ast" }
+js_lexer = { path = "../js_lexer" }
 js_parser = { path = "../js_parser" }
-js_printer = { path = "../js_printer" }
 logger = { path = "../logger" }

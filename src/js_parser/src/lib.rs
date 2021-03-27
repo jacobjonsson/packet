@@ -7,10 +7,19 @@ mod module;
 mod object;
 mod statement;
 
-use js_ast::{statement::*, Program};
+use js_ast::{statement::*, AST};
 use js_lexer::Lexer;
 use js_token::Token;
 use logger::Logger;
+use source::Source;
+
+/// Parses the given source into an AST.
+pub fn parse<'a>(source: &Source, logger: &'a impl Logger) -> AST {
+    let lexer = Lexer::new(source.content, logger);
+    let mut parser = Parser::new(lexer, logger);
+    let ast = parser.parse_program();
+    ast
+}
 
 pub struct ParserError(String);
 pub type ParseResult<T> = Result<T, ParserError>;
@@ -19,7 +28,7 @@ pub struct Parser<'a> {
     lexer: Lexer<'a>,
     #[allow(dead_code)]
     logger: &'a dyn Logger,
-    /// in statement is only allowed in certain expressions.
+    /// in statement are only allowed in certain expressions.
     allow_in: bool,
 }
 
@@ -33,7 +42,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_program(&mut self) -> Program {
+    pub fn parse_program(&mut self) -> AST {
         let mut statements = Vec::<Statement>::new();
 
         while &self.lexer.token != &Token::EndOfFile {
@@ -43,7 +52,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        Program { statements }
+        AST { statements }
     }
 }
 

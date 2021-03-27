@@ -1,6 +1,6 @@
-use js_lexer::Lexer;
-use js_parser::Parser;
+use js_parser::parse;
 use logger::LoggerImpl;
+use source::Source;
 
 use std::fs;
 use std::path::PathBuf;
@@ -15,11 +15,15 @@ macro_rules! test_fixture {
                 $file
             ));
             let content = fs::read_to_string(file_path).expect("Failed to read file");
+            let source = Source {
+                absolute_path: &format!("{}/tests/fixtures/{}", env!("CARGO_MANIFEST_DIR"), $file),
+                pretty_path: &format!("{}/tests/fixtures/{}", env!("CARGO_MANIFEST_DIR"), $file),
+
+                content: &content,
+            };
 
             let logger = LoggerImpl::new();
-            let lexer = Lexer::new(&content, &logger);
-            let mut parser = Parser::new(lexer, &logger);
-            let _ = parser.parse_program();
+            parse(&source, &logger);
         }
     };
 }
