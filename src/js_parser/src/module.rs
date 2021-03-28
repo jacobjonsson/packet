@@ -179,7 +179,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                 }
             }
             _ => {
-                let expression = self.parse_expression(Precedence::Lowest)?;
+                let expression = self.parse_expression(&Precedence::Lowest)?;
                 self.consume_semicolon();
                 Ok(ExportDefaultDeclaration {
                     declaration: ExportDefaultDeclarationKind::Expression(expression),

@@ -11,7 +11,7 @@ impl<'a, L: Logger> Parser<'a, L> {
         let extends = match self.lexer.token {
             Token::Extends => {
                 self.lexer.next_token();
-                self.parse_expression(Precedence::Comma).map(Some)?
+                self.parse_expression(&Precedence::Comma).map(Some)?
             }
             _ => None,
         };
@@ -32,7 +32,7 @@ impl<'a, L: Logger> Parser<'a, L> {
         let extends = match self.lexer.token {
             Token::Extends => {
                 self.lexer.next_token(); // Skip the extends token.
-                self.parse_expression(Precedence::Comma)
+                self.parse_expression(&Precedence::Comma)
                     .map(Box::new)
                     .map(Some)?
             }
@@ -97,7 +97,7 @@ impl<'a, L: Logger> Parser<'a, L> {
     fn parse_class_method(&mut self, is_static: bool) -> ParseResult<ClassProperty> {
         if self.lexer.token == Token::OpenBracket {
             self.lexer.next_token();
-            let key = self.parse_expression(Precedence::Comma)?;
+            let key = self.parse_expression(&Precedence::Comma)?;
             self.lexer.expect_token(Token::CloseBracket);
             self.lexer.next_token();
             let parameters = self.parse_function_parameters()?;
@@ -131,7 +131,7 @@ impl<'a, L: Logger> Parser<'a, L> {
         self.lexer.next_token();
         if self.lexer.token == Token::OpenBracket {
             self.lexer.next_token();
-            let key = self.parse_expression(Precedence::Comma)?;
+            let key = self.parse_expression(&Precedence::Comma)?;
             self.lexer.expect_token(Token::CloseBracket);
             self.lexer.next_token();
             let parameters = self.parse_function_parameters()?;
@@ -167,7 +167,7 @@ impl<'a, L: Logger> Parser<'a, L> {
         self.lexer.next_token();
         if self.lexer.token == Token::OpenBracket {
             self.lexer.next_token();
-            let key = self.parse_expression(Precedence::Comma)?;
+            let key = self.parse_expression(&Precedence::Comma)?;
             self.lexer.expect_token(Token::CloseBracket);
             self.lexer.next_token();
             let parameters = self.parse_function_parameters()?;

@@ -161,6 +161,6 @@ impl<'a, L: Logger> Parser<'a, L> {
             return Ok(None);
         }
         self.lexer.next_token();
-        self.parse_expression(Precedence::Comma).map(Some)
+        self.parse_expression(&Precedence::Comma).map(Some)
     }
 }

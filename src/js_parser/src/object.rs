@@ -52,7 +52,7 @@ impl<'a, L: Logger> Parser<'a, L> {
     ) -> ParseResult<ObjectExpressionProperty> {
         if self.lexer.token == Token::DotDotDot {
             self.lexer.next_token();
-            let value = self.parse_expression(Precedence::Comma)?;
+            let value = self.parse_expression(&Precedence::Comma)?;
             return Ok(ObjectExpressionProperty::SpreadExpression(
                 SpreadExpression { value: value },
             ));
@@ -82,7 +82,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             self.lexer.expect_token(Token::Colon);
             self.lexer.next_token();
-            let value = self.parse_expression(Precedence::Comma)?;
+            let value = self.parse_expression(&Precedence::Comma)?;
             return Ok(ObjectExpressionProperty::ComputedObjectProperty(
                 ComputedObjectProperty { key, value },
             ));
@@ -125,7 +125,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
         self.lexer.expect_token(Token::Colon);
         self.lexer.next_token();
-        let value = self.parse_expression(Precedence::Comma)?;
+        let value = self.parse_expression(&Precedence::Comma)?;
         return Ok(ObjectExpressionProperty::ObjectProperty(ObjectProperty {
             identifier,
             value,
@@ -194,7 +194,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
     pub(crate) fn parse_computed_property_name(&mut self) -> ParseResult<Expression> {
         self.lexer.next_token();
-        let key = self.parse_expression(Precedence::Comma)?;
+        let key = self.parse_expression(&Precedence::Comma)?;
         self.lexer.expect_token(Token::CloseBracket);
         self.lexer.next_token();
         Ok(key)

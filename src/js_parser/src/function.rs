@@ -63,7 +63,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     let mut default_value: Option<Expression> = None;
                     if self.lexer.token == Token::Equals {
                         self.lexer.next_token();
-                        default_value = self.parse_expression(Precedence::Comma).map(Some)?;
+                        default_value = self.parse_expression(&Precedence::Comma).map(Some)?;
                     }
                     parameters.push(ParameterKind::Parameter(Parameter {
                         binding,
