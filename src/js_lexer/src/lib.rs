@@ -60,6 +60,13 @@ impl<'a, L: Logger> Lexer<'a, L> {
         }
     }
 
+    /// Asserts that current token matches the provided one,
+    /// and if it does, increments the lexer.
+    pub fn eat_token(&mut self, token: Token) {
+        self.expect_token(token);
+        self.next_token();
+    }
+
     pub fn is_identifier_or_keyword(&self) -> bool {
         match &self.token {
             Token::Identifier => true,

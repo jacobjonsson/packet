@@ -186,7 +186,8 @@ fn test_call_expression() {
     expect_printed("a(a, b)", "a(a, b);\n");
     expect_printed("a(3 + 3)", "a(3 + 3);\n");
     expect_printed("a();b();", "a();\nb();\n");
-    expect_printed("a(b, ...c, d)", "a(b, ...c, d);\n");
+    expect_printed("a(b, ...c, ...d)", "a(b, ...c, ...d);\n");
+    expect_printed("a(b, c, ...d)", "a(b, c, ...d);\n");
 }
 
 #[test]
@@ -320,6 +321,11 @@ fn test_assignment_expression() {
     expect_printed("a &= 1", "a &= 1;\n");
     expect_printed("a &= 3 * 3", "a &= 3 * 3;\n");
     expect_printed("a **= 3 * 3", "a **= 3 * 3;\n");
+    expect_printed("[a] = b", "[a] = b;\n");
+    expect_printed("[...a] = b", "[...a] = b;\n");
+    expect_printed("({ a } = b)", "{ a } = b;\n");
+    expect_printed("({ ...a } = b)", "{ ...a } = b;\n");
+    expect_printed("a = 1, b = 2, c = 3", "a = 1, b = 2, c = 3;\n");
 }
 
 #[test]

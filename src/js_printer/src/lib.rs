@@ -1,6 +1,4 @@
-use js_ast::{
-    binding::*, class::*, expression::*, function::*, literal::*, object::*, statement::*, AST,
-};
+use js_ast::{precedence::*, *};
 
 pub struct Printer {
     text: String,
@@ -163,7 +161,8 @@ impl Printer {
                     return;
                 }
                 self.print_space();
-                let cases: Vec<&SwitchCase> = s.cases.iter().filter(|c| c.test != None).collect();
+                let cases: Vec<&SwitchStatementCase> =
+                    s.cases.iter().filter(|c| c.test != None).collect();
                 for (idx, case) in cases.iter().enumerate() {
                     if idx != 0 {
                         self.print_space();
@@ -177,7 +176,7 @@ impl Printer {
                         self.print_statement(consequent.as_ref());
                     }
                 }
-                let default: Option<&SwitchCase> = s.cases.iter().find(|c| c.test == None);
+                let default: Option<&SwitchStatementCase> = s.cases.iter().find(|c| c.test == None);
                 if let Some(case) = default {
                     if cases.len() > 0 {
                         self.print_space();
@@ -233,71 +232,46 @@ impl Printer {
             }
 
             Statement::ImportDeclaration(i) => {
-                let mut items = 0;
-
                 self.print("import");
                 self.print_space();
 
-                let default_import = &i.specifiers.iter().find_map(|i| match i {
-                    ImportClause::ImportDefault(i) => Some(i),
-                    _ => None,
-                });
-
-                let namespace_import = &i.specifiers.iter().find_map(|i| match i {
-                    ImportClause::ImportNamespace(i) => Some(i),
-                    _ => None,
-                });
-
-                let named_imports: &Vec<&ImportSpecifier> = &i
-                    .specifiers
-                    .iter()
-                    .filter_map(|i| match i {
-                        ImportClause::Import(i) => Some(i),
-                        _ => None,
-                    })
-                    .collect();
-
-                if let Some(i) = default_import {
-                    self.print(&i.local.name);
-                    items += 1;
+                if let Some(default) = &i.default {
+                    self.print_identifier(default);
                 }
 
-                if named_imports.len() > 0 {
-                    if items > 0 {
+                if let Some(namespace) = &i.namespace {
+                    if let Some(_) = &i.default {
                         self.print(",");
                         self.print_space();
                     }
+                    self.print("*");
+                    self.print_space();
+                    self.print("as ");
+                    self.print_identifier(namespace);
+                } else if i.specifiers.len() > 0 {
+                    if let Some(_) = &i.default {
+                        self.print(",");
+                        self.print_space();
+                    }
+
                     self.print("{");
                     self.print_space();
-                    for (idx, named_import) in named_imports.iter().enumerate() {
+                    for (idx, specifier) in i.specifiers.iter().enumerate() {
                         if idx != 0 {
                             self.print(",");
                             self.print_space();
                         }
-
-                        self.print(&named_import.imported.name);
-                        if named_import.imported.name != named_import.local.name {
+                        self.print_identifier(&specifier.local);
+                        if specifier.local.name != specifier.imported.name {
                             self.print(" as ");
-                            self.print(&named_import.local.name);
+                            self.print_identifier(&specifier.imported);
                         }
                     }
                     self.print_space();
                     self.print("}");
                 }
 
-                if let Some(i) = namespace_import {
-                    if items > 0 {
-                        self.print(",");
-                        self.print_space();
-                    }
-
-                    self.print("*");
-                    self.print_space();
-                    self.print("as ");
-                    self.print(&i.local.name);
-                }
-
-                self.print_space();
+                self.print(" ");
                 self.print("from");
                 self.print_space();
                 self.print("\"");
@@ -334,46 +308,15 @@ impl Printer {
             // export {a as c} from "b";
             Statement::ExportNamedDeclaration(e) => {
                 self.print("export");
-                if let Some(declaration) = &e.declaration {
-                    self.print(" ");
-                    match declaration {
-                        Declaration::FunctionDeclaration(f) => self.print_function_declaration(f),
-                        Declaration::VariableDeclaration(v) => {
-                            self.print_variable_declaration(v);
-                            self.print_semicolon_after_statement();
-                        }
+                self.print(" ");
+                match &e.declaration {
+                    ExportNamedDeclarationKind::FunctionDeclaration(f) => {
+                        self.print_function_declaration(f)
                     }
-                } else {
-                    self.print_space();
-                    self.print("{");
-                    for (idx, specifier) in e.specifiers.iter().enumerate() {
-                        if idx == 0 {
-                            self.print_space();
-                        }
-                        if idx != 0 {
-                            self.print(",");
-                            self.print_space();
-                        }
-
-                        self.print_identifier(&specifier.local);
-                        if specifier.local.name != specifier.exported.name {
-                            self.print(" as ");
-                            self.print_identifier(&specifier.exported);
-                        }
-
-                        if idx == e.specifiers.len() - 1 {
-                            self.print_space();
-                        }
+                    ExportNamedDeclarationKind::VariableDeclaration(v) => {
+                        self.print_variable_declaration(v);
+                        self.print_semicolon_after_statement();
                     }
-                    self.print("}");
-
-                    if let Some(source) = &e.source {
-                        self.print_space();
-                        self.print("from");
-                        self.print_space();
-                        self.print_string_literal(source);
-                    }
-                    self.print_semicolon_after_statement();
                 }
             }
 
@@ -394,7 +337,40 @@ impl Printer {
                     ExportDefaultDeclarationKind::AnonymousDefaultExportedFunctionDeclaration(
                         a,
                     ) => self.print_anonymous_default_exported_function_declaration(a),
+
+                    ExportDefaultDeclarationKind::ClassDeclaration(_) => todo!(),
                 }
+            }
+
+            Statement::ExportNamedSpecifiers(e) => {
+                self.print("export");
+                self.print_space();
+                self.print("{");
+                if e.specifiers.len() > 0 {
+                    self.print_space();
+                }
+                for (idx, specifier) in e.specifiers.iter().enumerate() {
+                    if idx != 0 {
+                        self.print(",");
+                        self.print_space();
+                    }
+                    self.print_identifier(&specifier.local);
+                    if specifier.local != specifier.exported {
+                        self.print(" as ");
+                        self.print_identifier(&specifier.exported);
+                    }
+                }
+                if e.specifiers.len() > 0 {
+                    self.print_space();
+                }
+                self.print("}");
+                if let Some(source) = &e.source {
+                    self.print_space();
+                    self.print("from");
+                    self.print_space();
+                    self.print_string_literal(source);
+                }
+                self.print_semicolon_after_statement();
             }
 
             Statement::AnonymousDefaultExportedFunctionDeclaration(a) => {
@@ -406,8 +382,8 @@ impl Printer {
     fn print_literal_property_name(&mut self, literal_property_name: &LiteralPropertyName) {
         match literal_property_name {
             LiteralPropertyName::Identifier(i) => self.print_identifier(i),
-            LiteralPropertyName::StringLiteral(s) => self.print_string_literal(s),
-            LiteralPropertyName::NumericLiteral(n) => self.print_numeric_literal(n),
+            LiteralPropertyName::String(s) => self.print_string_literal(s),
+            LiteralPropertyName::Numeric(n) => self.print_numeric_literal(n),
         }
     }
 
@@ -458,8 +434,8 @@ impl Printer {
                 self.print(",");
                 self.print_space();
             }
-            self.print_binding(&declaration.id);
-            if let Some(expression) = &declaration.init {
+            self.print_binding(&declaration.binding);
+            if let Some(expression) = &declaration.initializer {
                 self.print_space();
                 self.print("=");
                 self.print_space();
@@ -501,7 +477,7 @@ impl Printer {
 
     fn print_function_declaration(&mut self, function_declaration: &FunctionDeclaration) {
         self.print("function ");
-        self.print_identifier(&function_declaration.id);
+        self.print_identifier(&function_declaration.identifier);
         self.print("(");
         for (idx, parameter) in function_declaration.parameters.iter().enumerate() {
             if idx != 0 {
@@ -536,14 +512,14 @@ impl Printer {
         match &parameter {
             ParameterKind::Parameter(p) => {
                 self.print_binding(&p.binding);
-                if let Some(default_value) = &p.default_value {
+                if let Some(initializer) = &p.initializer {
                     self.print_space();
                     self.print("=");
                     self.print_space();
-                    self.print_expression(default_value, Precedence::Comma);
+                    self.print_expression(initializer, Precedence::Comma);
                 }
             }
-            ParameterKind::RestParameter(r) => {
+            ParameterKind::Rest(r) => {
                 self.print("...");
                 self.print_binding(&r.binding);
             }
@@ -553,17 +529,20 @@ impl Printer {
     fn print_expression(&mut self, expression: &Expression, precedence: Precedence) {
         match &expression {
             Expression::NullLiteral(_) => self.print("null"),
+
             Expression::BooleanLiteral(e) => {
                 match e.value {
                     true => self.print("true"),
                     false => self.print("false"),
                 };
             }
+
             Expression::BigIntLiteral(b) => {
                 self.print(&b.value);
                 self.print("n");
             }
-            Expression::ClassExpression(c) => {
+
+            Expression::Class(c) => {
                 self.print("class");
                 if let Some(id) = &c.identifier {
                     self.print(" ");
@@ -579,27 +558,31 @@ impl Printer {
                 }
                 self.print_class_body(&c.body);
             }
+
             Expression::Identifier(e) => {
                 self.print(&e.name);
             }
+
             Expression::NumericLiteral(e) => {
                 self.print(&e.value.to_string());
             }
+
             Expression::RegexpLiteral(r) => {
                 self.print(&r.value);
             }
-            Expression::ThisExpression(_) => self.print("this"),
-            Expression::SuperExpression(_) => self.print("super"),
-            Expression::ArrayExpression(a) => {
+
+            Expression::This(_) => self.print("this"),
+
+            Expression::Super(_) => self.print("super"),
+
+            Expression::Array(a) => {
                 self.print("[");
-                for (idx, element) in a.elements.iter().enumerate() {
-                    let is_last_element = idx < a.elements.len() - 1;
+                for (idx, element) in a.items.iter().enumerate() {
+                    let is_last_element = idx < a.items.len() - 1;
                     match element {
                         Some(item) => {
                             match item {
-                                ArrayExpressionItem::SpreadExpression(s) => {
-                                    self.print_spread_expression(s)
-                                }
+                                ArrayExpressionItem::Spread(s) => self.print_spread_element(s),
                                 ArrayExpressionItem::Expression(e) => {
                                     self.print_expression(e, Precedence::Comma)
                                 }
@@ -621,85 +604,105 @@ impl Printer {
                 }
                 self.print("]");
             }
-            Expression::BinaryExpression(e) => {
-                let entry = get_op_entry(&e.op_code);
-                let wrap = precedence >= entry.precedence;
+
+            Expression::Binary(e) => {
+                let operator_precedence = e.operator.precedence();
+                let wrap = precedence >= operator_precedence;
                 if wrap {
                     self.print("(");
                 }
-                let mut left_precedence = entry.precedence.lower();
-                let mut right_precedence = entry.precedence.lower();
-                if e.op_code.is_right_associative() {
-                    left_precedence = entry.precedence.clone();
-                }
-                if e.op_code.is_left_associative() {
-                    right_precedence = entry.precedence.clone();
-                }
 
-                match &e.op_code {
-                    // "??" can't directly contain "||" or "&&" without being wrapped in parentheses
-                    OpCode::BinaryNullishCoalescing => {
-                        match e.left.as_ref() {
-                            Expression::BinaryExpression(ex) => {
-                                if ex.op_code == OpCode::BinaryLogicalOr
-                                    || ex.op_code == OpCode::BinaryLogicalAnd
-                                {
-                                    left_precedence = Precedence::Prefix;
-                                }
-                            }
-                            _ => {}
-                        };
-                        match e.right.as_ref() {
-                            Expression::BinaryExpression(ex) => {
-                                if ex.op_code == OpCode::BinaryLogicalOr
-                                    || ex.op_code == OpCode::BinaryLogicalAnd
-                                {
-                                    right_precedence = Precedence::Prefix;
-                                }
-                            }
-                            _ => {}
-                        };
-                    }
-
-                    // TODO: "**" can't contain certain unary expressions
-                    // https://github.com/evanw/esbuild/blob/c8eb58f7fa9dd6f17a062f269a2262b42f282671/internal/js_printer/js_printer.go#L2015
-                    _ => {}
-                }
+                let left_precedence = match e.operator.is_right_associative() {
+                    true => operator_precedence.clone(),
+                    false => operator_precedence.lower(),
+                };
+                let right_precedence = match e.operator.is_left_associative() {
+                    true => operator_precedence.clone(),
+                    false => operator_precedence.lower(),
+                };
 
                 self.print_expression(&e.left, left_precedence);
-
-                if e.op_code != OpCode::BinaryComma {
+                if e.operator == BinaryExpressionOperator::In
+                    || e.operator == BinaryExpressionOperator::Instanceof
+                {
+                    self.print(" ");
+                } else {
                     self.print_space();
                 }
-
-                self.print(&entry.text);
-
-                self.print_space();
+                match &e.operator {
+                    BinaryExpressionOperator::Addition => self.print("+"),
+                    BinaryExpressionOperator::Substitution => self.print("-"),
+                    BinaryExpressionOperator::Multiplication => self.print("*"),
+                    BinaryExpressionOperator::Division => self.print("/"),
+                    BinaryExpressionOperator::Modulus => self.print("%"),
+                    BinaryExpressionOperator::Exponentiation => self.print("**"),
+                    BinaryExpressionOperator::LessThan => self.print("<"),
+                    BinaryExpressionOperator::LessThanEquals => self.print("<="),
+                    BinaryExpressionOperator::GreaterThan => self.print(">"),
+                    BinaryExpressionOperator::GreaterThanEquals => self.print(">="),
+                    BinaryExpressionOperator::In => self.print("in"),
+                    BinaryExpressionOperator::Instanceof => self.print("instanceof"),
+                    BinaryExpressionOperator::LeftShift => self.print("<<"),
+                    BinaryExpressionOperator::RightShift => self.print(">>"),
+                    BinaryExpressionOperator::UnsignedRightShift => self.print(">>>"),
+                    BinaryExpressionOperator::LooseEquals => self.print("=="),
+                    BinaryExpressionOperator::LooseNotEquals => self.print("!="),
+                    BinaryExpressionOperator::StrictEquals => self.print("==="),
+                    BinaryExpressionOperator::StrictNotEquals => self.print("!=="),
+                    BinaryExpressionOperator::NullishCoalescing => self.print("??"),
+                    BinaryExpressionOperator::BitwiseOr => self.print("|"),
+                    BinaryExpressionOperator::BitwiseAnd => self.print("&"),
+                    BinaryExpressionOperator::BitwiseXor => self.print("^"),
+                };
+                if e.operator == BinaryExpressionOperator::In
+                    || e.operator == BinaryExpressionOperator::Instanceof
+                {
+                    self.print(" ");
+                } else {
+                    self.print_space();
+                }
                 self.print_expression(&e.right, right_precedence);
-
                 if wrap {
                     self.print(")");
                 }
             }
 
-            Expression::UnaryExpression(e) => {
-                let entry = get_op_entry(&e.op_code);
-                let wrap = precedence >= entry.precedence;
+            Expression::Unary(e) => {
+                let operator_precedence = e.operator.precedence();
+                let wrap = precedence >= operator_precedence;
                 if wrap {
                     self.print("(");
                 }
-                if !e.op_code.is_prefix() {
-                    self.print_expression(&e.expression, Precedence::Postfix.lower());
+                match &e.operator {
+                    UnaryExpressionOperator::Positive => self.print("+"),
+                    UnaryExpressionOperator::Negative => self.print("-"),
+                    UnaryExpressionOperator::BinaryNot => self.print("~"),
+                    UnaryExpressionOperator::LogicalNot => self.print("!"),
+                    UnaryExpressionOperator::Void => self.print("void "),
+                    UnaryExpressionOperator::Typeof => self.print("typeof "),
+                    UnaryExpressionOperator::Delete => self.print("delete "),
+                };
+                self.print_expression(&e.argument, operator_precedence.lower());
+                if wrap {
+                    self.print(")");
                 }
-                if entry.is_keyword {
-                    self.print(&entry.text);
-                    self.print(" ");
-                } else {
-                    self.print(&entry.text);
+            }
+
+            Expression::Logical(l) => {
+                let operator_precedence = l.operator.precedence();
+                let wrap = precedence >= operator_precedence;
+                if wrap {
+                    self.print("(");
                 }
-                if e.op_code.is_prefix() {
-                    self.print_expression(&e.expression, Precedence::Prefix.lower());
+                self.print_expression(&l.left, operator_precedence.lower());
+                self.print_space();
+                match &l.operator {
+                    LogicalExpressionOperator::Or => self.print("||"),
+                    LogicalExpressionOperator::And => self.print("&&"),
+                    LogicalExpressionOperator::NullishCoalescing => self.print("??"),
                 }
+                self.print_space();
+                self.print_expression(&l.right, operator_precedence.clone());
                 if wrap {
                     self.print(")");
                 }
@@ -711,7 +714,7 @@ impl Printer {
                 self.print("\"");
             }
 
-            Expression::CallExpression(c) => {
+            Expression::Call(c) => {
                 self.print_expression(&c.callee, Precedence::Postfix);
                 self.print("(");
 
@@ -722,20 +725,20 @@ impl Printer {
                     }
 
                     match &argument {
-                        Argument::Expression(e) => self.print_expression(e, Precedence::Comma),
-                        Argument::SpreadExpression(s) => self.print_spread_expression(s),
+                        ArgumentKind::Expression(e) => self.print_expression(e, Precedence::Comma),
+                        ArgumentKind::Spread(s) => self.print_spread_element(s),
                     }
                 }
                 self.print(")");
             }
 
-            Expression::FunctionExpression(f) => {
+            Expression::Function(f) => {
                 let wrap = self.text.len() == self.statement_start;
                 if wrap {
                     self.print("(");
                 }
                 self.print("function");
-                if let Some(identifier) = &f.id {
+                if let Some(identifier) = &f.identifier {
                     self.print_space();
                     self.print_identifier(identifier);
                 }
@@ -756,7 +759,7 @@ impl Printer {
                 }
             }
 
-            Expression::ConditionalExpression(c) => {
+            Expression::Conditional(c) => {
                 let wrap = precedence >= Precedence::Conditional;
                 if wrap {
                     self.print("(");
@@ -771,7 +774,7 @@ impl Printer {
                 }
             }
 
-            Expression::NewExpression(n) => {
+            Expression::New(n) => {
                 self.print("new ");
                 self.print_expression(&n.callee, Precedence::New);
                 self.print("(");
@@ -781,14 +784,14 @@ impl Printer {
                         self.print_space();
                     }
                     match &argument {
-                        Argument::Expression(e) => self.print_expression(e, Precedence::Comma),
-                        Argument::SpreadExpression(s) => self.print_spread_expression(s),
+                        ArgumentKind::Expression(e) => self.print_expression(e, Precedence::Comma),
+                        ArgumentKind::Spread(s) => self.print_spread_element(s),
                     }
                 }
                 self.print(")");
             }
 
-            Expression::MemberExpression(m) => {
+            Expression::Member(m) => {
                 self.print_expression(&m.object, Precedence::Postfix);
                 if m.computed {
                     self.print("[");
@@ -801,7 +804,7 @@ impl Printer {
                 }
             }
 
-            Expression::ObjectExpression(o) => {
+            Expression::Object(o) => {
                 let wrap = self.text.len() == self.statement_start;
                 if wrap {
                     self.print("(");
@@ -815,7 +818,7 @@ impl Printer {
                         self.print(",");
                         self.print_space();
                     }
-                    self.print_object_expression_property(&property);
+                    self.print_object_expression_property(property);
 
                     if idx == o.properties.len() - 1 {
                         self.print_space();
@@ -826,10 +829,67 @@ impl Printer {
                     self.print(")");
                 }
             }
+
+            Expression::Assignment(a) => {
+                match &a.left {
+                    AssignmentExpressionLeft::Binding(b) => self.print_binding(b),
+                    AssignmentExpressionLeft::Expression(e) => {
+                        self.print_expression(e, Precedence::Comma)
+                    }
+                };
+                self.print_space();
+                match a.operator {
+                    AssignmentExpressionOperator::Assign => self.print("="),
+                    AssignmentExpressionOperator::AdditionAssign => self.print("+="),
+                    AssignmentExpressionOperator::SubstitutionAssign => self.print("-="),
+                    AssignmentExpressionOperator::MultiplicationAssign => self.print("*="),
+                    AssignmentExpressionOperator::DivisionAssign => self.print("/="),
+                    AssignmentExpressionOperator::ModulusAssign => self.print("%="),
+                    AssignmentExpressionOperator::ExponentiationAssign => self.print("**="),
+                    AssignmentExpressionOperator::LeftShiftAssign => self.print("<<="),
+                    AssignmentExpressionOperator::RightShiftAssign => self.print(">>="),
+                    AssignmentExpressionOperator::UnsignedRightShiftAssign => self.print(">>>="),
+                    AssignmentExpressionOperator::BitwiseOrAssign => self.print("|="),
+                    AssignmentExpressionOperator::BitwiseAndAssign => self.print("&="),
+                    AssignmentExpressionOperator::BitwiseXorAssign => self.print("^="),
+                    AssignmentExpressionOperator::NullishCoalescingAssign => self.print("??="),
+                    AssignmentExpressionOperator::LogicalOrAssign => self.print("||="),
+                    AssignmentExpressionOperator::LogicalAndAssign => self.print("&&="),
+                }
+                self.print_space();
+                self.print_expression(&a.right, Precedence::Assign.lower());
+            }
+
+            Expression::ArrowFunction(_) => todo!(),
+
+            Expression::Sequence(s) => {
+                for (idx, expression) in s.expressions.iter().enumerate() {
+                    if idx != 0 {
+                        self.print(",");
+                        self.print_space();
+                    }
+
+                    self.print_expression(&expression, Precedence::Comma);
+                }
+            }
+
+            Expression::Update(u) => {
+                match &u.operator {
+                    UpdateExpressionOperator::PrefixIncrement => self.print("++"),
+                    UpdateExpressionOperator::PrefixDecrement => self.print("--"),
+                    _ => {}
+                };
+                self.print_expression(&u.argument, Precedence::Prefix);
+                match &u.operator {
+                    UpdateExpressionOperator::PostfixIncrement => self.print("++"),
+                    UpdateExpressionOperator::PostfixDecrement => self.print("--"),
+                    _ => {}
+                }
+            }
         }
     }
 
-    fn print_class_body(&mut self, properties: &Vec<ClassProperty>) {
+    fn print_class_body(&mut self, properties: &Vec<ClassPropertyKind>) {
         if properties.len() == 0 {
             self.print("{}");
             return;
@@ -842,66 +902,66 @@ impl Printer {
             }
 
             match item {
-                ClassProperty::ClassConstructor(c) => {
+                ClassPropertyKind::Constructor(c) => {
                     self.print("constructor(");
-                    self.print_function_parameters(&c.value.parameters);
+                    self.print_parameters(&c.parameters);
                     self.print(")");
                     self.print_space();
-                    self.print_block_statement(&c.value.body);
+                    self.print_block_statement(&c.body);
                 }
-                ClassProperty::ClassMethod(c) => {
+                ClassPropertyKind::Method(c) => {
                     self.print_literal_property_name(&c.identifier);
                     self.print("(");
-                    self.print_function_parameters(&c.value.parameters);
+                    self.print_parameters(&c.parameters);
                     self.print(")");
                     self.print_space();
-                    self.print_block_statement(&c.value.body);
+                    self.print_block_statement(&c.body);
                 }
-                ClassProperty::ComputedClassMethod(c) => {
+                ClassPropertyKind::MethodComputed(c) => {
                     self.print_computed_property_name(&c.key);
                     self.print("(");
-                    self.print_function_parameters(&c.value.parameters);
+                    self.print_parameters(&c.parameters);
                     self.print(")");
                     self.print_space();
-                    self.print_block_statement(&c.value.body);
+                    self.print_block_statement(&c.body);
                 }
-                ClassProperty::ClassGetMethod(c) => {
+                ClassPropertyKind::MethodGet(c) => {
                     self.print("get ");
                     self.print_literal_property_name(&c.identifier);
                     self.print("(");
-                    self.print_function_parameters(&c.value.parameters);
+                    self.print_parameters(&c.parameters);
                     self.print(")");
                     self.print_space();
-                    self.print_block_statement(&c.value.body);
+                    self.print_block_statement(&c.body);
                 }
-                ClassProperty::ComputedClassGetMethod(c) => {
+                ClassPropertyKind::MethodGetComputed(c) => {
                     self.print("get");
                     self.print_space();
                     self.print_computed_property_name(&c.key);
                     self.print("(");
-                    self.print_function_parameters(&c.value.parameters);
+                    self.print_parameters(&c.parameters);
                     self.print(")");
                     self.print_space();
-                    self.print_block_statement(&c.value.body);
+                    self.print_block_statement(&c.body);
                 }
-                ClassProperty::ClassSetMethod(c) => {
+                ClassPropertyKind::MethodSet(c) => {
                     self.print("set ");
                     self.print_literal_property_name(&c.identifier);
                     self.print("(");
-                    self.print_function_parameters(&c.value.parameters);
+                    self.print_parameters(&c.parameters);
                     self.print(")");
                     self.print_space();
-                    self.print_block_statement(&c.value.body);
+                    self.print_block_statement(&c.body);
                 }
-                ClassProperty::ComputedClassSetMethod(c) => {
+                ClassPropertyKind::MethodSetComputed(c) => {
                     self.print("set");
                     self.print_space();
                     self.print_computed_property_name(&c.key);
                     self.print("(");
-                    self.print_function_parameters(&c.value.parameters);
+                    self.print_parameters(&c.parameters);
                     self.print(")");
                     self.print_space();
-                    self.print_block_statement(&c.value.body);
+                    self.print_block_statement(&c.body);
                 }
             }
         }
@@ -910,7 +970,7 @@ impl Printer {
         self.print("}");
     }
 
-    fn print_function_parameters(&mut self, parameters: &Vec<ParameterKind>) {
+    fn print_parameters(&mut self, parameters: &Vec<ParameterKind>) {
         for (idx, parameter) in parameters.iter().enumerate() {
             if idx != 0 {
                 self.print(",");
@@ -920,80 +980,80 @@ impl Printer {
         }
     }
 
-    fn print_spread_expression(&mut self, spread_expression: &SpreadExpression) {
+    fn print_spread_element(&mut self, spread_expression: &SpreadElement) {
         self.print("...");
-        self.print_expression(&spread_expression.value, Precedence::Comma);
+        self.print_expression(&spread_expression.element, Precedence::Comma);
     }
 
-    fn print_object_expression_property(&mut self, property: &ObjectExpressionProperty) {
+    fn print_object_expression_property(&mut self, property: &ObjectExpressionPropertyKind) {
         match property {
-            ObjectExpressionProperty::SpreadExpression(s) => self.print_spread_expression(s),
-            ObjectExpressionProperty::ObjectProperty(p) => {
-                self.print_literal_property_name(&p.identifier);
+            ObjectExpressionPropertyKind::Spread(s) => self.print_spread_element(s),
+            ObjectExpressionPropertyKind::Property(p) => {
+                self.print_literal_property_name(&p.key);
                 self.print(":");
                 self.print_space();
                 self.print_expression(&p.value, Precedence::Comma);
             }
-            ObjectExpressionProperty::ObjectPropertyShorthand(p) => {
-                self.print_identifier(&p.identifier);
+            ObjectExpressionPropertyKind::Shorthand(p) => {
+                self.print_identifier(&p.key);
             }
-            ObjectExpressionProperty::ComputedObjectProperty(p) => {
+            ObjectExpressionPropertyKind::Computed(p) => {
                 self.print_computed_property_name(&p.key);
                 self.print(":");
                 self.print_space();
                 self.print_expression(&p.value, Precedence::Comma);
             }
-            ObjectExpressionProperty::ObjectMethod(m) => {
-                self.print_literal_property_name(&m.identifier);
+            ObjectExpressionPropertyKind::Method(m) => {
+                self.print_literal_property_name(&m.key);
                 self.print("(");
-                self.print_function_parameters(&m.value.parameters);
+                self.print_parameters(&m.parameters);
                 self.print(")");
                 self.print_space();
-                self.print_block_statement(&m.value.body);
+                self.print_block_statement(&m.body);
             }
-            ObjectExpressionProperty::ComputedObjectMethod(m) => {
+            ObjectExpressionPropertyKind::MethodComputed(m) => {
                 self.print_computed_property_name(&m.key);
                 self.print("(");
-                self.print_function_parameters(&m.value.parameters);
+                self.print_parameters(&m.parameters);
                 self.print(")");
                 self.print_space();
-                self.print_block_statement(&m.value.body);
+                self.print_block_statement(&m.body);
             }
-            ObjectExpressionProperty::ObjectGetMethod(m) => {
+            ObjectExpressionPropertyKind::MethodGet(m) => {
                 self.print("get ");
-                self.print_literal_property_name(&m.identifier);
+                self.print_literal_property_name(&m.key);
                 self.print("(");
-                self.print_function_parameters(&m.value.parameters);
+                self.print_parameters(&m.parameters);
                 self.print(")");
                 self.print_space();
-                self.print_block_statement(&m.value.body);
+                self.print_block_statement(&m.body);
             }
-            ObjectExpressionProperty::ComputedObjectGetMethod(m) => {
+            ObjectExpressionPropertyKind::MethodGetComputed(m) => {
                 self.print("get ");
                 self.print_computed_property_name(&m.key);
                 self.print("(");
-                self.print_function_parameters(&m.value.parameters);
+                self.print_parameters(&m.parameters);
                 self.print(")");
                 self.print_space();
-                self.print_block_statement(&m.value.body);
+                self.print_block_statement(&m.body);
             }
-            ObjectExpressionProperty::ObjectSetMethod(m) => {
+            ObjectExpressionPropertyKind::MethodSet(m) => {
                 self.print("set ");
-                self.print_literal_property_name(&m.identifier);
+                self.print_literal_property_name(&m.key);
                 self.print("(");
-                self.print_function_parameters(&m.value.parameters);
+                self.print_parameters(&m.parameters);
                 self.print(")");
                 self.print_space();
-                self.print_block_statement(&m.value.body);
+                self.print_block_statement(&m.body);
             }
-            ObjectExpressionProperty::ComputedObjectSetMethod(m) => {
+            ObjectExpressionPropertyKind::MethodSetComputed(m) => {
                 self.print("set ");
                 self.print_computed_property_name(&m.key);
                 self.print("(");
-                self.print_function_parameters(&m.value.parameters);
+                self.print_parameters(&m.parameters);
                 self.print(")");
                 self.print_space();
-                self.print_block_statement(&m.value.body);
+                self.print_block_statement(&m.body);
             }
         }
     }
@@ -1002,64 +1062,71 @@ impl Printer {
         self.print(&id.name);
     }
 
-    /* -------------------------------------------------------------------------- */
-    /*                                   Binding                                  */
-    /* -------------------------------------------------------------------------- */
-
     fn print_binding(&mut self, binding: &Binding) {
         match binding {
             Binding::Identifier(i) => self.print_identifier(i),
-            Binding::ObjectBinding(o) => self.print_object_binding(o),
-            Binding::ArrayBinding(a) => self.print_array_binding(a),
-            Binding::RestElementBinding(r) => self.print_rest_element_binding(r),
+            Binding::Object(o) => self.print_object_binding(o),
+            Binding::Array(a) => self.print_array_binding(a),
         };
     }
 
     fn print_object_binding(&mut self, object_binding: &ObjectBinding) {
         if object_binding.properties.len() == 0 {
             self.print("{}");
-        } else {
-            self.print("{");
-            self.print_space();
-            for (idx, property) in object_binding.properties.iter().enumerate() {
-                if idx != 0 {
-                    self.print(",");
-                    self.print_newline();
-                }
+            return;
+        }
 
-                match &property.property {
-                    ObjectBindingPropertyKind::ObjectBindingStaticProperty(o) => {
-                        self.print_literal_property_name(&o.identifier);
-                        self.print(":");
-                        self.print_space();
-                        self.print_binding(&o.value);
-                    }
-                    ObjectBindingPropertyKind::ObjectBindingShorthandProperty(o) => {
-                        self.print_identifier(&o.identifier);
-                    }
-                    ObjectBindingPropertyKind::ObjectBindingComputedProperty(o) => {
-                        self.print_computed_property_name(&o.key);
-                        self.print(":");
-                        self.print_space();
-                        self.print_binding(&o.value);
-                    }
-                    ObjectBindingPropertyKind::ObjectBindingRestProperty(o) => {
-                        self.print("...");
-                        self.print_identifier(&o.identifier);
-                    }
-                }
-
-                if let Some(expression) = &property.default_value {
-                    self.print_space();
-                    self.print("=");
-                    self.print_space();
-                    self.print_expression(expression, Precedence::Comma);
-                }
+        self.print("{");
+        self.print_space();
+        for (idx, property) in object_binding.properties.iter().enumerate() {
+            if idx != 0 {
+                self.print(",");
+                self.print_newline();
             }
 
-            self.print_space();
-            self.print("}");
+            match &property {
+                ObjectBindingPropertyKind::Property(o) => {
+                    self.print_literal_property_name(&o.key);
+                    self.print(":");
+                    self.print_space();
+                    self.print_binding(&o.binding);
+                    if let Some(initializer) = &o.initializer {
+                        self.print_space();
+                        self.print("=");
+                        self.print_space();
+                        self.print_expression(initializer, Precedence::Comma);
+                    }
+                }
+                ObjectBindingPropertyKind::Shorthand(o) => {
+                    self.print_identifier(&o.key);
+                    if let Some(initializer) = &o.initializer {
+                        self.print_space();
+                        self.print("=");
+                        self.print_space();
+                        self.print_expression(initializer, Precedence::Comma);
+                    }
+                }
+                ObjectBindingPropertyKind::Computed(o) => {
+                    self.print_computed_property_name(&o.key);
+                    self.print(":");
+                    self.print_space();
+                    self.print_binding(&o.binding);
+                    if let Some(initializer) = &o.initializer {
+                        self.print_space();
+                        self.print("=");
+                        self.print_space();
+                        self.print_expression(initializer, Precedence::Comma);
+                    }
+                }
+                ObjectBindingPropertyKind::Rest(o) => {
+                    self.print("...");
+                    self.print_identifier(&o.key);
+                }
+            }
         }
+
+        self.print_space();
+        self.print("}");
     }
 
     fn print_array_binding(&mut self, array_binding: &ArrayBinding) {
@@ -1073,26 +1140,28 @@ impl Printer {
                     self.print_space();
                 }
 
-                self.print_binding(&item.value);
-
-                if let Some(expression) = &item.default_value {
-                    self.print_space();
-                    self.print("=");
-                    self.print_space();
-                    self.print_expression(expression, Precedence::Comma);
+                if let Some(i) = &item {
+                    match i {
+                        ArrayBindingItemKind::Item(i) => {
+                            self.print_binding(&i.binding);
+                            if let Some(initializer) = &i.initializer {
+                                self.print_space();
+                                self.print("=");
+                                self.print_space();
+                                self.print_expression(initializer, Precedence::Comma);
+                            }
+                        }
+                        ArrayBindingItemKind::Rest(r) => {
+                            self.print("...");
+                            self.print_binding(&r.binding);
+                        }
+                    }
+                } else {
+                    self.print(",");
                 }
             }
             self.print("]");
         }
-    }
-
-    fn print_rest_element_binding(&mut self, rest_element_binding: &RestElementBinding) {
-        self.print("...");
-        match &rest_element_binding.key {
-            RestElementBindingKey::Identifier(i) => self.print_identifier(i),
-            RestElementBindingKey::ObjectBinding(o) => self.print_object_binding(o),
-            RestElementBindingKey::ArrayBinding(a) => self.print_array_binding(a),
-        };
     }
 
     fn print_numeric_literal(&mut self, numeric_literal: &NumericLiteral) {
