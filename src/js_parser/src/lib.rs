@@ -1831,7 +1831,32 @@ impl<'a, L: Logger> Parser<'a, L> {
                             }
                         }
 
-                        Token::Class => todo!(),
+                        Token::Class => {
+                            self.lexer.next_token();
+                            let identifier = match self.lexer.token {
+                                Token::Identifier => self.parse_identifier().map(Some)?,
+                                _ => None,
+                            };
+                            let extends = match self.lexer.token {
+                                Token::Extends => {
+                                    self.lexer.next_token();
+                                    self.parse_expression(&Precedence::Comma).map(Some)?
+                                }
+                                _ => None,
+                            };
+                            let body = self.parse_class_body()?;
+                            match identifier {
+                                Some(ident) => ExportDefaultDeclarationKind::ClassDeclaration(ClassDeclaration {
+                                    body,
+                                    extends,
+                                    identifier: ident
+                                }),
+                                None => ExportDefaultDeclarationKind::AnonymousDefaultExportedClassDeclaration(AnonymousDefaultExportedClassDeclaration {
+                                    body,
+                                    extends,
+                                }),
+                            }
+                        }
 
                         _ => self
                             .parse_expression(&Precedence::Comma)
@@ -1862,7 +1887,27 @@ impl<'a, L: Logger> Parser<'a, L> {
                     }
 
                     // export class A {}
-                    Token::Class => todo!(),
+                    Token::Class => {
+                        self.lexer.next_token();
+                        let identifier = self.parse_identifier()?;
+                        let extends = match self.lexer.token {
+                            Token::Extends => {
+                                self.lexer.next_token();
+                                self.parse_expression(&Precedence::Comma).map(Some)?
+                            }
+                            _ => None,
+                        };
+                        let body = self.parse_class_body()?;
+                        Ok(Statement::ExportNamedDeclaration(ExportNamedDeclaration {
+                            declaration: ExportNamedDeclarationKind::ClassDeclaration(
+                                ClassDeclaration {
+                                    body,
+                                    extends,
+                                    identifier,
+                                },
+                            ),
+                        }))
+                    }
 
                     // export const a = 1;
                     // export var a = 1;

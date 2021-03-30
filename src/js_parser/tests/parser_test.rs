@@ -516,6 +516,9 @@ fn test_export_named_declaration() {
     );
     expect_printed("export function a() {}", "export function a() {}");
     expect_printed("export const a = 1;", "export const a = 1;\n");
+    expect_printed("export class A {}", "export class A {}");
+    expect_printed("export class A extends B {}", "export class A extends B {}");
+    expect_printed("export class A { b() {} }", "export class A { b() {} }");
 }
 
 #[test]
@@ -533,6 +536,8 @@ fn test_export_default_declaration() {
         "export default function() {}",
         "export default function() {}",
     );
+    expect_printed("export default class A {}", "export default class A {}");
+    expect_printed("export default class {}", "export default class {}");
     expect_printed("export default 3 + 3", "export default 3 + 3;\n");
     expect_printed("export default { a: c }", "export default { a: c };\n");
 }

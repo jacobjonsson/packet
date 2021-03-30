@@ -313,9 +313,21 @@ impl Printer {
                     ExportNamedDeclarationKind::FunctionDeclaration(f) => {
                         self.print_function_declaration(f)
                     }
+
                     ExportNamedDeclarationKind::VariableDeclaration(v) => {
                         self.print_variable_declaration(v);
                         self.print_semicolon_after_statement();
+                    }
+                    ExportNamedDeclarationKind::ClassDeclaration(c) => {
+                        self.print("class ");
+                        self.print_identifier(&c.identifier);
+                        self.print_space();
+                        if let Some(super_class) = &c.extends {
+                            self.print("extends ");
+                            self.print_expression(super_class, Precedence::Comma);
+                            self.print_space();
+                        }
+                        self.print_class_body(&c.body);
                     }
                 }
             }
@@ -330,15 +342,44 @@ impl Printer {
                     ExportDefaultDeclarationKind::FunctionDeclaration(f) => {
                         self.print_function_declaration(f);
                     }
+
                     ExportDefaultDeclarationKind::Expression(exp) => {
                         self.print_expression(exp, Precedence::Comma);
                         self.print_semicolon_after_statement();
                     }
+
                     ExportDefaultDeclarationKind::AnonymousDefaultExportedFunctionDeclaration(
                         a,
-                    ) => self.print_anonymous_default_exported_function_declaration(a),
+                    ) => {
+                        self.print("function(");
+                        self.print_parameters(&a.parameters);
+                        self.print(")");
+                        self.print_space();
+                        self.print_block_statement(&a.body);
+                    }
 
-                    ExportDefaultDeclarationKind::ClassDeclaration(_) => todo!(),
+                    ExportDefaultDeclarationKind::AnonymousDefaultExportedClassDeclaration(c) => {
+                        self.print("class");
+                        self.print_space();
+                        if let Some(super_class) = &c.extends {
+                            self.print("extends ");
+                            self.print_expression(super_class, Precedence::Comma);
+                            self.print_space();
+                        }
+                        self.print_class_body(&c.body);
+                    }
+
+                    ExportDefaultDeclarationKind::ClassDeclaration(c) => {
+                        self.print("class ");
+                        self.print_identifier(&c.identifier);
+                        self.print_space();
+                        if let Some(super_class) = &c.extends {
+                            self.print("extends ");
+                            self.print_expression(super_class, Precedence::Comma);
+                            self.print_space();
+                        }
+                        self.print_class_body(&c.body);
+                    }
                 }
             }
 
@@ -371,10 +412,6 @@ impl Printer {
                     self.print_string_literal(source);
                 }
                 self.print_semicolon_after_statement();
-            }
-
-            Statement::AnonymousDefaultExportedFunctionDeclaration(a) => {
-                self.print_anonymous_default_exported_function_declaration(a)
             }
         };
     }
@@ -479,51 +516,10 @@ impl Printer {
         self.print("function ");
         self.print_identifier(&function_declaration.identifier);
         self.print("(");
-        for (idx, parameter) in function_declaration.parameters.iter().enumerate() {
-            if idx != 0 {
-                self.print(",");
-                self.print_space();
-            }
-            self.print_parameter(parameter);
-        }
+        self.print_parameters(&function_declaration.parameters);
         self.print(")");
         self.print_space();
         self.print_block_statement(&function_declaration.body);
-    }
-
-    fn print_anonymous_default_exported_function_declaration(
-        &mut self,
-        function_declaration: &AnonymousDefaultExportedFunctionDeclaration,
-    ) {
-        self.print("function(");
-        for (idx, parameter) in function_declaration.parameters.iter().enumerate() {
-            if idx != 0 {
-                self.print(",");
-                self.print_space();
-            }
-            self.print_parameter(parameter);
-        }
-        self.print(")");
-        self.print_space();
-        self.print_block_statement(&function_declaration.body);
-    }
-
-    fn print_parameter(&mut self, parameter: &ParameterKind) {
-        match &parameter {
-            ParameterKind::Parameter(p) => {
-                self.print_binding(&p.binding);
-                if let Some(initializer) = &p.initializer {
-                    self.print_space();
-                    self.print("=");
-                    self.print_space();
-                    self.print_expression(initializer, Precedence::Comma);
-                }
-            }
-            ParameterKind::Rest(r) => {
-                self.print("...");
-                self.print_binding(&r.binding);
-            }
-        }
     }
 
     fn print_expression(&mut self, expression: &Expression, precedence: Precedence) {
@@ -743,14 +739,7 @@ impl Printer {
                     self.print_identifier(identifier);
                 }
                 self.print("(");
-                for (idx, parameter) in f.parameters.iter().enumerate() {
-                    if idx != 0 {
-                        self.print(",");
-                        self.print_space();
-                    }
-
-                    self.print_parameter(&parameter);
-                }
+                self.print_parameters(&f.parameters);
                 self.print(")");
                 self.print_space();
                 self.print_block_statement(&f.body);
@@ -977,6 +966,24 @@ impl Printer {
                 self.print_space();
             }
             self.print_parameter(parameter);
+        }
+    }
+
+    fn print_parameter(&mut self, parameter: &ParameterKind) {
+        match &parameter {
+            ParameterKind::Parameter(p) => {
+                self.print_binding(&p.binding);
+                if let Some(initializer) = &p.initializer {
+                    self.print_space();
+                    self.print("=");
+                    self.print_space();
+                    self.print_expression(initializer, Precedence::Comma);
+                }
+            }
+            ParameterKind::Rest(r) => {
+                self.print("...");
+                self.print_binding(&r.binding);
+            }
         }
     }
 

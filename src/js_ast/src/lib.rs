@@ -135,7 +135,6 @@ pub enum LiteralPropertyName {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
-    AnonymousDefaultExportedFunctionDeclaration(AnonymousDefaultExportedFunctionDeclaration),
     BlockStatement(BlockStatement),
     BreakStatement(BreakStatement),
     ClassDeclaration(ClassDeclaration),
@@ -165,6 +164,16 @@ pub enum Statement {
 }
 
 // ----- Nodes -----
+
+/// This is a special class node and it is only allowed
+/// to be used in export statements. This the the only
+/// occurrence where class declaration does not have
+/// an identifier.
+#[derive(Debug, PartialEq, Clone)]
+pub struct AnonymousDefaultExportedClassDeclaration {
+    pub extends: Option<Expression>,
+    pub body: Vec<ClassPropertyKind>,
+}
 
 /// This is a special function node and it is only allowed
 /// to be used in export statements. This the the only
@@ -523,9 +532,10 @@ pub struct ExportDefaultDeclaration {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ExportDefaultDeclarationKind {
+    AnonymousDefaultExportedFunctionDeclaration(AnonymousDefaultExportedFunctionDeclaration),
+    AnonymousDefaultExportedClassDeclaration(AnonymousDefaultExportedClassDeclaration),
     FunctionDeclaration(FunctionDeclaration),
     Expression(Expression),
-    AnonymousDefaultExportedFunctionDeclaration(AnonymousDefaultExportedFunctionDeclaration),
     ClassDeclaration(ClassDeclaration),
 }
 
@@ -541,6 +551,7 @@ pub struct ExportNamedDeclaration {
 pub enum ExportNamedDeclarationKind {
     FunctionDeclaration(FunctionDeclaration),
     VariableDeclaration(VariableDeclaration),
+    ClassDeclaration(ClassDeclaration),
 }
 
 /// export { a, b, c };
