@@ -10,8 +10,15 @@ const ignorePassFiles = [
     "1270d541e0fd6af8.js", // HTML Comment
     "e03ae54743348d7d.js", // HTML Comment
     "d3ac25ddc7ba9779.js", // HTML Comment
-    "0b6dfcd5427a43a6.js", // Legacy octal literals
-    "f1534392279bddbf.js ", // Legacy octal literals
+    "0b6dfcd5427a43a6.js", // Legacy octal literal
+    "f1534392279bddbf.js", // Legacy octal literal
+    "d2af344779cc1f26.js", // Legacy octal literal
+    "84b2a5d834daee2f.js", // Legacy octal literal
+    "c06df922631aeabc.js", // Function declaration after if
+    "a4d62a651f69d815.js", // Function declaration after if
+    "59ae0289778b80cd.js", // Function declaration after if
+    "52aeec7b8da212a2.js", // Function declaration after if
+    "3dabeca76119d501.js", // Function declaration after if
 ];
 
 const ignorePassExplicitFiles = [];

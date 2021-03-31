@@ -849,9 +849,26 @@ impl Printer {
                 self.print_expression(&a.right, Precedence::Assign.lower());
             }
 
-            Expression::ArrowFunction(_) => todo!(),
+            Expression::ArrowFunction(a) => {
+                self.print("(");
+                self.print_parameters(&a.parameters);
+                self.print(")");
+                self.print_space();
+                self.print("=>");
+                self.print_space();
+                match &a.body {
+                    ArrowFunctionExpressionBody::BlockStatement(b) => self.print_block_statement(b),
+                    ArrowFunctionExpressionBody::Expression(e) => {
+                        self.print_expression(e, Precedence::Comma)
+                    }
+                }
+            }
 
             Expression::Sequence(s) => {
+                let wrap = precedence >= Precedence::Comma;
+                if wrap {
+                    self.print("(");
+                }
                 for (idx, expression) in s.expressions.iter().enumerate() {
                     if idx != 0 {
                         self.print(",");
@@ -859,6 +876,9 @@ impl Printer {
                     }
 
                     self.print_expression(&expression, Precedence::Comma);
+                }
+                if wrap {
+                    self.print(")");
                 }
             }
 

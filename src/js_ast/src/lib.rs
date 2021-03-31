@@ -255,9 +255,18 @@ pub struct ArrayBindingItem {
 }
 
 /// () => {}
-/// a => {}
+/// () => 3 * 3
 #[derive(Debug, PartialEq, Clone)]
-pub struct ArrowFunctionExpression {}
+pub struct ArrowFunctionExpression {
+    pub parameters: Vec<ParameterKind>,
+    pub body: ArrowFunctionExpressionBody,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum ArrowFunctionExpressionBody {
+    BlockStatement(BlockStatement),
+    Expression(Box<Expression>),
+}
 
 /// 1n
 ///
