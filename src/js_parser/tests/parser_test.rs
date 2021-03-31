@@ -602,3 +602,19 @@ fn test_class_expression() {
         "let a = class A { set [b]() {} };\n",
     );
 }
+
+#[test]
+fn test_array_function_expression() {
+    expect_printed("a => a", "(a) => a;\n");
+    expect_printed("() => 3 * 3", "() => 3 * 3;\n");
+    expect_printed("() => {}", "() => {};\n");
+    expect_printed(
+        "(a, b, c) => { return a + b + c;\n }",
+        "(a, b, c) => { return a + b + c;\n };\n",
+    );
+    expect_printed("(a, b, ...c) => {}", "(a, b, ...c) => {};\n");
+    expect_printed("a = b => {}", "a = (b) => {};\n");
+    expect_printed("a = () => {}", "a = () => {};\n");
+    expect_printed("let a = () => {}", "let a = () => {};\n");
+    expect_printed("let a = b => {}", "let a = (b) => {};\n");
+}

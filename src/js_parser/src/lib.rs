@@ -219,7 +219,33 @@ impl<'a, L: Logger> Parser<'a, L> {
                 Ok(Expression::RegexpLiteral(RegexpLiteral { value }))
             }
 
-            Token::Identifier => self.parse_identifier().map(Expression::Identifier),
+            Token::Identifier => {
+                let identifier = self.parse_identifier()?;
+
+                // Arrow function
+                if self.lexer.token == Token::EqualsGreaterThan {
+                    self.lexer.next_token();
+                    let body = match self.lexer.token {
+                        Token::OpenBrace => self
+                            .parse_block_statement()
+                            .map(ArrowFunctionExpressionBody::BlockStatement)?,
+                        _ => self
+                            .parse_expression(&Precedence::Comma)
+                            .map(Box::new)
+                            .map(ArrowFunctionExpressionBody::Expression)?,
+                    };
+
+                    return Ok(Expression::ArrowFunction(ArrowFunctionExpression {
+                        body,
+                        parameters: vec![ParameterKind::Parameter(Parameter {
+                            binding: Binding::Identifier(identifier),
+                            initializer: None,
+                        })],
+                    }));
+                }
+
+                Ok(Expression::Identifier(identifier))
+            }
 
             Token::StringLiteral => self.parse_string_literal().map(Expression::StringLiteral),
 
@@ -339,12 +365,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                 Ok(Expression::BooleanLiteral(BooleanLiteral { value: false }))
             }
 
-            Token::OpenParen => {
-                self.lexer.next_token();
-                let expression = self.parse_expression(&Precedence::Lowest)?;
-                self.lexer.eat_token(Token::CloseParen);
-                Ok(expression)
-            }
+            Token::OpenParen => self.parse_parenthesized_expression().map(Ok)?,
 
             // Object expressions
             //
@@ -1350,6 +1371,100 @@ impl<'a, L: Logger> Parser<'a, L> {
         Ok(parameters)
     }
 
+    // The content of a parenthesized expression can be parsed in different ways
+    // depending on the token following it. For example, (a, b, c) will result in a sequence
+    // expression while (a + b) * c will result in a binary expression. These are straightforward
+    // to parse since the content is still an expression. The interesting bit is when the subsequent
+    // token is "=>" because then the parenthesis is the parameters in an arrow function. The parameters
+    // in an arrow function is like all other functions an array of bindings, not expressions. Now,
+    // one could attempt to look ahead in the token stream and try to predict if the expression
+    // eventually will evaluate to an arrow function. But since a parenthesized expression might it self
+    // contain parenthesized expressions it is not as easy as just finding the next closing parenthesis and
+    // looking at the token following. The function attempting to look ahead would need to be more
+    // sophisticated than that. An alternative approach that other parsers take is to simply assume
+    // that the items inside the parenthesis are expressions and then once we know if it will be an arrow
+    // function or not, the attempt to convert the expressions into bindings. This is not the only place
+    // this happens, we do the same for assignment expressions. Not all expressions can be converted
+    // into bindings, for example there is no way to represent 3 + 3 as a binding is after all the binding
+    // between a variable and a value. If we happen upon an expression like this while converting, we will
+    // report it as a syntax error and assume that the user was attempting to write an arrow function.
+    // Note: Another possible solution to this problem could be to make use of a backtracking algorithm,
+    // but this is not something the lexer currently support.
+    fn parse_parenthesized_expression(&mut self) -> ParseResult<Expression> {
+        self.lexer.eat_token(Token::OpenParen);
+        let mut expressions: Vec<Expression> = Vec::new();
+        let mut rest_element: Option<RestElement> = None;
+        while self.lexer.token != Token::CloseParen {
+            if self.lexer.token == Token::DotDotDot {
+                self.lexer.next_token();
+                rest_element = self
+                    .parse_binding()
+                    .map(|binding| RestElement { binding })
+                    .map(Some)?;
+            } else {
+                self.parse_expression(&Precedence::Comma)
+                    .map(|expression| expressions.push(expression))?;
+            }
+            if self.lexer.token == Token::Comma {
+                self.lexer.next_token();
+            }
+        }
+        self.lexer.eat_token(Token::CloseParen);
+
+        // Arrow function
+        if self.lexer.token == Token::EqualsGreaterThan {
+            self.lexer.next_token();
+
+            let mut parameters: Vec<ParameterKind> = Vec::new();
+            for expression in expressions {
+                let (binding, initializer) =
+                    self.convert_expression_to_binding_and_initializer(expression)?;
+                parameters.push(ParameterKind::Parameter(Parameter {
+                    binding,
+                    initializer,
+                }));
+            }
+
+            if let Some(rest_elem) = rest_element {
+                parameters.push(ParameterKind::Rest(rest_elem));
+            }
+
+            let body = match self.lexer.token {
+                Token::OpenBrace => self
+                    .parse_block_statement()
+                    .map(ArrowFunctionExpressionBody::BlockStatement)?,
+                _ => self
+                    .parse_expression(&Precedence::Comma)
+                    .map(Box::new)
+                    .map(ArrowFunctionExpressionBody::Expression)?,
+            };
+
+            return Ok(Expression::ArrowFunction(ArrowFunctionExpression {
+                body,
+                parameters,
+            }));
+        }
+
+        // Rest elements are only allowed as a parameters
+        // and in bindings, this is a syntax error.
+        if let Some(_) = rest_element {
+            panic!("Rest elements are only allowed as bindings on parameters");
+        }
+
+        // A parenthesized expression
+        if expressions.len() > 0 {
+            return Ok(Expression::Sequence(SequenceExpression { expressions }));
+        }
+
+        // If we got all the way here, then it is not a an arrow function
+        // but the user did neither have an any expressions inside the parenthesis.
+        // This is a syntax error, we will report is as syntax error in the context of
+        // an arrow function.
+        panic!(
+            "Found a parenthesized expression with no expressions in it, this is a syntax error."
+        )
+    }
+
     // Sometimes we end up parsing an item as an expression but then a token downstream
     // indicates that an expression actual needs to be a binding.
     // For example: [a, b, c] is an array expression but [a, b, c] = d is an assignment expression.
@@ -2045,11 +2160,9 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             Token::While => {
                 self.lexer.next_token();
-                self.lexer.expect_token(Token::OpenParen);
-                self.lexer.next_token();
+                self.lexer.eat_token(Token::OpenParen);
                 let test = self.parse_expression(&Precedence::Lowest)?;
-                self.lexer.expect_token(Token::CloseParen);
-                self.lexer.next_token();
+                self.lexer.eat_token(Token::CloseParen);
                 let body = self.parse_statement()?;
                 Ok(Statement::WhileStatement(WhileStatement {
                     body: Box::new(body),
@@ -2060,13 +2173,10 @@ impl<'a, L: Logger> Parser<'a, L> {
             Token::Do => {
                 self.lexer.next_token();
                 let body = self.parse_statement()?;
-                self.lexer.expect_token(Token::While);
-                self.lexer.next_token();
-                self.lexer.expect_token(Token::OpenParen);
-                self.lexer.next_token();
+                self.lexer.eat_token(Token::While);
+                self.lexer.eat_token(Token::OpenParen);
                 let test = self.parse_expression(&Precedence::Lowest)?;
-                self.lexer.expect_token(Token::CloseParen);
-                self.lexer.next_token();
+                self.lexer.eat_token(Token::CloseParen);
                 Ok(Statement::DoWhileStatement(DoWhileStatement {
                     body: Box::new(body),
                     test,
@@ -2075,13 +2185,10 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             Token::Switch => {
                 self.lexer.next_token();
-                self.lexer.expect_token(Token::OpenParen);
-                self.lexer.next_token();
+                self.lexer.eat_token(Token::OpenParen);
                 let discriminant = self.parse_expression(&Precedence::Lowest)?;
-                self.lexer.expect_token(Token::CloseParen);
-                self.lexer.next_token();
-                self.lexer.expect_token(Token::OpenBrace);
-                self.lexer.next_token();
+                self.lexer.eat_token(Token::CloseParen);
+                self.lexer.eat_token(Token::OpenBrace);
 
                 let mut cases: Vec<SwitchStatementCase> = Vec::new();
                 let mut found_default = false;
@@ -2094,15 +2201,12 @@ impl<'a, L: Logger> Parser<'a, L> {
                             panic!("Multiple default clauses are not allowed");
                         }
                         self.lexer.next_token();
-                        self.lexer.expect_token(Token::Colon);
-                        self.lexer.next_token();
+                        self.lexer.eat_token(Token::Colon);
                         found_default = true;
                     } else {
-                        self.lexer.expect_token(Token::Case);
-                        self.lexer.next_token();
+                        self.lexer.eat_token(Token::Case);
                         test = Some(self.parse_expression(&Precedence::Lowest)?);
-                        self.lexer.expect_token(Token::Colon);
-                        self.lexer.next_token();
+                        self.lexer.eat_token(Token::Colon);
                     }
 
                     'case_body: loop {
@@ -2114,8 +2218,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
                     cases.push(SwitchStatementCase { consequent, test })
                 }
-                self.lexer.expect_token(Token::CloseBrace);
-                self.lexer.next_token();
+                self.lexer.eat_token(Token::CloseBrace);
                 Ok(Statement::SwitchStatement(SwitchStatement {
                     cases,
                     discriminant,
@@ -2129,11 +2232,9 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             Token::With => {
                 self.lexer.next_token();
-                self.lexer.expect_token(Token::OpenParen);
-                self.lexer.next_token();
+                self.lexer.eat_token(Token::OpenParen);
                 let object = self.parse_expression(&Precedence::Lowest)?;
-                self.lexer.expect_token(Token::CloseParen);
-                self.lexer.next_token();
+                self.lexer.eat_token(Token::CloseParen);
                 let body = self.parse_statement()?;
                 Ok(Statement::WithStatement(WithStatement {
                     body: Box::new(body),
@@ -2150,6 +2251,29 @@ impl<'a, L: Logger> Parser<'a, L> {
                     return Ok(Statement::LabeledStatement(LabeledStatement {
                         body: Box::new(body),
                         identifier,
+                    }));
+                }
+
+                // Arrow function
+                if self.lexer.token == Token::EqualsGreaterThan {
+                    self.lexer.next_token();
+                    let body = match self.lexer.token {
+                        Token::OpenBrace => self
+                            .parse_block_statement()
+                            .map(ArrowFunctionExpressionBody::BlockStatement)?,
+                        _ => self
+                            .parse_expression(&Precedence::Comma)
+                            .map(Box::new)
+                            .map(ArrowFunctionExpressionBody::Expression)?,
+                    };
+                    return Ok(Statement::Expression(ExpressionStatement {
+                        expression: Expression::ArrowFunction(ArrowFunctionExpression {
+                            body,
+                            parameters: vec![ParameterKind::Parameter(Parameter {
+                                binding: Binding::Identifier(identifier),
+                                initializer: None,
+                            })],
+                        }),
                     }));
                 }
 
@@ -2177,12 +2301,9 @@ impl<'a, L: Logger> Parser<'a, L> {
                 }
                 if self.lexer.token == Token::Catch {
                     self.lexer.next_token();
-                    self.lexer.expect_token(Token::OpenParen);
-                    self.lexer.next_token();
+                    self.lexer.eat_token(Token::OpenParen);
                     let param = self.parse_binding()?;
-                    self.lexer.expect_token(Token::CloseParen);
-                    self.lexer.next_token();
-                    self.lexer.expect_token(Token::OpenBrace);
+                    self.lexer.eat_token(Token::CloseParen);
                     let body = self.parse_block_statement()?;
                     handler = Some(CatchClause { body, param });
                 }
@@ -2258,7 +2379,6 @@ impl<'a, L: Logger> Parser<'a, L> {
     /// Parses an if statement
     ///
     /// if (test) consequent else alternate
-    ///
     /// if (test) consequent else alternate
     pub(crate) fn parse_if_statement(&mut self) -> ParseResult<IfStatement> {
         self.lexer.next_token(); // if
@@ -2295,9 +2415,7 @@ impl<'a, L: Logger> Parser<'a, L> {
     /// Parses for statement
     ///
     /// for (let a = 1; a < 10; a++) {}
-    ///
     /// for (let a in items) {}
-    ///
     /// for (let a of items) {}
     pub(crate) fn parse_for_statement(&mut self) -> ParseResult<Statement> {
         self.lexer.next_token();
@@ -2333,8 +2451,7 @@ impl<'a, L: Logger> Parser<'a, L> {
             // TODO: We should check for declarations here and forbid them if they exist.
             self.lexer.next_token();
             let right = self.parse_expression(&Precedence::Lowest)?;
-            self.lexer.expect_token(Token::CloseParen);
-            self.lexer.next_token();
+            self.lexer.eat_token(Token::CloseParen);
             let body = self.parse_statement()?;
             if let Some(left) = init {
                 return Ok(Statement::ForOfStatement(ForOfStatement {
@@ -2353,8 +2470,7 @@ impl<'a, L: Logger> Parser<'a, L> {
             // TODO: We should check for declarations here and forbid them if they exist.
             self.lexer.next_token();
             let right = self.parse_expression(&Precedence::Lowest)?;
-            self.lexer.expect_token(Token::CloseParen);
-            self.lexer.next_token();
+            self.lexer.eat_token(Token::CloseParen);
             let body = self.parse_statement()?;
             if let Some(left) = init {
                 return Ok(Statement::ForInStatement(ForInStatement {
@@ -2377,15 +2493,13 @@ impl<'a, L: Logger> Parser<'a, L> {
             test = self.parse_expression(&Precedence::Lowest).map(Some)?;
         }
 
-        self.lexer.expect_token(Token::Semicolon);
-        self.lexer.next_token();
+        self.lexer.eat_token(Token::Semicolon);
 
         if self.lexer.token != Token::CloseParen {
             update = self.parse_expression(&Precedence::Lowest).map(Some)?;
         }
 
-        self.lexer.expect_token(Token::CloseParen);
-        self.lexer.next_token();
+        self.lexer.eat_token(Token::CloseParen);
 
         let body = self.parse_statement().map(Box::new)?;
         Ok(Statement::ForStatement(ForStatement {
@@ -2399,9 +2513,7 @@ impl<'a, L: Logger> Parser<'a, L> {
     /// Parses a variable declaration (var, const and let)
     ///
     /// var a = 1;
-    ///
     /// var a = 1, b = 2;
-    ///
     /// var a;
     pub(crate) fn parse_variable_declaration(&mut self) -> ParseResult<VariableDeclaration> {
         let kind = match self.lexer.token {
