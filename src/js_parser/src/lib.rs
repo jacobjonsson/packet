@@ -247,7 +247,26 @@ impl<'a, L: Logger> Parser<'a, L> {
                 Ok(Expression::Identifier(identifier))
             }
 
-            Token::StringLiteral => self.parse_string_literal().map(Expression::StringLiteral),
+            Token::StringLiteral | Token::TemplateNoSubstitutionLiteral => {
+                self.parse_string_literal().map(Expression::StringLiteral)
+            }
+
+            Token::TemplateHead => {
+                let head = self.lexer.identifier.clone();
+                let mut parts: Vec<TemplateLiteralPart> = Vec::new();
+                loop {
+                    self.lexer.next_token();
+                    let expression = self.parse_expression(&Precedence::Comma)?;
+                    self.lexer.scan_template_tail_or_middle();
+                    let text = self.lexer.identifier.clone();
+                    parts.push(TemplateLiteralPart { expression, text });
+                    if self.lexer.token == Token::TemplateTail {
+                        self.lexer.next_token();
+                        break;
+                    }
+                }
+                Ok(Expression::TemplateLiteral(TemplateLiteral { head, parts }))
+            }
 
             Token::Class => {
                 self.lexer.next_token();

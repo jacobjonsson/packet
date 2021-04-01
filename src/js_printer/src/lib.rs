@@ -895,6 +895,18 @@ impl Printer {
                     _ => {}
                 }
             }
+
+            Expression::TemplateLiteral(t) => {
+                self.print("`");
+                self.print(&t.head);
+                for part in &t.parts {
+                    self.print("${");
+                    self.print_expression(&part.expression, Precedence::Comma);
+                    self.print("}");
+                    self.print(&part.text);
+                }
+                self.print("`");
+            }
         }
     }
 

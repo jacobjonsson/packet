@@ -266,3 +266,58 @@ fn test_comments() {
     **/",
     );
 }
+
+fn expect_no_substitution_template_literal(content: &str, expected: &str) {
+    let logger = LoggerImpl::new();
+    let lexer = Lexer::new(content, &logger);
+    assert_eq!(lexer.token, Token::TemplateNoSubstitutionLiteral);
+    assert_eq!(lexer.identifier, expected);
+}
+
+#[test]
+fn test_no_substitution_template_literals() {
+    expect_no_substitution_template_literal("`hello world`", "hello world");
+    expect_no_substitution_template_literal("`$`", "$");
+    expect_no_substitution_template_literal("`$}`", "$}");
+    expect_no_substitution_template_literal("`}`", "}");
+    expect_no_substitution_template_literal("`\\``", "\\`");
+}
+
+struct TemplateLiteralPart<'a> {
+    text: &'a str,
+    expression_tokens: Vec<Token>,
+}
+
+fn expect_template_literals(content: &str, head: &str, parts: Vec<TemplateLiteralPart>) {
+    let logger = LoggerImpl::new();
+    let mut lexer = Lexer::new(content, &logger);
+    assert_eq!(lexer.token, Token::TemplateHead);
+    assert_eq!(lexer.identifier, head);
+    for part in &parts {
+        for token in &part.expression_tokens {
+            lexer.next_token();
+            assert_eq!(lexer.token, *token);
+        }
+        lexer.next_token();
+        lexer.scan_template_tail_or_middle();
+        assert_eq!(lexer.identifier, part.text);
+    }
+}
+
+#[test]
+fn test_template_literals() {
+    expect_template_literals(
+        "`head ${a} \\` middle ${b} tail`",
+        "head ",
+        vec![
+            TemplateLiteralPart {
+                expression_tokens: vec![Token::Identifier],
+                text: " \\` middle ",
+            },
+            TemplateLiteralPart {
+                expression_tokens: vec![Token::Identifier],
+                text: " tail",
+            },
+        ],
+    )
+}

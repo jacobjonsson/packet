@@ -9,6 +9,14 @@ pub enum Token {
     StringLiteral,
     NumericLiteral,
     BigIntegerLiteral,
+    // This is used when a template literal does not contain any
+    // expression parts, e.g `hello`.
+    TemplateNoSubstitutionLiteral,
+
+    // Template literals
+    TemplateHead,
+    TemplateMiddle,
+    TemplateTail,
 
     // Identifiers
     Identifier,
@@ -131,6 +139,11 @@ impl std::fmt::Display for Token {
             Token::NumericLiteral => write!(f, "NumericLiteral"),
             Token::StringLiteral => write!(f, "StringLiteral"),
             Token::BigIntegerLiteral => write!(f, "BigIntegerLiteral"),
+            Token::TemplateNoSubstitutionLiteral => write!(f, "TemplateNoSubstitutionLiteral"),
+
+            Token::TemplateHead => write!(f, "TemplateHead"),
+            Token::TemplateMiddle => write!(f, "TemplateMiddle"),
+            Token::TemplateTail => write!(f, "TemplateTail"),
 
             // Punctuation
             Token::Ampersand => write!(f, "&"),
