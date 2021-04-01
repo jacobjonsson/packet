@@ -21,8 +21,6 @@ pub struct Lexer<'a, L: Logger> {
     /// The currently parsed token
     pub token: Token,
 
-    pub performing_template_token_rescan: bool,
-
     logger: &'a L,
 }
 
@@ -40,7 +38,6 @@ impl<'a, L: Logger> Lexer<'a, L> {
             chars: input.chars(),
             character: None,
             logger,
-            performing_template_token_rescan: false,
         };
 
         lexer.step();
