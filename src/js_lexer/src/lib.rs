@@ -1,5 +1,17 @@
-//!
-#![warn(missing_debug_implementations, rust_2018_idioms, missing_docs)]
+/// This file contains the code for the lexer.
+/// The lexers responsibility is to convert one or more chars
+/// into tokens that will later be used by the parser to construct
+/// ast nodes. The lexer only parses one token at a time and will
+/// need to be called iteratively to parse the next token in contrast
+/// to lexer that parses the entire file at once. The reason for this is
+/// because some tokens will need to scanned differently depending on the context.
+/// For example, the < token will, in a normal context, be scanned as a Token::LessThan
+/// while in a jsx context it would be scanned as the start of a jsx token.
+/// The same logic applies to regex's, this sequence: /abc/ would in a normal context
+/// be scanned as Slash - Identifier - Slash while it actually should be scanned as a
+/// regex. And since the scanner itself is not aware of the parsing rules
+/// the context will need to be determined by the parser whom will need to
+/// call the lexer differently depending on the context.
 use std::str::Chars;
 
 use js_token::{lookup_identifer, Token};
@@ -9,8 +21,6 @@ mod unicode;
 /// This means we've hit the end of the file
 pub const EOF_CHAR: char = '\0';
 
-/// The lexer struct
-#[derive(Debug)]
 pub struct Lexer<'a, L: Logger> {
     input: &'a str,
     chars: Chars<'a>,
@@ -204,43 +214,7 @@ impl<'a, L: Logger> Lexer<'a, L> {
         loop {
             self.start = self.end;
 
-            // Skip over comments
-            if self.character == '/' {
-                // Single line comment
-                if self.peek() == '/' {
-                    self.step();
-                    'single_line_comment: loop {
-                        match self.character {
-                            '\n' | '\r' => {
-                                self.step();
-                                break 'single_line_comment;
-                            }
-                            EOF_CHAR => {
-                                self.step();
-                                break 'single_line_comment;
-                            }
-                            _ => self.step(),
-                        }
-                    }
-                } else if self.peek() == '*' {
-                    // Multi line comment
-                    self.step();
-
-                    'multi_line_comment: loop {
-                        match self.character {
-                            '*' => {
-                                self.step();
-                                if self.character == '/' {
-                                    self.step();
-                                    break 'multi_line_comment;
-                                }
-                            }
-                            EOF_CHAR => panic!("File ended without terminating multi-line comment"),
-                            _ => self.step(),
-                        }
-                    }
-                }
-            }
+            self.consume_comment();
 
             match self.character {
                 c if is_whitespace(c) => {
@@ -251,6 +225,12 @@ impl<'a, L: Logger> Lexer<'a, L> {
                 c if is_line_terminator(c) => {
                     self.step();
                     continue;
+                }
+
+                c if is_identifier_start(c) => {
+                    let identifier = self.read_identifier();
+                    self.token = lookup_identifer(&identifier);
+                    self.identifier = identifier;
                 }
 
                 '~' => {
@@ -589,12 +569,6 @@ impl<'a, L: Logger> Lexer<'a, L> {
 
                 '1'..='9' => self.read_number(),
 
-                c if is_identifier_start(c) => {
-                    let identifier = self.read_identifier();
-                    self.token = lookup_identifer(&identifier);
-                    self.identifier = identifier;
-                }
-
                 EOF_CHAR => self.token = Token::EndOfFile,
 
                 _ => {
@@ -651,6 +625,56 @@ impl<'a, L: Logger> Lexer<'a, L> {
     // Returns the next token without moving the current.
     fn peek(&mut self) -> char {
         self.chars.clone().nth(0).unwrap_or(EOF_CHAR)
+    }
+
+    /// Skip over the comment if the current character marks
+    /// the start of a comment.
+    fn consume_comment(&mut self) {
+        match (self.character, self.peek()) {
+            // Single line comment
+            ('/', '/') => {
+                self.step(); // First /
+                self.step(); // Second /
+
+                // Loop until we reach a line terminator or EOF
+                'single_line_comment: loop {
+                    match self.character {
+                        c if is_line_terminator(c) => {
+                            self.step();
+                            break 'single_line_comment;
+                        }
+                        EOF_CHAR => {
+                            self.step();
+                            break 'single_line_comment;
+                        }
+                        _ => self.step(),
+                    }
+                }
+            }
+
+            // Multi-line comment
+            ('/', '*') => {
+                self.step(); // /
+                self.step(); // *
+
+                'multi_line_comment: loop {
+                    match (self.character, self.peek()) {
+                        ('*', '/') => {
+                            self.step(); // *
+                            self.step(); // /
+                            break 'multi_line_comment;
+                        }
+                        (EOF_CHAR, _) | (_, EOF_CHAR) => {
+                            panic!("File ended without terminating multi-line comment")
+                        }
+                        _ => self.step(),
+                    }
+                }
+            }
+
+            // For anything else, ignore.
+            _ => {}
+        };
     }
 
     fn read_identifier(&mut self) -> String {
