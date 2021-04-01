@@ -90,6 +90,7 @@ fn test_binary_expressions() {
     expect_printed("5 * 5", "5 * 5;\n");
     expect_printed("5 / 5", "5 / 5;\n");
     expect_printed("5 % 5", "5 % 5;\n");
+    expect_printed("5 ** 5", "5 ** 5;\n");
     expect_printed("5 > 5", "5 > 5;\n");
     expect_printed("5 < 5", "5 < 5;\n");
     expect_printed("5 ^ 5", "5 ^ 5;\n");

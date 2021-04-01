@@ -1044,6 +1044,19 @@ impl<'a, L: Logger> Parser<'a, L> {
                     });
                 }
 
+                // 1 * 2
+                Token::AsteriskAsterisk => {
+                    if precedence >= &Precedence::Product {
+                        return Ok(expression);
+                    }
+                    self.lexer.next_token();
+                    expression = Expression::Binary(BinaryExpression {
+                        left: Box::new(expression),
+                        operator: BinaryExpressionOperator::Exponentiation,
+                        right: Box::new(self.parse_expression(&Precedence::Product)?),
+                    });
+                }
+
                 // 1 < 2
                 Token::LessThan => {
                     if precedence >= &Precedence::Compare {

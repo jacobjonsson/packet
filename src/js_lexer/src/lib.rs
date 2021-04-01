@@ -1,19 +1,27 @@
+//!
+#![warn(missing_debug_implementations, rust_2018_idioms, missing_docs)]
 use std::str::Chars;
 
 use js_token::{lookup_identifer, Token};
 use logger::Logger;
+mod unicode;
 
+/// This means we've hit the end of the file
+pub const EOF_CHAR: char = '\0';
+
+/// The lexer struct
+#[derive(Debug)]
 pub struct Lexer<'a, L: Logger> {
-    input: String,
+    input: &'a str,
     chars: Chars<'a>,
     /// The position of the current character
     current: usize,
-    /// The start position of the current token
+    /// The start of the current token
     start: usize,
-    /// The end position of the current token
+    /// The end of the current token
     end: usize,
     /// The next character to parsed
-    character: Option<char>,
+    character: char,
     /// The value of the currently parsed string or identifier.
     pub identifier: String,
     /// The number of the currently parsed token.
@@ -26,9 +34,10 @@ pub struct Lexer<'a, L: Logger> {
 
 /// Public
 impl<'a, L: Logger> Lexer<'a, L> {
+    /// Creates a new lexer
     pub fn new(input: &'a str, logger: &'a L) -> Lexer<'a, L> {
         let mut lexer = Lexer {
-            input: input.into(),
+            input,
             identifier: String::new(),
             number: 0.,
             token: Token::EndOfFile,
@@ -36,7 +45,7 @@ impl<'a, L: Logger> Lexer<'a, L> {
             current: 0,
             end: 0,
             chars: input.chars(),
-            character: None,
+            character: EOF_CHAR,
             logger,
         };
 
@@ -67,6 +76,8 @@ impl<'a, L: Logger> Lexer<'a, L> {
         self.next_token();
     }
 
+    /// Returns a boolean indicating if the current token
+    /// is either an identifier or a keyword.
     pub fn is_identifier_or_keyword(&self) -> bool {
         match &self.token {
             Token::Identifier => true,
@@ -130,24 +141,20 @@ impl<'a, L: Logger> Lexer<'a, L> {
         std::process::exit(1);
     }
 
-    // Returns the raw slice of input related to the current token.
+    /// Returns the raw slice of input related to the current token.
     pub fn raw(&self) -> String {
         self.input[self.start..self.end].into()
     }
 
+    /// Scans the current token as a regexp
     pub fn scan_regexp(&mut self) {
         loop {
             match self.character {
-                Some('/') => {
+                '/' => {
                     self.step();
                     'inner: loop {
-                        let character = match self.character {
-                            Some(v) => v,
-                            None => break 'inner,
-                        };
-
-                        if self.is_letter(character) {
-                            match character {
+                        if is_identifier_continue(self.character) {
+                            match self.character {
                                 'g' | 'i' | 'm' | 's' | 'u' | 'y' => self.step(),
                                 _ => self.unexpected(),
                             }
@@ -159,15 +166,15 @@ impl<'a, L: Logger> Lexer<'a, L> {
                     return;
                 }
 
-                Some('[') => {
+                '[' => {
                     self.step();
-                    while self.character != Some(']') {
-                        if self.character == Some('\\') {
+                    while self.character != ']' {
+                        if self.character == '\\' {
                             self.step();
                         }
 
                         match self.character {
-                            Some('\r') | Some('\n') | None => {
+                            '\r' | '\n' | EOF_CHAR => {
                                 self.unexpected();
                             }
                             _ => self.step(),
@@ -177,12 +184,12 @@ impl<'a, L: Logger> Lexer<'a, L> {
                 }
 
                 _ => {
-                    if self.character == Some('\\') {
+                    if self.character == '\\' {
                         self.step();
                     }
 
                     match self.character {
-                        Some('\r') | Some('\n') | None => {
+                        '\r' | '\n' | EOF_CHAR => {
                             self.unexpected();
                         }
                         _ => self.step(),
@@ -192,58 +199,56 @@ impl<'a, L: Logger> Lexer<'a, L> {
         }
     }
 
+    /// Scans the next token
     pub fn next_token(&mut self) {
         loop {
             self.start = self.end;
 
             // Skip over comments
-            if self.character == Some('/') {
+            if self.character == '/' {
                 // Single line comment
-                if self.peek() == Some('/') {
+                if self.peek() == '/' {
                     self.step();
                     'single_line_comment: loop {
                         match self.character {
-                            Some('\n') | Some('\r') => {
+                            '\n' | '\r' => {
                                 self.step();
                                 break 'single_line_comment;
                             }
-                            None => {
+                            EOF_CHAR => {
                                 self.step();
                                 break 'single_line_comment;
                             }
                             _ => self.step(),
                         }
                     }
-                } else if self.peek() == Some('*') {
+                } else if self.peek() == '*' {
                     // Multi line comment
                     self.step();
 
                     'multi_line_comment: loop {
                         match self.character {
-                            Some('*') => {
+                            '*' => {
                                 self.step();
-                                if self.character == Some('/') {
+                                if self.character == '/' {
                                     self.step();
                                     break 'multi_line_comment;
                                 }
                             }
-                            None => panic!("File ended without terminating multi-line comment"),
+                            EOF_CHAR => panic!("File ended without terminating multi-line comment"),
                             _ => self.step(),
                         }
                     }
                 }
             }
 
-            let character = match self.character {
-                Some(v) => v,
-                None => {
-                    self.token = Token::EndOfFile;
-                    return;
+            match self.character {
+                c if is_whitespace(c) => {
+                    self.step();
+                    continue;
                 }
-            };
 
-            match character {
-                ' ' | '\t' | '\n' | '\r' => {
+                c if is_line_terminator(c) => {
                     self.step();
                     continue;
                 }
@@ -255,7 +260,7 @@ impl<'a, L: Logger> Lexer<'a, L> {
 
                 '/' => {
                     self.step();
-                    if self.character == Some('=') {
+                    if self.character == '=' {
                         self.step();
                         self.token = Token::SlashEquals;
                     } else {
@@ -265,12 +270,12 @@ impl<'a, L: Logger> Lexer<'a, L> {
 
                 '?' => {
                     self.step();
-                    if self.character == Some('.') {
+                    if self.character == '.' {
                         self.step();
                         self.token = Token::QuestionDot;
-                    } else if self.character == Some('?') {
+                    } else if self.character == '?' {
                         self.step();
-                        if self.character == Some('=') {
+                        if self.character == '=' {
                             self.step();
                             self.token = Token::QuestionQuestionEquals;
                         } else {
@@ -313,10 +318,10 @@ impl<'a, L: Logger> Lexer<'a, L> {
 
                 '+' => {
                     self.step();
-                    if self.character == Some('+') {
+                    if self.character == '+' {
                         self.step();
                         self.token = Token::PlusPlus;
-                    } else if self.character == Some('=') {
+                    } else if self.character == '=' {
                         self.step();
                         self.token = Token::PlusEquals;
                     } else {
@@ -326,10 +331,10 @@ impl<'a, L: Logger> Lexer<'a, L> {
 
                 '-' => {
                     self.step();
-                    if self.character == Some('-') {
+                    if self.character == '-' {
                         self.step();
                         self.token = Token::MinusMinus;
-                    } else if self.character == Some('=') {
+                    } else if self.character == '=' {
                         self.step();
                         self.token = Token::MinusEquals;
                     } else {
@@ -339,15 +344,15 @@ impl<'a, L: Logger> Lexer<'a, L> {
 
                 '*' => {
                     self.step();
-                    if self.character == Some('*') {
+                    if self.character == '*' {
                         self.step();
-                        if self.character == Some('=') {
+                        if self.character == '=' {
                             self.step();
                             self.token = Token::AsteriskAsteriskEquals;
                         } else {
                             self.token = Token::AsteriskAsterisk;
                         }
-                    } else if self.character == Some('=') {
+                    } else if self.character == '=' {
                         self.step();
                         self.token = Token::AsteriskEquals;
                     } else {
@@ -357,15 +362,15 @@ impl<'a, L: Logger> Lexer<'a, L> {
 
                 '<' => {
                     self.step();
-                    if self.character == Some('<') {
+                    if self.character == '<' {
                         self.step();
-                        if self.character == Some('=') {
+                        if self.character == '=' {
                             self.step();
                             self.token = Token::LessThanLessThanEquals;
                         } else {
                             self.token = Token::LessThanLessThan;
                         }
-                    } else if self.character == Some('=') {
+                    } else if self.character == '=' {
                         self.step();
                         self.token = Token::LessThanEquals;
                     } else {
@@ -375,23 +380,23 @@ impl<'a, L: Logger> Lexer<'a, L> {
 
                 '>' => {
                     self.step();
-                    if self.character == Some('>') {
+                    if self.character == '>' {
                         self.step();
-                        if self.character == Some('>') {
+                        if self.character == '>' {
                             self.step();
-                            if self.character == Some('=') {
+                            if self.character == '=' {
                                 self.step();
                                 self.token = Token::GreaterThanGreaterThanGreaterThanEquals;
                             } else {
                                 self.token = Token::GreaterThanGreaterThanGreaterThan;
                             }
-                        } else if self.character == Some('=') {
+                        } else if self.character == '=' {
                             self.step();
                             self.token = Token::GreaterThanGreaterThanEquals;
                         } else {
                             self.token = Token::GreaterThanGreaterThan;
                         }
-                    } else if self.character == Some('=') {
+                    } else if self.character == '=' {
                         self.step();
                         self.token = Token::GreaterThanEquals;
                     } else {
@@ -411,15 +416,15 @@ impl<'a, L: Logger> Lexer<'a, L> {
 
                 '=' => {
                     self.step();
-                    if self.character == Some('=') {
+                    if self.character == '=' {
                         self.step();
-                        if self.character == Some('=') {
+                        if self.character == '=' {
                             self.step();
                             self.token = Token::EqualsEqualsEquals;
                         } else {
                             self.token = Token::EqualsEquals;
                         }
-                    } else if self.character == Some('>') {
+                    } else if self.character == '>' {
                         self.step();
                         self.token = Token::EqualsGreaterThan;
                     } else {
@@ -429,9 +434,9 @@ impl<'a, L: Logger> Lexer<'a, L> {
 
                 '!' => {
                     self.step();
-                    if self.character == Some('=') {
+                    if self.character == '=' {
                         self.step();
-                        if self.character == Some('=') {
+                        if self.character == '=' {
                             self.step();
                             self.token = Token::ExclamationEqualsEquals;
                         } else {
@@ -444,7 +449,7 @@ impl<'a, L: Logger> Lexer<'a, L> {
 
                 '%' => {
                     self.step();
-                    if self.character == Some('=') {
+                    if self.character == '=' {
                         self.step();
                         self.token = Token::PercentEquals;
                     } else {
@@ -459,15 +464,15 @@ impl<'a, L: Logger> Lexer<'a, L> {
 
                 '|' => {
                     self.step();
-                    if self.character == Some('|') {
+                    if self.character == '|' {
                         self.step();
-                        if self.character == Some('=') {
+                        if self.character == '=' {
                             self.step();
                             self.token = Token::BarBarEquals;
                         } else {
                             self.token = Token::BarBar;
                         }
-                    } else if self.character == Some('=') {
+                    } else if self.character == '=' {
                         self.step();
                         self.token = Token::BarEquals;
                     } else {
@@ -482,7 +487,7 @@ impl<'a, L: Logger> Lexer<'a, L> {
 
                 '^' => {
                     self.step();
-                    if self.character == Some('=') {
+                    if self.character == '=' {
                         self.step();
                         self.token = Token::CaretEquals;
                     } else {
@@ -492,15 +497,15 @@ impl<'a, L: Logger> Lexer<'a, L> {
 
                 '&' => {
                     self.step();
-                    if self.character == Some('&') {
+                    if self.character == '&' {
                         self.step();
-                        if self.character == Some('=') {
+                        if self.character == '=' {
                             self.step();
                             self.token = Token::AmpersandAmpersandEquals;
                         } else {
                             self.token = Token::AmpersandAmpersand;
                         }
-                    } else if self.character == Some('=') {
+                    } else if self.character == '=' {
                         self.step();
                         self.token = Token::AmpersandEquals;
                     } else {
@@ -519,8 +524,8 @@ impl<'a, L: Logger> Lexer<'a, L> {
                         }
 
                         match self.character {
-                            Some('\\') => self.step(),
-                            None => self.unexpected(),
+                            '\\' => self.step(),
+                            EOF_CHAR => self.unexpected(),
                             _ => {}
                         }
                         self.step();
@@ -537,9 +542,9 @@ impl<'a, L: Logger> Lexer<'a, L> {
                     self.token = Token::TemplateNoSubstitutionLiteral;
                     'template_literal: loop {
                         match self.character {
-                            Some('$') => {
+                            '$' => {
                                 self.step();
-                                if self.character == Some('{') {
+                                if self.character == '{' {
                                     self.step();
                                     suffix_length = 2;
                                     self.token = Token::TemplateHead;
@@ -547,12 +552,12 @@ impl<'a, L: Logger> Lexer<'a, L> {
                                 }
                                 continue 'template_literal;
                             }
-                            Some('\\') => self.step(),
-                            Some('`') => {
+                            '\\' => self.step(),
+                            '`' => {
                                 self.step();
                                 break 'template_literal;
                             }
-                            None => self.unexpected(),
+                            EOF_CHAR => self.unexpected(),
                             _ => {}
                         }
                         self.step();
@@ -562,12 +567,12 @@ impl<'a, L: Logger> Lexer<'a, L> {
                 }
 
                 '.' => {
-                    if self.peek() == Some('.') {
+                    if self.peek() == '.' {
                         self.step();
                         self.step();
                         self.step();
                         self.token = Token::DotDotDot;
-                    } else if self.peek() >= Some('0') && self.peek() <= Some('9') {
+                    } else if self.peek() >= '0' && self.peek() <= '9' {
                         self.read_number();
                     } else {
                         self.step();
@@ -576,21 +581,21 @@ impl<'a, L: Logger> Lexer<'a, L> {
                 }
 
                 '0' => match self.peek() {
-                    Some('b') => self.read_radix_number(2),
-                    Some('o') => self.read_radix_number(8),
-                    Some('x') => self.read_radix_number(16),
+                    'b' => self.read_radix_number(2),
+                    'o' => self.read_radix_number(8),
+                    'x' => self.read_radix_number(16),
                     _ => self.read_number(),
                 },
 
-                '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
-                    self.read_number();
-                }
+                '1'..='9' => self.read_number(),
 
-                c if self.is_letter(c) => {
+                c if is_identifier_start(c) => {
                     let identifier = self.read_identifier();
                     self.token = lookup_identifer(&identifier);
                     self.identifier = identifier;
                 }
+
+                EOF_CHAR => self.token = Token::EndOfFile,
 
                 _ => {
                     self.step();
@@ -602,15 +607,17 @@ impl<'a, L: Logger> Lexer<'a, L> {
         }
     }
 
+    /// Scans the next token as either a template tail
+    /// or a template middle.
     pub fn scan_template_tail_or_middle(&mut self) {
         self.expect_token(Token::CloseBrace);
         let mut suffix_length = 1;
         self.token = Token::TemplateTail;
         'template_literal: loop {
             match self.character {
-                Some('$') => {
+                '$' => {
                     self.step();
-                    if self.character == Some('{') {
+                    if self.character == '{' {
                         self.step();
                         suffix_length = 2;
                         self.token = Token::TemplateMiddle;
@@ -618,12 +625,12 @@ impl<'a, L: Logger> Lexer<'a, L> {
                     }
                     continue 'template_literal;
                 }
-                Some('\\') => self.step(),
-                Some('`') => {
+                '\\' => self.step(),
+                '`' => {
                     self.step();
                     break 'template_literal;
                 }
-                None => self.unexpected(),
+                EOF_CHAR => self.unexpected(),
                 _ => {}
             }
             self.step();
@@ -636,21 +643,21 @@ impl<'a, L: Logger> Lexer<'a, L> {
 /// Internal
 impl<'a, L: Logger> Lexer<'a, L> {
     fn step(&mut self) {
-        self.character = self.chars.next();
+        self.character = self.chars.next().unwrap_or(EOF_CHAR);
         self.end = self.current;
         self.current += 1;
     }
 
     // Returns the next token without moving the current.
-    fn peek(&mut self) -> Option<char> {
-        self.chars.clone().nth(0)
+    fn peek(&mut self) -> char {
+        self.chars.clone().nth(0).unwrap_or(EOF_CHAR)
     }
 
     fn read_identifier(&mut self) -> String {
         let mut word = String::new();
-        while let Some(character) = self.character {
-            if self.is_letter(character) || character.is_digit(10) {
-                word.push(character);
+        while self.character != EOF_CHAR {
+            if is_identifier_continue(self.character) {
+                word.push(self.character);
                 self.step();
             } else {
                 break;
@@ -659,23 +666,19 @@ impl<'a, L: Logger> Lexer<'a, L> {
         return word;
     }
 
-    fn is_letter(&self, character: char) -> bool {
-        return character.is_alphabetic() || character == '_' || character == '$';
-    }
-
     fn read_number(&mut self) {
         // 00
-        if self.character == Some('0') && self.peek() == Some('0') {
+        if self.character == '0' && self.peek() == '0' {
             panic!("Legacy octal literals are not supported in strict mode");
         }
 
         // Means we've hit a fractal number .012
-        if self.character == Some('.') {
+        if self.character == '.' {
             self.step();
             let number = self.read_decimal_number();
 
             // Exponent
-            if self.character == Some('e') || self.character == Some('E') {
+            if self.character == 'e' || self.character == 'E' {
                 todo!()
             }
 
@@ -690,18 +693,18 @@ impl<'a, L: Logger> Lexer<'a, L> {
         let mut number = self.read_decimal_number();
 
         // Exponent
-        if self.character == Some('e') || self.character == Some('E') {
+        if self.character == 'e' || self.character == 'E' {
             todo!()
         }
 
         // Fractal 1.1
-        if self.character == Some('.') {
+        if self.character == '.' {
             self.step();
             number = format!("{}.{}", number, self.read_decimal_number());
         }
 
         // BitInt
-        if self.character == Some('n') {
+        if self.character == 'n' {
             self.step();
             self.token = Token::BigIntegerLiteral;
             self.identifier = number;
@@ -728,14 +731,14 @@ impl<'a, L: Logger> Lexer<'a, L> {
         };
 
         // Exponent
-        if self.character == Some('e') || self.character == Some('E') {
+        if self.character == 'e' || self.character == 'E' {
             todo!()
         }
 
         // Means we've hit a big int literal
         // We do not attempt to convert the string into
         // a number since that could mean precision loss.
-        if self.character == Some('n') {
+        if self.character == 'n' {
             self.step();
             self.token = Token::BigIntegerLiteral;
             self.identifier = match radix {
@@ -757,8 +760,8 @@ impl<'a, L: Logger> Lexer<'a, L> {
         let mut num = String::new();
         loop {
             match self.character {
-                Some('0') | Some('1') => num.push(self.character.unwrap()),
-                Some('_') => {}
+                '0' | '1' => num.push(self.character),
+                '_' => {}
                 _ => break,
             }
             self.step();
@@ -770,9 +773,8 @@ impl<'a, L: Logger> Lexer<'a, L> {
         let mut num = String::new();
         loop {
             match self.character {
-                Some('0') | Some('1') | Some('2') | Some('3') | Some('4') | Some('5')
-                | Some('6') | Some('7') | Some('8') => num.push(self.character.unwrap()),
-                Some('_') => {}
+                '0'..='8' => num.push(self.character),
+                '_' => {}
                 _ => break,
             }
             self.step();
@@ -784,11 +786,9 @@ impl<'a, L: Logger> Lexer<'a, L> {
         let mut num = String::new();
         loop {
             match self.character {
-                Some('0') | Some('1') | Some('2') | Some('3') | Some('4') | Some('5')
-                | Some('6') | Some('7') | Some('8') | Some('9') => {
-                    num.push(self.character.unwrap())
-                }
-                Some('_') => {}
+                '0'..='9' => num.push(self.character),
+
+                '_' => {}
                 _ => break,
             }
             self.step();
@@ -800,17 +800,84 @@ impl<'a, L: Logger> Lexer<'a, L> {
         let mut num = String::new();
         loop {
             match self.character {
-                Some('0') | Some('1') | Some('2') | Some('3') | Some('4') | Some('5')
-                | Some('6') | Some('7') | Some('8') | Some('9') | Some('A') | Some('B')
-                | Some('C') | Some('D') | Some('E') | Some('F') | Some('a') | Some('b')
-                | Some('c') | Some('d') | Some('e') | Some('f') => {
-                    num.push(self.character.unwrap())
-                }
-                Some('_') => {}
+                '0'..='9' | 'a'..='f' | 'A'..='F' => num.push(self.character),
+                '_' => {}
                 _ => break,
             }
             self.step();
         }
         return num;
     }
+}
+
+/// True if `c` is considered whitespace according to the ECMAScript specification
+///
+/// See [ECMAScript specification](https://262.ecma-international.org/11.0/#sec-white-space)
+fn is_whitespace(c: char) -> bool {
+    matches!(
+        c,
+        '\u{0009}' // Tab
+        | '\u{000B}' // Vertical tab
+        | '\u{000C}' // Form feed
+        | '\u{0020}' // Space
+        | '\u{00A0}' // No-break space
+        | '\u{FEFF}' // Zero width no-break space
+        | '\u{1680}' // Orgham space mark
+        | '\u{2000}' // En quad
+        | '\u{2001}' // Em quad
+        | '\u{2002}' // En space
+        | '\u{2003}' // Em space
+        | '\u{2004}' // Three per em space
+        | '\u{2005}' // Four per em space
+        | '\u{2006}' // Six per em space
+        | '\u{2007}' // Figure space
+        | '\u{2008}' // Punctuation space
+        | '\u{2009}' // Thin space
+        | '\u{200A}' // Hair space
+        | '\u{202F}' // Narrow no-break space
+        | '\u{205F}' // Medium mathematical space
+        | '\u{3000}' // Ideographic space
+    )
+}
+
+/// True if `c` is considered a line terminator according to the ECMAScript specification
+///
+/// See [ECMAScript specification](https://262.ecma-international.org/11.0/#sec-line-terminators)
+fn is_line_terminator(c: char) -> bool {
+    matches!(
+        c,
+        '\u{000A}' // Line feed
+        | '\u{000D}' // Carriage return
+        | '\u{2028}' // Line separator
+        | '\u{2029}' // Paragraph separator
+    )
+}
+
+/// True if `c` is considered a identifier start according to the ECMAScript specification
+///
+/// See [ECMAScript specification](https://262.ecma-international.org/11.0/#sec-names-and-keywords)
+fn is_identifier_start(c: char) -> bool {
+    // We start by fast-checking the ASCII characters and
+    // if no match is find we run the slower unicode check.
+    ('a'..='z').contains(&c)
+        || ('A'..='Z').contains(&c)
+        || c == '_'
+        || c == '$'
+        || unicode::id_start(c)
+}
+
+/// True if `c` is considered a identifier start according to the ECMAScript specification.
+///
+/// See [ECMAScript specification](https://262.ecma-international.org/11.0/#sec-names-and-keywords)
+fn is_identifier_continue(c: char) -> bool {
+    // We start by fast-checking the ASCII characters and
+    // if no match is find we run the slower unicode check.
+    ('a'..='z').contains(&c)
+        || ('A'..='Z').contains(&c)
+        || ('0'..='9').contains(&c)
+        || c == '\u{200C}'
+        || c == '\u{200D}'
+        || c == '_'
+        || c == '$'
+        || unicode::id_continue(c)
 }

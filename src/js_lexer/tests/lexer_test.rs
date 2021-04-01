@@ -80,6 +80,7 @@ fn test_identifiers() {
     expect_identifier("a_a", "a_a");
     expect_identifier("$", "$");
     expect_identifier("_$", "_$");
+    // expect_identifier("\\u0061s", "\\u0061"); // TODO
 }
 
 fn expect_regexp(content: &str, expected: &str) {
