@@ -351,7 +351,11 @@ impl Printer {
                     ExportDefaultDeclarationKind::AnonymousDefaultExportedFunctionDeclaration(
                         a,
                     ) => {
-                        self.print("function(");
+                        self.print("function");
+                        if a.generator {
+                            self.print("*");
+                        }
+                        self.print("(");
                         self.print_parameters(&a.parameters);
                         self.print(")");
                         self.print_space();
@@ -513,7 +517,11 @@ impl Printer {
     }
 
     fn print_function_declaration(&mut self, function_declaration: &FunctionDeclaration) {
-        self.print("function ");
+        self.print("function");
+        if function_declaration.generator {
+            self.print("*");
+        }
+        self.print(" ");
         self.print_identifier(&function_declaration.identifier);
         self.print("(");
         self.print_parameters(&function_declaration.parameters);
@@ -734,6 +742,9 @@ impl Printer {
                     self.print("(");
                 }
                 self.print("function");
+                if f.generator {
+                    self.print("*");
+                }
                 if let Some(identifier) = &f.identifier {
                     self.print_space();
                     self.print_identifier(identifier);

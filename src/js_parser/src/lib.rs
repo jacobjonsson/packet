@@ -631,13 +631,21 @@ impl<'a, L: Logger> Parser<'a, L> {
             // let a = function () {}
             Token::Function => {
                 self.lexer.next_token();
-                let mut identifier: Option<Identifier> = None;
-                if self.lexer.token == Token::Identifier {
-                    identifier = self.parse_identifier().map(Some)?;
-                }
+                let generator = match self.lexer.token {
+                    Token::Asterisk => {
+                        self.lexer.next_token();
+                        true
+                    }
+                    _ => false,
+                };
+                let identifier = match self.lexer.token {
+                    Token::Identifier => self.parse_identifier().map(Some)?,
+                    _ => None,
+                };
                 let parameters = self.parse_parameters()?;
                 let body = self.parse_block_statement()?;
                 Ok(Expression::Function(FunctionExpression {
+                    generator,
                     parameters,
                     body,
                     identifier,
@@ -1956,15 +1964,23 @@ impl<'a, L: Logger> Parser<'a, L> {
                     let declaration = match self.lexer.token {
                         Token::Function => {
                             self.lexer.next_token();
-                            let mut identifier: Option<Identifier> = None;
-                            if self.lexer.token == Token::Identifier {
-                                identifier = self.parse_identifier().map(Some)?;
-                            }
+                            let generator = match self.lexer.token {
+                                Token::Asterisk => {
+                                    self.lexer.next_token();
+                                    true
+                                }
+                                _ => false,
+                            };
+                            let identifier = match self.lexer.token {
+                                Token::Identifier => self.parse_identifier().map(Some)?,
+                                _ => None,
+                            };
                             let parameters = self.parse_parameters()?;
                             let body = self.parse_block_statement()?;
                             if let Some(ident) = identifier {
                                 ExportDefaultDeclarationKind::FunctionDeclaration(
                                     FunctionDeclaration {
+                                        generator,
                                         identifier: ident,
                                         parameters,
                                         body,
@@ -1972,6 +1988,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                                 )
                             } else {
                                 ExportDefaultDeclarationKind::AnonymousDefaultExportedFunctionDeclaration(AnonymousDefaultExportedFunctionDeclaration {
+                                    generator,
                                     body,
                                     parameters,
                                 })
@@ -2019,12 +2036,20 @@ impl<'a, L: Logger> Parser<'a, L> {
                     // export function a() {}
                     Token::Function => {
                         self.lexer.next_token();
+                        let generator = match self.lexer.token {
+                            Token::Asterisk => {
+                                self.lexer.next_token();
+                                true
+                            }
+                            _ => false,
+                        };
                         let identifier = self.parse_identifier()?;
                         let parameters = self.parse_parameters()?;
                         let body = self.parse_block_statement()?;
                         Ok(Statement::ExportNamedDeclaration(ExportNamedDeclaration {
                             declaration: ExportNamedDeclarationKind::FunctionDeclaration(
                                 FunctionDeclaration {
+                                    generator,
                                     parameters,
                                     body,
                                     identifier,
@@ -2115,10 +2140,18 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             Token::Function => {
                 self.lexer.next_token();
+                let generator = match self.lexer.token {
+                    Token::Asterisk => {
+                        self.lexer.next_token();
+                        true
+                    }
+                    _ => false,
+                };
                 let identifier = self.parse_identifier()?;
                 let parameters = self.parse_parameters()?;
                 let body = self.parse_block_statement()?;
                 Ok(Statement::FunctionDeclaration(FunctionDeclaration {
+                    generator,
                     identifier,
                     body,
                     parameters,

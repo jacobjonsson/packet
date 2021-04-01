@@ -171,6 +171,8 @@ fn test_function_declaration() {
     );
     expect_printed("function a({ b }) {}", "function a({ b }) {}");
     expect_printed("function a(...b) {}", "function a(...b) {}");
+    expect_printed("function* a() {}", "function* a() {}");
+    expect_printed("function *a() {}", "function* a() {}");
 }
 
 #[test]
@@ -234,6 +236,8 @@ fn test_function_expression() {
         "let a = function b([...c]) {}",
         "let a = function b([...c]) {};\n",
     );
+    expect_printed("let a = function*() {}", "let a = function*() {};\n");
+    expect_printed("let a = function* a() {}", "let a = function* a() {};\n");
 }
 
 #[test]
@@ -516,6 +520,7 @@ fn test_export_named_declaration() {
         "export { default as a } from \"b\";\n",
     );
     expect_printed("export function a() {}", "export function a() {}");
+    expect_printed("export function* a() {}", "export function* a() {}");
     expect_printed("export const a = 1;", "export const a = 1;\n");
     expect_printed("export class A {}", "export class A {}");
     expect_printed("export class A extends B {}", "export class A extends B {}");
@@ -536,6 +541,14 @@ fn test_export_default_declaration() {
     expect_printed(
         "export default function() {}",
         "export default function() {}",
+    );
+    expect_printed(
+        "export default function* a() {}",
+        "export default function* a() {}",
+    );
+    expect_printed(
+        "export default function*() {}",
+        "export default function*() {}",
     );
     expect_printed("export default class A {}", "export default class A {}");
     expect_printed("export default class {}", "export default class {}");

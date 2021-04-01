@@ -1,5 +1,3 @@
-use precedence::{Precedence, PrecedenceInfo};
-
 /// This file defines the JavaScript abstract syntax tree (AST)
 /// that packet uses during parsing, bundling and printing.
 ///
@@ -40,6 +38,8 @@ use precedence::{Precedence, PrecedenceInfo};
 /// We try to avoid making illegal states completely un-representable, taking full use of
 /// rusts powerful type-system. This does lead to a more verbose AST but reduces the
 /// need for runtime logic.
+use precedence::{Precedence, PrecedenceInfo};
+
 pub mod precedence;
 
 /// The AST is the top level node that contains all of the statements
@@ -182,6 +182,7 @@ pub struct AnonymousDefaultExportedClassDeclaration {
 /// an identifier.
 #[derive(Debug, PartialEq, Clone)]
 pub struct AnonymousDefaultExportedFunctionDeclaration {
+    pub generator: bool,
     pub parameters: Vec<ParameterKind>,
     pub body: BlockStatement,
 }
@@ -618,6 +619,7 @@ pub struct FunctionDeclaration {
     pub identifier: Identifier,
     pub parameters: Vec<ParameterKind>,
     pub body: BlockStatement,
+    pub generator: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -625,6 +627,7 @@ pub struct FunctionExpression {
     pub identifier: Option<Identifier>,
     pub parameters: Vec<ParameterKind>,
     pub body: BlockStatement,
+    pub generator: bool,
 }
 
 /// a
