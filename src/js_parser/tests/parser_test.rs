@@ -618,3 +618,10 @@ fn test_array_function_expression() {
     expect_printed("let a = () => {}", "let a = () => {};\n");
     expect_printed("let a = b => {}", "let a = (b) => {};\n");
 }
+
+#[test]
+fn test_template_literal() {
+    expect_printed("`hello world`", "\"hello world\";\n");
+    expect_printed("`hello ${a} from ${b}`", "`hello ${a} from ${b}`;\n");
+    expect_printed("`hello ${3 * 3}`", "`hello ${3 * 3}`;\n");
+}

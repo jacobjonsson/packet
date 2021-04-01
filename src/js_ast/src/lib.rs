@@ -109,6 +109,7 @@ pub enum Expression {
     Sequence(SequenceExpression),
     StringLiteral(StringLiteral),
     Super(SuperExpression),
+    TemplateLiteral(TemplateLiteral),
     This(ThisExpression),
     Unary(UnaryExpression),
     Update(UpdateExpression),
@@ -905,6 +906,18 @@ pub struct SwitchStatement {
 pub struct SwitchStatementCase {
     pub test: Option<Expression>,
     pub consequent: Vec<Box<Statement>>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct TemplateLiteral {
+    pub head: String,
+    pub parts: Vec<TemplateLiteralPart>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct TemplateLiteralPart {
+    pub expression: Expression,
+    pub text: String,
 }
 
 /// this
