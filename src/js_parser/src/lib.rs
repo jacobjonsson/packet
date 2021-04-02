@@ -57,7 +57,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
 // Bindings
 impl<'a, L: Logger> Parser<'a, L> {
-    pub(crate) fn parse_binding(&mut self) -> ParseResult<Binding> {
+    fn parse_binding(&mut self) -> ParseResult<Binding> {
         match self.lexer.token {
             Token::Identifier => self.parse_identifier().map(Binding::Identifier),
             Token::OpenBrace => self.parse_object_binding().map(Binding::Object),
@@ -1876,7 +1876,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
 // Statements
 impl<'a, L: Logger> Parser<'a, L> {
-    pub(crate) fn parse_statement(&mut self) -> ParseResult<Statement> {
+    fn parse_statement(&mut self) -> ParseResult<Statement> {
         match &self.lexer.token {
             Token::Const | Token::Var | Token::Let => self
                 .parse_variable_declaration()
@@ -2431,7 +2431,7 @@ impl<'a, L: Logger> Parser<'a, L> {
     ///     statement1;
     ///     statement2;
     /// }
-    pub(crate) fn parse_block_statement(&mut self) -> ParseResult<BlockStatement> {
+    fn parse_block_statement(&mut self) -> ParseResult<BlockStatement> {
         self.lexer.eat_token(Token::OpenBrace);
         let mut statements: Vec<Statement> = Vec::new();
         while self.lexer.token != Token::CloseBrace {
@@ -2445,7 +2445,7 @@ impl<'a, L: Logger> Parser<'a, L> {
     ///
     /// if (test) consequent else alternate
     /// if (test) consequent else alternate
-    pub(crate) fn parse_if_statement(&mut self) -> ParseResult<IfStatement> {
+    fn parse_if_statement(&mut self) -> ParseResult<IfStatement> {
         self.lexer.next_token(); // if
         self.lexer.eat_token(Token::OpenParen);
         let test = self.parse_expression(&Precedence::Lowest)?;
@@ -2482,7 +2482,7 @@ impl<'a, L: Logger> Parser<'a, L> {
     /// for (let a = 1; a < 10; a++) {}
     /// for (let a in items) {}
     /// for (let a of items) {}
-    pub(crate) fn parse_for_statement(&mut self) -> ParseResult<Statement> {
+    fn parse_for_statement(&mut self) -> ParseResult<Statement> {
         self.lexer.next_token();
 
         if self.lexer.token == Token::Await {
@@ -2580,7 +2580,7 @@ impl<'a, L: Logger> Parser<'a, L> {
     /// var a = 1;
     /// var a = 1, b = 2;
     /// var a;
-    pub(crate) fn parse_variable_declaration(&mut self) -> ParseResult<VariableDeclaration> {
+    fn parse_variable_declaration(&mut self) -> ParseResult<VariableDeclaration> {
         let kind = match self.lexer.token {
             Token::Const => VariableDeclarationKind::Const,
             Token::Let => VariableDeclarationKind::Let,
