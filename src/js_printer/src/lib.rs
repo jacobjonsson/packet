@@ -271,9 +271,13 @@ impl Printer {
                     self.print("}");
                 }
 
-                self.print(" ");
-                self.print("from");
-                self.print_space();
+                // Only print the from if one of the following is true
+                if i.default != None || i.namespace != None || i.specifiers.len() != 0 {
+                    self.print(" ");
+                    self.print("from");
+                    self.print_space();
+                }
+
                 self.print("\"");
                 self.print(&i.source.value);
                 self.print("\"");

@@ -1885,16 +1885,26 @@ impl<'a, L: Logger> Parser<'a, L> {
             Token::Import => {
                 self.lexer.next_token();
 
+                if self.lexer.token == Token::OpenParen {
+                    panic!("Import expressions are not yet supported");
+                }
+
+                if self.lexer.token == Token::StringLiteral {
+                    let source = self.parse_string_literal()?;
+                    self.consume_semicolon();
+                    return Ok(Statement::ImportDeclaration(ImportDeclaration {
+                        default: None,
+                        namespace: None,
+                        specifiers: Vec::new(),
+                        source,
+                    }));
+                }
+
                 let mut default: Option<Identifier> = None;
                 let mut namespace: Option<Identifier> = None;
                 let mut specifiers: Vec<ImportDeclarationSpecifier> = Vec::new();
 
                 match self.lexer.token {
-                    // import()
-                    Token::OpenParen => {
-                        panic!("Import expressions are not yet supported");
-                    }
-
                     // import * as a from "b"
                     Token::Asterisk => {
                         self.lexer.next_token(); // *
@@ -2493,21 +2503,27 @@ impl<'a, L: Logger> Parser<'a, L> {
 
         self.allow_in = false;
 
-        let mut test: Option<Expression> = None;
-        let mut update: Option<Expression> = None;
-
         let init = match self.lexer.token {
             Token::Const | Token::Let | Token::Var => self
                 .parse_variable_declaration()
                 .map(Statement::VariableDeclaration)
                 .map(Box::new)
                 .map(Some)?,
-            Token::Semicolon => None,
-            _ => self
-                .parse_expression(&Precedence::Lowest)
-                .map(|expression| Statement::Expression(ExpressionStatement { expression }))
-                .map(Box::new)
-                .map(Some)?,
+
+            Token::Semicolon => {
+                self.lexer.next_token();
+                None
+            }
+
+            _ => {
+                let expression = self
+                    .parse_expression(&Precedence::Lowest)
+                    .map(|expression| Statement::Expression(ExpressionStatement { expression }))
+                    .map(Box::new)
+                    .map(Some)?;
+                self.consume_semicolon();
+                expression
+            }
         };
 
         self.allow_in = true;
@@ -2550,21 +2566,29 @@ impl<'a, L: Logger> Parser<'a, L> {
             }
         }
 
-        if self.lexer.token == Token::Semicolon {
-            self.lexer.next_token();
-        }
+        let test = match self.lexer.token {
+            Token::Semicolon => {
+                self.lexer.next_token();
+                None
+            }
+            _ => {
+                let expression = self.parse_expression(&Precedence::Lowest).map(Some)?;
+                self.lexer.eat_token(Token::Semicolon);
+                expression
+            }
+        };
 
-        if self.lexer.token != Token::Semicolon {
-            test = self.parse_expression(&Precedence::Lowest).map(Some)?;
-        }
-
-        self.lexer.eat_token(Token::Semicolon);
-
-        if self.lexer.token != Token::CloseParen {
-            update = self.parse_expression(&Precedence::Lowest).map(Some)?;
-        }
-
-        self.lexer.eat_token(Token::CloseParen);
+        let update = match self.lexer.token {
+            Token::CloseParen => {
+                self.lexer.next_token();
+                None
+            }
+            _ => {
+                let expression = self.parse_expression(&Precedence::Lowest).map(Some)?;
+                self.lexer.eat_token(Token::CloseParen);
+                expression
+            }
+        };
 
         let body = self.parse_statement().map(Box::new)?;
         Ok(Statement::ForStatement(ForStatement {

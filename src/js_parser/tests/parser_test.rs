@@ -127,6 +127,7 @@ fn test_operator_precedence_parsing() {
 
 #[test]
 fn test_import_statement() {
+    expect_printed("import \"a\";", "import \"a\";\n");
     expect_printed("import a from \"b\"", "import a from \"b\";\n");
     expect_printed("import { a } from \"b\"", "import { a } from \"b\";\n");
     expect_printed(
@@ -266,6 +267,11 @@ fn test_for_statement() {
         "for (i = 0, l = 10; i < l; i++) {}",
         "for (i = 0, l = 10; i < l; i++) {}",
     );
+    expect_printed(
+        "for (i = 0, l = 10; i < l, x < 10; i++, x--) {}",
+        "for (i = 0, l = 10; i < l, x < 10; i++, x--) {}",
+    );
+    expect_printed("for (var c;;) {}", "for (var c; ; ) {}");
 }
 
 #[test]
@@ -406,6 +412,10 @@ fn test_with_statement() {
 fn test_labeled_statement() {
     expect_printed("label1: function a() {}", "label1: function a() {}");
     expect_printed("label1: while (true) {}", "label1: while (true) {}");
+    expect_printed(
+        "a: for (var a in b) continue a;",
+        "a: for (var a in b) continue a;\n",
+    );
 }
 
 #[test]
