@@ -1,6 +1,6 @@
 use fs::FS;
 use js_ast::AST;
-use js_lexer::Lexer;
+use js_lexer;
 use js_parser::Parser;
 use logger::LoggerImpl;
 
@@ -54,7 +54,7 @@ impl Bundler {
         };
 
         let logger = LoggerImpl::new();
-        let lexer = Lexer::new(&content, &logger);
+        let lexer = js_lexer::create(&content);
         let ast = Parser::new(lexer, &logger).parse_program();
 
         // TODO: Look at the import records and push them to the queue.

@@ -1,12 +1,15 @@
 use js_ast::{precedence::Precedence, *};
-use js_lexer::Lexer;
+use js_lexer::{
+    create, eat_token, expect_token, raw, scan_next_token, scan_regexp,
+    scan_template_tail_or_middle, Lexer,
+};
 use js_token::Token;
 use logger::Logger;
 use source::Source;
 
 /// Parses the given source into an AST.
 pub fn parse<L: Logger>(source: &Source, logger: &L) -> AST {
-    let lexer = Lexer::new(source.content, logger);
+    let lexer = create(source.content);
     let mut parser = Parser::new(lexer, logger);
     let ast = parser.parse_program();
     ast
@@ -17,7 +20,7 @@ pub struct ParserError(String);
 pub type ParseResult<T> = Result<T, ParserError>;
 
 pub struct Parser<'a, L: Logger> {
-    lexer: Lexer<'a, L>,
+    lexer: Lexer<'a>,
     #[allow(dead_code)]
     logger: &'a L,
     /// in statement are only allowed in certain expressions.
@@ -26,7 +29,7 @@ pub struct Parser<'a, L: Logger> {
 
 /// Public
 impl<'a, L: Logger> Parser<'a, L> {
-    pub fn new(lexer: Lexer<'a, L>, logger: &'a L) -> Parser<'a, L> {
+    pub fn new(lexer: Lexer<'a>, logger: &'a L) -> Parser<'a, L> {
         Parser {
             allow_in: true,
             lexer,
@@ -50,7 +53,7 @@ impl<'a, L: Logger> Parser<'a, L> {
     /// Consumes the next semicolon
     fn consume_semicolon(&mut self) {
         if self.lexer.token == Token::Semicolon {
-            self.lexer.next_token();
+            scan_next_token(&mut self.lexer);
         }
     }
 }
@@ -62,18 +65,18 @@ impl<'a, L: Logger> Parser<'a, L> {
             Token::Identifier => self.parse_identifier().map(Binding::Identifier),
             Token::OpenBrace => self.parse_object_binding().map(Binding::Object),
             Token::OpenBracket => self.parse_array_binding().map(Binding::Array),
-            _ => self.lexer.unexpected(),
+            _ => todo!(),
         }
     }
 
     fn parse_object_binding(&mut self) -> ParseResult<ObjectBinding> {
-        self.lexer.next_token();
+        scan_next_token(&mut self.lexer);
         let mut properties: Vec<ObjectBindingPropertyKind> = Vec::new();
         while self.lexer.token != Token::CloseBrace {
             match self.lexer.token {
                 // { ...a }
                 Token::DotDotDot => {
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     // Note that the rest element inside of object has different constraints compared
                     // to arrays, hence why we hand code the parsing of the rest element here instead of using
                     // parse_rest_element_binding. The only node that is be a rest element inside an object
@@ -86,10 +89,10 @@ impl<'a, L: Logger> Parser<'a, L> {
 
                 // { [a]: b }
                 Token::OpenBracket => {
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     let key = self.parse_expression(&Precedence::Comma)?;
-                    self.lexer.eat_token(Token::CloseBracket);
-                    self.lexer.eat_token(Token::Colon);
+                    eat_token(&mut self.lexer, Token::CloseBracket);
+                    eat_token(&mut self.lexer, Token::Colon);
                     let binding = self.parse_binding()?;
                     let initializer = self.parse_optional_initializer()?;
                     properties.push(ObjectBindingPropertyKind::Computed(
@@ -116,7 +119,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                             ObjectBindingPropertyShorthand { initializer, key },
                         ));
                     } else {
-                        self.lexer.eat_token(Token::Colon);
+                        eat_token(&mut self.lexer, Token::Colon);
                         let binding = self.parse_binding()?;
                         let initializer = self.parse_optional_initializer()?;
                         properties.push(ObjectBindingPropertyKind::Property(
@@ -131,15 +134,15 @@ impl<'a, L: Logger> Parser<'a, L> {
             }
 
             if self.lexer.token == Token::Comma {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
             }
         }
-        self.lexer.eat_token(Token::CloseBrace);
+        eat_token(&mut self.lexer, Token::CloseBrace);
         Ok(ObjectBinding { properties })
     }
 
     fn parse_array_binding(&mut self) -> ParseResult<ArrayBinding> {
-        self.lexer.next_token();
+        scan_next_token(&mut self.lexer);
         let mut items: Vec<Option<ArrayBindingItemKind>> = Vec::new();
         while self.lexer.token != Token::CloseBracket {
             match self.lexer.token {
@@ -163,15 +166,15 @@ impl<'a, L: Logger> Parser<'a, L> {
             };
 
             if self.lexer.token == Token::Comma {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
             }
         }
-        self.lexer.eat_token(Token::CloseBracket);
+        eat_token(&mut self.lexer, Token::CloseBracket);
         Ok(ArrayBinding { items })
     }
 
     fn parse_rest_element(&mut self) -> ParseResult<RestElement> {
-        self.lexer.next_token();
+        scan_next_token(&mut self.lexer);
         let element = self.parse_binding()?;
         Ok(RestElement { binding: element })
     }
@@ -180,7 +183,7 @@ impl<'a, L: Logger> Parser<'a, L> {
         if self.lexer.token != Token::Equals {
             return Ok(None);
         }
-        self.lexer.next_token();
+        scan_next_token(&mut self.lexer);
         self.parse_expression(&Precedence::Comma).map(Some)
     }
 }
@@ -196,26 +199,26 @@ impl<'a, L: Logger> Parser<'a, L> {
     fn parse_prefix(&mut self) -> ParseResult<Expression> {
         match &self.lexer.token {
             Token::Null => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(Expression::NullLiteral(NullLiteral {}))
             }
 
             Token::NumericLiteral => {
                 let value = self.lexer.number;
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(Expression::NumericLiteral(NumericLiteral { value }))
             }
 
             Token::BigIntegerLiteral => {
                 let value = self.lexer.identifier.clone();
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(Expression::BigIntLiteral(BigIntLiteral { value }))
             }
 
             Token::Slash | Token::SlashEquals => {
-                self.lexer.scan_regexp();
-                let value = self.lexer.raw();
-                self.lexer.next_token();
+                scan_regexp(&mut self.lexer);
+                let value = raw(&mut self.lexer).to_string();
+                scan_next_token(&mut self.lexer);
                 Ok(Expression::RegexpLiteral(RegexpLiteral { value }))
             }
 
@@ -224,7 +227,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
                 // Arrow function
                 if self.lexer.token == Token::EqualsGreaterThan {
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     let body = match self.lexer.token {
                         Token::OpenBrace => self
                             .parse_block_statement()
@@ -255,13 +258,13 @@ impl<'a, L: Logger> Parser<'a, L> {
                 let head = self.lexer.identifier.clone();
                 let mut parts: Vec<TemplateLiteralPart> = Vec::new();
                 loop {
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     let expression = self.parse_expression(&Precedence::Comma)?;
-                    self.lexer.scan_template_tail_or_middle();
+                    scan_template_tail_or_middle(&mut self.lexer);
                     let text = self.lexer.identifier.clone();
                     parts.push(TemplateLiteralPart { expression, text });
                     if self.lexer.token == Token::TemplateTail {
-                        self.lexer.next_token();
+                        scan_next_token(&mut self.lexer);
                         break;
                     }
                 }
@@ -269,14 +272,14 @@ impl<'a, L: Logger> Parser<'a, L> {
             }
 
             Token::Class => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 let identifier = match self.lexer.token {
                     Token::Identifier => self.parse_identifier().map(Some)?,
                     _ => None,
                 };
                 let extends = match self.lexer.token {
                     Token::Extends => {
-                        self.lexer.next_token();
+                        scan_next_token(&mut self.lexer);
                         self.parse_expression(&Precedence::Comma)
                             .map(Box::new)
                             .map(Some)?
@@ -293,7 +296,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             // !a
             Token::Exclamation => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(Expression::Unary(UnaryExpression {
                     operator: UnaryExpressionOperator::LogicalNot,
                     argument: self.parse_expression(&Precedence::Prefix).map(Box::new)?,
@@ -302,7 +305,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             // ~a
             Token::Tilde => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(Expression::Unary(UnaryExpression {
                     operator: UnaryExpressionOperator::BinaryNot,
                     argument: self.parse_expression(&Precedence::Prefix).map(Box::new)?,
@@ -311,7 +314,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             // +a
             Token::Plus => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(Expression::Unary(UnaryExpression {
                     operator: UnaryExpressionOperator::Positive,
                     argument: self.parse_expression(&Precedence::Prefix).map(Box::new)?,
@@ -320,7 +323,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             // ++a
             Token::PlusPlus => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(Expression::Update(UpdateExpression {
                     operator: UpdateExpressionOperator::PrefixIncrement,
                     argument: self.parse_expression(&Precedence::Prefix).map(Box::new)?,
@@ -329,7 +332,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             // -a
             Token::Minus => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(Expression::Unary(UnaryExpression {
                     operator: UnaryExpressionOperator::Negative,
                     argument: self.parse_expression(&Precedence::Prefix).map(Box::new)?,
@@ -338,7 +341,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             // --a
             Token::MinusMinus => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(Expression::Update(UpdateExpression {
                     operator: UpdateExpressionOperator::PrefixDecrement,
                     argument: self.parse_expression(&Precedence::Prefix).map(Box::new)?,
@@ -347,7 +350,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             // typeof a
             Token::Typeof => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(Expression::Unary(UnaryExpression {
                     operator: UnaryExpressionOperator::Typeof,
                     argument: self.parse_expression(&Precedence::Prefix).map(Box::new)?,
@@ -356,7 +359,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             // delete a
             Token::Delete => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(Expression::Unary(UnaryExpression {
                     operator: UnaryExpressionOperator::Delete,
                     argument: self.parse_expression(&Precedence::Prefix).map(Box::new)?,
@@ -365,7 +368,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             // void a
             Token::Void => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(Expression::Unary(UnaryExpression {
                     operator: UnaryExpressionOperator::Void,
                     argument: self.parse_expression(&Precedence::Prefix).map(Box::new)?,
@@ -374,13 +377,13 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             // true
             Token::True => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(Expression::BooleanLiteral(BooleanLiteral { value: true }))
             }
 
             // false
             Token::False => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(Expression::BooleanLiteral(BooleanLiteral { value: false }))
             }
 
@@ -390,17 +393,17 @@ impl<'a, L: Logger> Parser<'a, L> {
             //
             // ({ a, b: c, [d]: e, ...f })
             Token::OpenBrace => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 let mut properties: Vec<ObjectExpressionPropertyKind> = Vec::new();
                 while self.lexer.token != Token::CloseBrace {
                     if self.lexer.token == Token::Comma {
-                        self.lexer.next_token();
+                        scan_next_token(&mut self.lexer);
                         continue;
                     }
 
                     // ...a
                     if self.lexer.token == Token::DotDotDot {
-                        self.lexer.next_token();
+                        scan_next_token(&mut self.lexer);
                         let element = self.parse_expression(&Precedence::Comma)?;
                         properties.push(ObjectExpressionPropertyKind::Spread(SpreadElement {
                             element,
@@ -422,7 +425,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
                     // get a() {} | get() {}
                     if self.lexer.token == Token::Identifier && self.lexer.identifier == "get" {
-                        self.lexer.next_token();
+                        scan_next_token(&mut self.lexer);
                         // get a() {}
                         if self.lexer.token == Token::Identifier {
                             let key = self.parse_literal_property_name()?;
@@ -440,9 +443,9 @@ impl<'a, L: Logger> Parser<'a, L> {
 
                         // get [a]() {}
                         if self.lexer.token == Token::OpenBracket {
-                            self.lexer.next_token();
+                            scan_next_token(&mut self.lexer);
                             let key = self.parse_expression(&Precedence::Comma)?;
-                            self.lexer.eat_token(Token::CloseBracket);
+                            eat_token(&mut self.lexer, Token::CloseBracket);
                             let parameters = self.parse_parameters()?;
                             let body = self.parse_block_statement()?;
                             properties.push(ObjectExpressionPropertyKind::MethodGetComputed(
@@ -463,7 +466,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
                     // set a() {} | set() {}
                     if self.lexer.token == Token::Identifier && self.lexer.identifier == "set" {
-                        self.lexer.next_token();
+                        scan_next_token(&mut self.lexer);
                         // set a() {}
                         if self.lexer.token == Token::Identifier {
                             let key = self.parse_literal_property_name()?;
@@ -481,9 +484,9 @@ impl<'a, L: Logger> Parser<'a, L> {
 
                         // set [a]() {}
                         if self.lexer.token == Token::OpenBracket {
-                            self.lexer.next_token();
+                            scan_next_token(&mut self.lexer);
                             let key = self.parse_expression(&Precedence::Comma)?;
-                            self.lexer.eat_token(Token::CloseBracket);
+                            eat_token(&mut self.lexer, Token::CloseBracket);
                             let parameters = self.parse_parameters()?;
                             let body = self.parse_block_statement()?;
                             properties.push(ObjectExpressionPropertyKind::MethodSetComputed(
@@ -506,12 +509,12 @@ impl<'a, L: Logger> Parser<'a, L> {
                     //
                     // { [a]: b }
                     if self.lexer.token == Token::OpenBracket {
-                        self.lexer.next_token();
+                        scan_next_token(&mut self.lexer);
                         let key = self.parse_expression(&Precedence::Comma)?;
-                        self.lexer.eat_token(Token::CloseBracket);
+                        eat_token(&mut self.lexer, Token::CloseBracket);
 
                         if self.lexer.token == Token::Colon {
-                            self.lexer.next_token();
+                            scan_next_token(&mut self.lexer);
                             let value = self.parse_expression(&Precedence::Comma)?;
                             properties.push(ObjectExpressionPropertyKind::Computed(
                                 ObjectExpressionPropertyComputed { key, value },
@@ -542,7 +545,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
                     // a: b | "a": b | 1: b | undefined: b | null: b
                     if self.lexer.token == Token::Colon {
-                        self.lexer.next_token();
+                        scan_next_token(&mut self.lexer);
                         let value = self.parse_expression(&Precedence::Comma)?;
                         properties.push(ObjectExpressionPropertyKind::Property(
                             ObjectExpressionProperty { key, value },
@@ -576,7 +579,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                         ObjectExpressionPropertyShorthand { key: narrowed_key },
                     ));
                 }
-                self.lexer.eat_token(Token::CloseBrace);
+                eat_token(&mut self.lexer, Token::CloseBrace);
                 Ok(Expression::Object(ObjectExpression { properties }))
             }
 
@@ -584,13 +587,13 @@ impl<'a, L: Logger> Parser<'a, L> {
             //
             // [a, b, c]
             Token::OpenBracket => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 let mut elements: Vec<Option<ArrayExpressionItem>> = Vec::new();
                 while self.lexer.token != Token::CloseBracket {
                     match self.lexer.token {
                         Token::Comma => elements.push(None),
                         Token::DotDotDot => {
-                            self.lexer.next_token();
+                            scan_next_token(&mut self.lexer);
                             let element = self.parse_expression(&Precedence::Comma)?;
                             elements
                                 .push(Some(ArrayExpressionItem::Spread(SpreadElement { element })))
@@ -601,13 +604,11 @@ impl<'a, L: Logger> Parser<'a, L> {
                         }
                     };
 
-                    if self.lexer.token != Token::Comma {
-                        break;
-                    } else {
-                        self.lexer.next_token();
+                    if self.lexer.token == Token::Comma {
+                        scan_next_token(&mut self.lexer);
                     }
                 }
-                self.lexer.eat_token(Token::CloseBracket);
+                eat_token(&mut self.lexer, Token::CloseBracket);
                 Ok(Expression::Array(ArrayExpression { items: elements }))
             }
 
@@ -615,7 +616,7 @@ impl<'a, L: Logger> Parser<'a, L> {
             // new a()
             // new a.b.c()
             Token::New => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 let callee = Box::new(self.parse_expression(&Precedence::Member)?);
                 let mut arguments: Vec<ArgumentKind> = Vec::new();
                 // The actual call expression in a new expression is optional.
@@ -630,10 +631,10 @@ impl<'a, L: Logger> Parser<'a, L> {
             // let a = function b() {}
             // let a = function () {}
             Token::Function => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 let generator = match self.lexer.token {
                     Token::Asterisk => {
-                        self.lexer.next_token();
+                        scan_next_token(&mut self.lexer);
                         true
                     }
                     _ => false,
@@ -654,17 +655,17 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             // this
             Token::This => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(Expression::This(ThisExpression {}))
             }
 
             // super
             Token::Super => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(Expression::Super(SuperExpression {}))
             }
 
-            _ => self.lexer.unexpected(),
+            _ => todo!(),
         }
     }
 
@@ -679,9 +680,9 @@ impl<'a, L: Logger> Parser<'a, L> {
             match &self.lexer.token {
                 // a[b][c]
                 Token::OpenBracket => {
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     let property = self.parse_expression(&Precedence::Lowest).map(Box::new)?;
-                    self.lexer.eat_token(Token::CloseBracket);
+                    eat_token(&mut self.lexer, Token::CloseBracket);
                     expression = Expression::Member(MemberExpression {
                         object: Box::new(expression),
                         computed: true,
@@ -691,7 +692,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
                 // a.b.c
                 Token::Dot => {
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Member(MemberExpression {
                         object: Box::new(expression),
                         computed: false,
@@ -704,7 +705,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Assign {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Assignment(AssignmentExpression {
                         left: match self.convert_expression_to_binding(expression.clone()) {
                             Ok(b) => AssignmentExpressionLeft::Binding(b),
@@ -722,7 +723,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Assign {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Assignment(AssignmentExpression {
                         left: match self.convert_expression_to_binding(expression.clone()) {
                             Ok(b) => AssignmentExpressionLeft::Binding(b),
@@ -740,7 +741,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Assign {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Assignment(AssignmentExpression {
                         left: match self.convert_expression_to_binding(expression.clone()) {
                             Ok(b) => AssignmentExpressionLeft::Binding(b),
@@ -758,7 +759,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Assign {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Assignment(AssignmentExpression {
                         left: match self.convert_expression_to_binding(expression.clone()) {
                             Ok(b) => AssignmentExpressionLeft::Binding(b),
@@ -776,7 +777,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Assign {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Assignment(AssignmentExpression {
                         left: match self.convert_expression_to_binding(expression.clone()) {
                             Ok(b) => AssignmentExpressionLeft::Binding(b),
@@ -794,7 +795,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Assign {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Assignment(AssignmentExpression {
                         left: match self.convert_expression_to_binding(expression.clone()) {
                             Ok(b) => AssignmentExpressionLeft::Binding(b),
@@ -812,7 +813,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Assign {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Assignment(AssignmentExpression {
                         left: match self.convert_expression_to_binding(expression.clone()) {
                             Ok(b) => AssignmentExpressionLeft::Binding(b),
@@ -830,7 +831,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Assign {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Assignment(AssignmentExpression {
                         left: match self.convert_expression_to_binding(expression.clone()) {
                             Ok(b) => AssignmentExpressionLeft::Binding(b),
@@ -848,7 +849,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Assign {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Assignment(AssignmentExpression {
                         left: match self.convert_expression_to_binding(expression.clone()) {
                             Ok(b) => AssignmentExpressionLeft::Binding(b),
@@ -866,7 +867,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Assign {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Assignment(AssignmentExpression {
                         left: match self.convert_expression_to_binding(expression.clone()) {
                             Ok(b) => AssignmentExpressionLeft::Binding(b),
@@ -884,7 +885,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Assign {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Assignment(AssignmentExpression {
                         left: match self.convert_expression_to_binding(expression.clone()) {
                             Ok(b) => AssignmentExpressionLeft::Binding(b),
@@ -902,7 +903,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Assign {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Assignment(AssignmentExpression {
                         left: match self.convert_expression_to_binding(expression.clone()) {
                             Ok(b) => AssignmentExpressionLeft::Binding(b),
@@ -920,7 +921,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Assign {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Assignment(AssignmentExpression {
                         left: match self.convert_expression_to_binding(expression.clone()) {
                             Ok(b) => AssignmentExpressionLeft::Binding(b),
@@ -938,7 +939,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Assign {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Assignment(AssignmentExpression {
                         left: match self.convert_expression_to_binding(expression.clone()) {
                             Ok(b) => AssignmentExpressionLeft::Binding(b),
@@ -956,7 +957,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Assign {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Assignment(AssignmentExpression {
                         left: match self.convert_expression_to_binding(expression.clone()) {
                             Ok(b) => AssignmentExpressionLeft::Binding(b),
@@ -974,7 +975,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Assign {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Assignment(AssignmentExpression {
                         left: match self.convert_expression_to_binding(expression.clone()) {
                             Ok(b) => AssignmentExpressionLeft::Binding(b),
@@ -992,7 +993,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Sum {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::Addition,
@@ -1005,7 +1006,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Sum {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::Substitution,
@@ -1018,7 +1019,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Product {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::Modulus,
@@ -1031,7 +1032,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Product {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::Division,
@@ -1044,7 +1045,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Product {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::Multiplication,
@@ -1057,7 +1058,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Product {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::Exponentiation,
@@ -1070,7 +1071,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Compare {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::LessThan,
@@ -1083,7 +1084,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Equals {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::LessThanEquals,
@@ -1096,7 +1097,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Compare {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::GreaterThan,
@@ -1109,7 +1110,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Equals {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::GreaterThanEquals,
@@ -1122,7 +1123,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::BitwiseOr {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::BitwiseOr,
@@ -1135,7 +1136,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::BitwiseAnd {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::BitwiseAnd,
@@ -1148,7 +1149,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::BitwiseXor {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::BitwiseXor,
@@ -1161,7 +1162,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Shift {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::LeftShift,
@@ -1174,7 +1175,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Shift {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::RightShift,
@@ -1187,7 +1188,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Shift {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::UnsignedRightShift,
@@ -1200,7 +1201,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Equals {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::LooseEquals,
@@ -1213,7 +1214,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Equals {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::StrictEquals,
@@ -1226,7 +1227,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Equals {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::LooseNotEquals,
@@ -1239,7 +1240,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Equals {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::StrictNotEquals,
@@ -1252,7 +1253,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Compare {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::Instanceof,
@@ -1265,7 +1266,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Compare || !self.allow_in {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Binary(BinaryExpression {
                         left: Box::new(expression),
                         operator: BinaryExpressionOperator::In,
@@ -1280,7 +1281,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     }
                     let mut expressions = vec![expression];
                     while self.lexer.token == Token::Comma {
-                        self.lexer.next_token();
+                        scan_next_token(&mut self.lexer);
                         expressions.push(self.parse_expression(&Precedence::Comma)?);
                     }
                     expression = Expression::Sequence(SequenceExpression { expressions });
@@ -1303,9 +1304,9 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Conditional {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     let consequence = self.parse_expression(&Precedence::Comma)?;
-                    self.lexer.eat_token(Token::Colon);
+                    eat_token(&mut self.lexer, Token::Colon);
                     let alternate = self.parse_expression(&Precedence::Comma)?;
                     expression = Expression::Conditional(ConditionalExpression {
                         test: Box::new(expression),
@@ -1319,7 +1320,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Postfix {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Update(UpdateExpression {
                         operator: UpdateExpressionOperator::PostfixIncrement,
                         argument: Box::new(expression),
@@ -1331,7 +1332,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::Postfix {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Update(UpdateExpression {
                         operator: UpdateExpressionOperator::PostfixDecrement,
                         argument: Box::new(expression),
@@ -1343,7 +1344,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::LogicalOr {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Logical(LogicalExpression {
                         left: Box::new(expression),
                         operator: LogicalExpressionOperator::Or,
@@ -1356,7 +1357,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::LogicalAnd {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Logical(LogicalExpression {
                         left: Box::new(expression),
                         operator: LogicalExpressionOperator::And,
@@ -1369,7 +1370,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                     if precedence >= &Precedence::NullishCoalescing {
                         return Ok(expression);
                     }
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     expression = Expression::Logical(LogicalExpression {
                         left: Box::new(expression),
                         operator: LogicalExpressionOperator::NullishCoalescing,
@@ -1385,11 +1386,11 @@ impl<'a, L: Logger> Parser<'a, L> {
     }
 
     fn parse_parameters(&mut self) -> ParseResult<Vec<ParameterKind>> {
-        self.lexer.eat_token(Token::OpenParen);
+        eat_token(&mut self.lexer, Token::OpenParen);
         let mut parameters: Vec<ParameterKind> = Vec::new();
         while self.lexer.token != Token::CloseParen {
             if self.lexer.token == Token::DotDotDot {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 let element = self.parse_binding()?;
                 parameters.push(ParameterKind::Rest(RestElement { binding: element }));
                 // TODO: A comma is not allowed after the rest element.
@@ -1403,11 +1404,11 @@ impl<'a, L: Logger> Parser<'a, L> {
                 initializer,
             }));
             if self.lexer.token == Token::Comma {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
             }
         }
 
-        self.lexer.eat_token(Token::CloseParen);
+        eat_token(&mut self.lexer, Token::CloseParen);
         Ok(parameters)
     }
 
@@ -1431,12 +1432,12 @@ impl<'a, L: Logger> Parser<'a, L> {
     // Note: Another possible solution to this problem could be to make use of a backtracking algorithm,
     // but this is not something the lexer currently support.
     fn parse_parenthesized_expression(&mut self) -> ParseResult<Expression> {
-        self.lexer.eat_token(Token::OpenParen);
+        eat_token(&mut self.lexer, Token::OpenParen);
         let mut expressions: Vec<Expression> = Vec::new();
         let mut rest_element: Option<RestElement> = None;
         while self.lexer.token != Token::CloseParen {
             if self.lexer.token == Token::DotDotDot {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 rest_element = self
                     .parse_binding()
                     .map(|binding| RestElement { binding })
@@ -1446,14 +1447,14 @@ impl<'a, L: Logger> Parser<'a, L> {
                     .map(|expression| expressions.push(expression))?;
             }
             if self.lexer.token == Token::Comma {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
             }
         }
-        self.lexer.eat_token(Token::CloseParen);
+        eat_token(&mut self.lexer, Token::CloseParen);
 
         // Arrow function
         if self.lexer.token == Token::EqualsGreaterThan {
-            self.lexer.next_token();
+            scan_next_token(&mut self.lexer);
 
             let mut parameters: Vec<ParameterKind> = Vec::new();
             for expression in expressions {
@@ -1635,11 +1636,11 @@ impl<'a, L: Logger> Parser<'a, L> {
     }
 
     fn parse_class_body(&mut self) -> ParseResult<Vec<ClassPropertyKind>> {
-        self.lexer.eat_token(Token::OpenBrace);
+        eat_token(&mut self.lexer, Token::OpenBrace);
         let mut properties: Vec<ClassPropertyKind> = Vec::new();
         while self.lexer.token != Token::CloseBrace {
             if self.lexer.token == Token::Semicolon {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 continue;
             }
 
@@ -1657,7 +1658,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             let mut is_static = false;
             if self.lexer.token == Token::Identifier && self.lexer.identifier == "static" {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 if self.lexer.token == Token::Identifier {
                     is_static = true;
                 } else {
@@ -1669,7 +1670,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             // Note: A constructor can't be a marker.
             if self.lexer.token == Token::Identifier && self.lexer.identifier == "constructor" {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 let parameters = self.parse_parameters()?;
                 let body = self.parse_block_statement()?;
                 properties.push(ClassPropertyKind::Constructor(ClassConstructor {
@@ -1682,7 +1683,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             // get a() {} | get() {}
             if self.lexer.token == Token::Identifier && self.lexer.identifier == "get" {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
 
                 if self.lexer.token == Token::Identifier {
                     let identifier = self.parse_literal_property_name()?;
@@ -1698,9 +1699,9 @@ impl<'a, L: Logger> Parser<'a, L> {
                 }
 
                 if self.lexer.token == Token::OpenBracket {
-                    self.lexer.eat_token(Token::OpenBracket);
+                    eat_token(&mut self.lexer, Token::OpenBracket);
                     let key = self.parse_expression(&Precedence::Comma)?;
-                    self.lexer.eat_token(Token::CloseBracket);
+                    eat_token(&mut self.lexer, Token::CloseBracket);
                     let parameters = self.parse_parameters()?;
                     let body = self.parse_block_statement()?;
                     properties.push(ClassPropertyKind::MethodGetComputed(
@@ -1722,7 +1723,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             // set a() {} | set() {}
             if self.lexer.token == Token::Identifier && self.lexer.identifier == "set" {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
 
                 if self.lexer.token == Token::Identifier {
                     let identifier = self.parse_literal_property_name()?;
@@ -1738,9 +1739,9 @@ impl<'a, L: Logger> Parser<'a, L> {
                 }
 
                 if self.lexer.token == Token::OpenBracket {
-                    self.lexer.eat_token(Token::OpenBracket);
+                    eat_token(&mut self.lexer, Token::OpenBracket);
                     let key = self.parse_expression(&Precedence::Comma)?;
-                    self.lexer.eat_token(Token::CloseBracket);
+                    eat_token(&mut self.lexer, Token::CloseBracket);
                     let parameters = self.parse_parameters()?;
                     let body = self.parse_block_statement()?;
                     properties.push(ClassPropertyKind::MethodSetComputed(
@@ -1762,9 +1763,9 @@ impl<'a, L: Logger> Parser<'a, L> {
 
             // Computed class method
             if self.lexer.token == Token::OpenBracket {
-                self.lexer.eat_token(Token::OpenBracket);
+                eat_token(&mut self.lexer, Token::OpenBracket);
                 let key = self.parse_expression(&Precedence::Comma)?;
-                self.lexer.eat_token(Token::CloseBracket);
+                eat_token(&mut self.lexer, Token::CloseBracket);
                 let parameters = self.parse_parameters()?;
                 let body = self.parse_block_statement()?;
                 properties.push(ClassPropertyKind::MethodComputed(ClassMethodComputed {
@@ -1792,16 +1793,16 @@ impl<'a, L: Logger> Parser<'a, L> {
             }));
         }
 
-        self.lexer.eat_token(Token::CloseBrace);
+        eat_token(&mut self.lexer, Token::CloseBrace);
         Ok(properties)
     }
 
     fn parse_arguments(&mut self) -> ParseResult<Vec<ArgumentKind>> {
-        self.lexer.eat_token(Token::OpenParen);
+        eat_token(&mut self.lexer, Token::OpenParen);
         let mut arguments: Vec<ArgumentKind> = Vec::new();
         while self.lexer.token != Token::CloseParen {
             if self.lexer.token == Token::DotDotDot {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 let element = self.parse_expression(&Precedence::Comma)?;
                 arguments.push(ArgumentKind::Spread(SpreadElement { element }));
             } else {
@@ -1810,19 +1811,19 @@ impl<'a, L: Logger> Parser<'a, L> {
             }
 
             if self.lexer.token == Token::Comma {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
             }
         }
-        self.lexer.eat_token(Token::CloseParen);
+        eat_token(&mut self.lexer, Token::CloseParen);
         Ok(arguments)
     }
 
     fn parse_identifier(&mut self) -> ParseResult<Identifier> {
-        self.lexer.expect_token(Token::Identifier);
+        expect_token(&mut self.lexer, Token::Identifier);
         let identifier = Identifier {
             name: self.lexer.identifier.clone(),
         };
-        self.lexer.next_token();
+        scan_next_token(&mut self.lexer);
         Ok(identifier)
     }
 
@@ -1830,7 +1831,7 @@ impl<'a, L: Logger> Parser<'a, L> {
         let string_literal = StringLiteral {
             value: self.lexer.identifier.clone(),
         };
-        self.lexer.next_token();
+        scan_next_token(&mut self.lexer);
         Ok(string_literal)
     }
 
@@ -1845,7 +1846,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                 let numeric_literal = NumericLiteral {
                     value: self.lexer.number.clone(),
                 };
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(LiteralPropertyName::Numeric(numeric_literal))
             }
 
@@ -1858,7 +1859,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                 let identifier = Identifier {
                     name: "null".into(),
                 };
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(LiteralPropertyName::Identifier(identifier))
             }
 
@@ -1867,7 +1868,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                 let identifier = Identifier {
                     name: self.lexer.identifier.clone(),
                 };
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(LiteralPropertyName::Identifier(identifier))
             }
         }
@@ -1883,7 +1884,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                 .map(Statement::VariableDeclaration),
 
             Token::Import => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
 
                 if self.lexer.token == Token::OpenParen {
                     panic!("Import expressions are not yet supported");
@@ -1907,8 +1908,8 @@ impl<'a, L: Logger> Parser<'a, L> {
                 match self.lexer.token {
                     // import * as a from "b"
                     Token::Asterisk => {
-                        self.lexer.next_token(); // *
-                        self.lexer.next_token(); // as
+                        scan_next_token(&mut self.lexer); // *
+                        scan_next_token(&mut self.lexer); // as
                         namespace = self.parse_identifier().map(Some)?;
                     }
 
@@ -1923,11 +1924,11 @@ impl<'a, L: Logger> Parser<'a, L> {
                     Token::Identifier => {
                         default = self.parse_identifier().map(Some)?;
                         if self.lexer.token == Token::Comma {
-                            self.lexer.next_token();
+                            scan_next_token(&mut self.lexer);
                             match self.lexer.token {
                                 Token::Asterisk => {
-                                    self.lexer.next_token(); // *
-                                    self.lexer.next_token(); // as
+                                    scan_next_token(&mut self.lexer); // *
+                                    scan_next_token(&mut self.lexer); // as
                                     namespace = self.parse_identifier().map(Some)?;
                                 }
 
@@ -1935,15 +1936,15 @@ impl<'a, L: Logger> Parser<'a, L> {
                                     specifiers = self.parse_import_specifiers()?;
                                 }
 
-                                _ => self.lexer.unexpected(),
+                                _ => todo!(),
                             };
                         }
                     }
 
-                    _ => self.lexer.unexpected(),
+                    _ => todo!(),
                 };
 
-                self.lexer.eat_token(Token::From);
+                eat_token(&mut self.lexer, Token::From);
                 let source = self.parse_string_literal()?;
                 self.consume_semicolon();
                 Ok(Statement::ImportDeclaration(ImportDeclaration {
@@ -1955,12 +1956,12 @@ impl<'a, L: Logger> Parser<'a, L> {
             }
 
             Token::Export => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
 
                 // export * from "a";
                 if self.lexer.token == Token::Asterisk {
-                    self.lexer.next_token();
-                    self.lexer.eat_token(Token::From); // TODO: From is not a keyword but a contextual keyword.
+                    scan_next_token(&mut self.lexer);
+                    eat_token(&mut self.lexer, Token::From); // TODO: From is not a keyword but a contextual keyword.
                     let source = self.parse_string_literal()?;
                     self.consume_semicolon();
                     return Ok(Statement::ExportAllDeclaration(ExportAllDeclaration {
@@ -1970,13 +1971,13 @@ impl<'a, L: Logger> Parser<'a, L> {
 
                 // export default
                 if self.lexer.token == Token::Default {
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     let declaration = match self.lexer.token {
                         Token::Function => {
-                            self.lexer.next_token();
+                            scan_next_token(&mut self.lexer);
                             let generator = match self.lexer.token {
                                 Token::Asterisk => {
-                                    self.lexer.next_token();
+                                    scan_next_token(&mut self.lexer);
                                     true
                                 }
                                 _ => false,
@@ -2006,14 +2007,14 @@ impl<'a, L: Logger> Parser<'a, L> {
                         }
 
                         Token::Class => {
-                            self.lexer.next_token();
+                            scan_next_token(&mut self.lexer);
                             let identifier = match self.lexer.token {
                                 Token::Identifier => self.parse_identifier().map(Some)?,
                                 _ => None,
                             };
                             let extends = match self.lexer.token {
                                 Token::Extends => {
-                                    self.lexer.next_token();
+                                    scan_next_token(&mut self.lexer);
                                     self.parse_expression(&Precedence::Comma).map(Some)?
                                 }
                                 _ => None,
@@ -2045,10 +2046,10 @@ impl<'a, L: Logger> Parser<'a, L> {
                 match self.lexer.token {
                     // export function a() {}
                     Token::Function => {
-                        self.lexer.next_token();
+                        scan_next_token(&mut self.lexer);
                         let generator = match self.lexer.token {
                             Token::Asterisk => {
-                                self.lexer.next_token();
+                                scan_next_token(&mut self.lexer);
                                 true
                             }
                             _ => false,
@@ -2070,11 +2071,11 @@ impl<'a, L: Logger> Parser<'a, L> {
 
                     // export class A {}
                     Token::Class => {
-                        self.lexer.next_token();
+                        scan_next_token(&mut self.lexer);
                         let identifier = self.parse_identifier()?;
                         let extends = match self.lexer.token {
                             Token::Extends => {
-                                self.lexer.next_token();
+                                scan_next_token(&mut self.lexer);
                                 self.parse_expression(&Precedence::Comma).map(Some)?
                             }
                             _ => None,
@@ -2106,7 +2107,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
                     // export { a, a as b }
                     Token::OpenBrace => {
-                        self.lexer.next_token();
+                        scan_next_token(&mut self.lexer);
                         let mut specifiers: Vec<ExportNamedSpecifier> = Vec::new();
                         while self.lexer.token != Token::CloseBrace {
                             // We don't call self.parse_identifier here because keywords
@@ -2114,27 +2115,27 @@ impl<'a, L: Logger> Parser<'a, L> {
                             let local = Identifier {
                                 name: self.lexer.identifier.clone(),
                             };
-                            self.lexer.next_token();
+                            scan_next_token(&mut self.lexer);
                             let mut exported: Option<Identifier> = None;
                             if self.lexer.token == Token::As {
-                                self.lexer.next_token();
+                                scan_next_token(&mut self.lexer);
                                 exported = self.parse_identifier().map(Some)?;
                             }
                             if self.lexer.token == Token::Comma {
-                                self.lexer.next_token();
+                                scan_next_token(&mut self.lexer);
                             }
                             specifiers.push(ExportNamedSpecifier {
                                 exported: exported.unwrap_or_else(|| local.clone()),
                                 local,
                             });
                             if self.lexer.token == Token::Comma {
-                                self.lexer.next_token();
+                                scan_next_token(&mut self.lexer);
                             }
                         }
-                        self.lexer.eat_token(Token::CloseBrace);
+                        eat_token(&mut self.lexer, Token::CloseBrace);
                         let mut source: Option<StringLiteral> = None;
                         if self.lexer.token == Token::From {
-                            self.lexer.next_token();
+                            scan_next_token(&mut self.lexer);
                             source = self.parse_string_literal().map(Some)?;
                         }
                         self.consume_semicolon();
@@ -2144,15 +2145,15 @@ impl<'a, L: Logger> Parser<'a, L> {
                         }))
                     }
 
-                    _ => self.lexer.unexpected(),
+                    _ => todo!(),
                 }
             }
 
             Token::Function => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 let generator = match self.lexer.token {
                     Token::Asterisk => {
-                        self.lexer.next_token();
+                        scan_next_token(&mut self.lexer);
                         true
                     }
                     _ => false,
@@ -2169,9 +2170,9 @@ impl<'a, L: Logger> Parser<'a, L> {
             }
 
             Token::Return => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 if self.lexer.token == Token::Semicolon {
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     return Ok(Statement::ReturnStatement(ReturnStatement {
                         expression: None,
                     }));
@@ -2191,7 +2192,7 @@ impl<'a, L: Logger> Parser<'a, L> {
             Token::For => self.parse_for_statement(),
 
             Token::Continue => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 let mut label: Option<Identifier> = None;
                 if self.lexer.token == Token::Identifier {
                     label = Some(self.parse_identifier()?);
@@ -2201,7 +2202,7 @@ impl<'a, L: Logger> Parser<'a, L> {
             }
 
             Token::Break => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 let mut label: Option<Identifier> = None;
                 if self.lexer.token == Token::Identifier {
                     label = Some(self.parse_identifier()?);
@@ -2211,16 +2212,16 @@ impl<'a, L: Logger> Parser<'a, L> {
             }
 
             Token::Semicolon => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(Statement::EmptyStatement(EmptyStatement {}))
             }
 
             Token::Class => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 let identifier = self.parse_identifier()?;
                 let extends = match self.lexer.token {
                     Token::Extends => {
-                        self.lexer.next_token();
+                        scan_next_token(&mut self.lexer);
                         self.parse_expression(&Precedence::Comma).map(Some)?
                     }
                     _ => None,
@@ -2234,10 +2235,10 @@ impl<'a, L: Logger> Parser<'a, L> {
             }
 
             Token::While => {
-                self.lexer.next_token();
-                self.lexer.eat_token(Token::OpenParen);
+                scan_next_token(&mut self.lexer);
+                eat_token(&mut self.lexer, Token::OpenParen);
                 let test = self.parse_expression(&Precedence::Lowest)?;
-                self.lexer.eat_token(Token::CloseParen);
+                eat_token(&mut self.lexer, Token::CloseParen);
                 let body = self.parse_statement()?;
                 Ok(Statement::WhileStatement(WhileStatement {
                     body: Box::new(body),
@@ -2246,12 +2247,12 @@ impl<'a, L: Logger> Parser<'a, L> {
             }
 
             Token::Do => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 let body = self.parse_statement()?;
-                self.lexer.eat_token(Token::While);
-                self.lexer.eat_token(Token::OpenParen);
+                eat_token(&mut self.lexer, Token::While);
+                eat_token(&mut self.lexer, Token::OpenParen);
                 let test = self.parse_expression(&Precedence::Lowest)?;
-                self.lexer.eat_token(Token::CloseParen);
+                eat_token(&mut self.lexer, Token::CloseParen);
                 Ok(Statement::DoWhileStatement(DoWhileStatement {
                     body: Box::new(body),
                     test,
@@ -2259,11 +2260,11 @@ impl<'a, L: Logger> Parser<'a, L> {
             }
 
             Token::Switch => {
-                self.lexer.next_token();
-                self.lexer.eat_token(Token::OpenParen);
+                scan_next_token(&mut self.lexer);
+                eat_token(&mut self.lexer, Token::OpenParen);
                 let discriminant = self.parse_expression(&Precedence::Lowest)?;
-                self.lexer.eat_token(Token::CloseParen);
-                self.lexer.eat_token(Token::OpenBrace);
+                eat_token(&mut self.lexer, Token::CloseParen);
+                eat_token(&mut self.lexer, Token::OpenBrace);
 
                 let mut cases: Vec<SwitchStatementCase> = Vec::new();
                 let mut found_default = false;
@@ -2275,13 +2276,13 @@ impl<'a, L: Logger> Parser<'a, L> {
                         if found_default {
                             panic!("Multiple default clauses are not allowed");
                         }
-                        self.lexer.next_token();
-                        self.lexer.eat_token(Token::Colon);
+                        scan_next_token(&mut self.lexer);
+                        eat_token(&mut self.lexer, Token::Colon);
                         found_default = true;
                     } else {
-                        self.lexer.eat_token(Token::Case);
+                        eat_token(&mut self.lexer, Token::Case);
                         test = Some(self.parse_expression(&Precedence::Lowest)?);
-                        self.lexer.eat_token(Token::Colon);
+                        eat_token(&mut self.lexer, Token::Colon);
                     }
 
                     'case_body: loop {
@@ -2293,7 +2294,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
                     cases.push(SwitchStatementCase { consequent, test })
                 }
-                self.lexer.eat_token(Token::CloseBrace);
+                eat_token(&mut self.lexer, Token::CloseBrace);
                 Ok(Statement::SwitchStatement(SwitchStatement {
                     cases,
                     discriminant,
@@ -2301,15 +2302,15 @@ impl<'a, L: Logger> Parser<'a, L> {
             }
 
             Token::Debugger => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 Ok(Statement::DebuggerStatement(DebuggerStatement {}))
             }
 
             Token::With => {
-                self.lexer.next_token();
-                self.lexer.eat_token(Token::OpenParen);
+                scan_next_token(&mut self.lexer);
+                eat_token(&mut self.lexer, Token::OpenParen);
                 let object = self.parse_expression(&Precedence::Lowest)?;
-                self.lexer.eat_token(Token::CloseParen);
+                eat_token(&mut self.lexer, Token::CloseParen);
                 let body = self.parse_statement()?;
                 Ok(Statement::WithStatement(WithStatement {
                     body: Box::new(body),
@@ -2321,7 +2322,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                 let identifier = self.parse_identifier()?;
                 // Parse a labeled statement
                 if self.lexer.token == Token::Colon {
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     let body = self.parse_statement()?;
                     return Ok(Statement::LabeledStatement(LabeledStatement {
                         body: Box::new(body),
@@ -2331,7 +2332,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
                 // Arrow function
                 if self.lexer.token == Token::EqualsGreaterThan {
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     let body = match self.lexer.token {
                         Token::OpenBrace => self
                             .parse_block_statement()
@@ -2360,31 +2361,31 @@ impl<'a, L: Logger> Parser<'a, L> {
             }
 
             Token::Throw => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 let argument = self.parse_expression(&Precedence::Lowest)?;
                 Ok(Statement::ThrowStatement(ThrowStatement { argument }))
             }
 
             Token::Try => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 let block = self.parse_block_statement()?;
                 let mut handler: Option<CatchClause> = None;
                 let mut finalizer: Option<BlockStatement> = None;
                 // Either catch or finally must be present.
                 if self.lexer.token != Token::Catch && self.lexer.token != Token::Finally {
-                    self.lexer.unexpected();
+                    todo!();
                 }
                 if self.lexer.token == Token::Catch {
-                    self.lexer.next_token();
-                    self.lexer.eat_token(Token::OpenParen);
+                    scan_next_token(&mut self.lexer);
+                    eat_token(&mut self.lexer, Token::OpenParen);
                     let param = self.parse_binding()?;
-                    self.lexer.eat_token(Token::CloseParen);
+                    eat_token(&mut self.lexer, Token::CloseParen);
                     let body = self.parse_block_statement()?;
                     handler = Some(CatchClause { body, param });
                 }
                 if self.lexer.token == Token::Finally {
-                    self.lexer.next_token();
-                    self.lexer.expect_token(Token::OpenBrace);
+                    scan_next_token(&mut self.lexer);
+                    expect_token(&mut self.lexer, Token::OpenBrace);
                     finalizer = Some(self.parse_block_statement()?);
                 }
 
@@ -2405,16 +2406,16 @@ impl<'a, L: Logger> Parser<'a, L> {
     }
 
     fn parse_import_specifiers(&mut self) -> ParseResult<Vec<ImportDeclarationSpecifier>> {
-        self.lexer.eat_token(Token::OpenBrace);
+        eat_token(&mut self.lexer, Token::OpenBrace);
         let mut specifiers: Vec<ImportDeclarationSpecifier> = Vec::new();
         while self.lexer.token != Token::CloseBrace {
             let local = Identifier {
                 name: self.lexer.identifier.clone(),
             };
-            self.lexer.next_token();
+            scan_next_token(&mut self.lexer);
             let imported = match self.lexer.token {
                 Token::As => {
-                    self.lexer.next_token();
+                    scan_next_token(&mut self.lexer);
                     self.parse_identifier().map(Some)?
                 }
 
@@ -2428,10 +2429,10 @@ impl<'a, L: Logger> Parser<'a, L> {
                 local,
             });
             if self.lexer.token == Token::Comma {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
             }
         }
-        self.lexer.eat_token(Token::CloseBrace);
+        eat_token(&mut self.lexer, Token::CloseBrace);
         Ok(specifiers)
     }
 
@@ -2442,12 +2443,12 @@ impl<'a, L: Logger> Parser<'a, L> {
     ///     statement2;
     /// }
     fn parse_block_statement(&mut self) -> ParseResult<BlockStatement> {
-        self.lexer.eat_token(Token::OpenBrace);
+        eat_token(&mut self.lexer, Token::OpenBrace);
         let mut statements: Vec<Statement> = Vec::new();
         while self.lexer.token != Token::CloseBrace {
             statements.push(self.parse_statement()?);
         }
-        self.lexer.eat_token(Token::CloseBrace);
+        eat_token(&mut self.lexer, Token::CloseBrace);
         Ok(BlockStatement { statements })
     }
 
@@ -2456,10 +2457,10 @@ impl<'a, L: Logger> Parser<'a, L> {
     /// if (test) consequent else alternate
     /// if (test) consequent else alternate
     fn parse_if_statement(&mut self) -> ParseResult<IfStatement> {
-        self.lexer.next_token(); // if
-        self.lexer.eat_token(Token::OpenParen);
+        scan_next_token(&mut self.lexer); // if
+        eat_token(&mut self.lexer, Token::OpenParen);
         let test = self.parse_expression(&Precedence::Lowest)?;
-        self.lexer.eat_token(Token::CloseParen);
+        eat_token(&mut self.lexer, Token::CloseParen);
 
         let consequent = self.parse_statement().map(Box::new)?;
         match consequent.as_ref() {
@@ -2471,7 +2472,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 
         let mut alternate: Option<Box<Statement>> = None;
         if self.lexer.token == Token::Else {
-            self.lexer.next_token();
+            scan_next_token(&mut self.lexer);
             let tmp_alternate = self.parse_statement()?;
             match &tmp_alternate {
                 Statement::FunctionDeclaration(_) => panic!("Function declarations are not allowed to follow an if-statement in strict mode"),
@@ -2493,13 +2494,13 @@ impl<'a, L: Logger> Parser<'a, L> {
     /// for (let a in items) {}
     /// for (let a of items) {}
     fn parse_for_statement(&mut self) -> ParseResult<Statement> {
-        self.lexer.next_token();
+        scan_next_token(&mut self.lexer);
 
         if self.lexer.token == Token::Await {
             panic!("\"for await\" syntax is not yet supported");
         }
 
-        self.lexer.eat_token(Token::OpenParen);
+        eat_token(&mut self.lexer, Token::OpenParen);
 
         self.allow_in = false;
 
@@ -2511,7 +2512,7 @@ impl<'a, L: Logger> Parser<'a, L> {
                 .map(Some)?,
 
             Token::Semicolon => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 None
             }
 
@@ -2530,9 +2531,9 @@ impl<'a, L: Logger> Parser<'a, L> {
 
         if self.lexer.token == Token::Of {
             // TODO: We should check for declarations here and forbid them if they exist.
-            self.lexer.next_token();
+            scan_next_token(&mut self.lexer);
             let right = self.parse_expression(&Precedence::Lowest)?;
-            self.lexer.eat_token(Token::CloseParen);
+            eat_token(&mut self.lexer, Token::CloseParen);
             let body = self.parse_statement()?;
             if let Some(left) = init {
                 return Ok(Statement::ForOfStatement(ForOfStatement {
@@ -2543,15 +2544,15 @@ impl<'a, L: Logger> Parser<'a, L> {
             } else {
                 // This essentially means we've somehow reached something like
                 // "for (in <expression>) {}"" which should be impossible to reach.
-                self.lexer.unexpected();
+                todo!();
             }
         }
 
         if self.lexer.token == Token::In {
             // TODO: We should check for declarations here and forbid them if they exist.
-            self.lexer.next_token();
+            scan_next_token(&mut self.lexer);
             let right = self.parse_expression(&Precedence::Lowest)?;
-            self.lexer.eat_token(Token::CloseParen);
+            eat_token(&mut self.lexer, Token::CloseParen);
             let body = self.parse_statement()?;
             if let Some(left) = init {
                 return Ok(Statement::ForInStatement(ForInStatement {
@@ -2562,30 +2563,30 @@ impl<'a, L: Logger> Parser<'a, L> {
             } else {
                 // This essentially means we've somehow reached something like
                 // "for (in <expression>) {}"" which should be impossible to reach.
-                self.lexer.unexpected();
+                todo!();
             }
         }
 
         let test = match self.lexer.token {
             Token::Semicolon => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 None
             }
             _ => {
                 let expression = self.parse_expression(&Precedence::Lowest).map(Some)?;
-                self.lexer.eat_token(Token::Semicolon);
+                eat_token(&mut self.lexer, Token::Semicolon);
                 expression
             }
         };
 
         let update = match self.lexer.token {
             Token::CloseParen => {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 None
             }
             _ => {
                 let expression = self.parse_expression(&Precedence::Lowest).map(Some)?;
-                self.lexer.eat_token(Token::CloseParen);
+                eat_token(&mut self.lexer, Token::CloseParen);
                 expression
             }
         };
@@ -2609,16 +2610,16 @@ impl<'a, L: Logger> Parser<'a, L> {
             Token::Const => VariableDeclarationKind::Const,
             Token::Let => VariableDeclarationKind::Let,
             Token::Var => VariableDeclarationKind::Var,
-            _ => self.lexer.unexpected(),
+            _ => todo!(),
         };
-        self.lexer.next_token();
+        scan_next_token(&mut self.lexer);
 
         let mut declarations: Vec<VariableDeclarator> = Vec::new();
         loop {
             let mut initializer: Option<Expression> = None;
             let binding = self.parse_binding()?;
             if self.lexer.token == Token::Equals {
-                self.lexer.next_token();
+                scan_next_token(&mut self.lexer);
                 initializer = self.parse_expression(&Precedence::Assign).map(Some)?;
             }
             declarations.push(VariableDeclarator {
@@ -2628,7 +2629,7 @@ impl<'a, L: Logger> Parser<'a, L> {
             if self.lexer.token != Token::Comma {
                 break;
             }
-            self.lexer.next_token();
+            scan_next_token(&mut self.lexer);
         }
 
         self.consume_semicolon();

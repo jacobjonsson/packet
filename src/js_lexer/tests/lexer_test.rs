@@ -1,6 +1,5 @@
-use js_lexer::Lexer;
+use js_lexer::{self, scan_next_token};
 use js_token::Token;
-use logger::LoggerImpl;
 
 enum StringOrFloat<'a> {
     String(&'a str),
@@ -33,11 +32,10 @@ fn tokenize_multiple_lines() {
         (Token::Semicolon, None),
     ];
 
-    let logger = LoggerImpl::new();
-    let mut lexer = Lexer::new(input, &logger);
+    let mut lexer = js_lexer::create(input);
     for (idx, token) in expected_tokens.iter().enumerate() {
         if idx != 0 {
-            lexer.next_token();
+            js_lexer::scan_next_token(&mut lexer);
         }
         assert_eq!(&lexer.token, &token.0);
         if let Some(value) = &token.1 {
@@ -50,8 +48,7 @@ fn tokenize_multiple_lines() {
 }
 
 fn expect_string_literal(content: &str, expected: &str) {
-    let logger = LoggerImpl::new();
-    let lexer = Lexer::new(content, &logger);
+    let lexer = js_lexer::create(content);
     assert_eq!(lexer.token, Token::StringLiteral);
     assert_eq!(lexer.identifier, expected);
 }
@@ -64,11 +61,11 @@ fn test_string_literal() {
     expect_string_literal("'\"'", "\"");
     expect_string_literal("\"'\"", "'");
     expect_string_literal("\"\\\"\"", "\\\"");
+    expect_string_literal("\n\n\r  \t\"hello world\"", "hello world");
 }
 
 fn expect_identifier(content: &str, expected: &str) {
-    let logger = LoggerImpl::new();
-    let lexer = Lexer::new(content, &logger);
+    let lexer = js_lexer::create(content);
     assert_eq!(lexer.token, Token::Identifier);
     assert_eq!(lexer.identifier, expected);
 }
@@ -84,11 +81,10 @@ fn test_identifiers() {
 }
 
 fn expect_regexp(content: &str, expected: &str) {
-    let logger = LoggerImpl::new();
-    let mut lexer = Lexer::new(content, &logger);
+    let mut lexer = js_lexer::create(content);
     assert_eq!(lexer.token, Token::Slash);
-    lexer.scan_regexp();
-    assert_eq!(lexer.raw(), expected);
+    js_lexer::scan_regexp(&mut lexer);
+    assert_eq!(js_lexer::raw(&lexer), expected);
 }
 
 #[test]
@@ -109,7 +105,6 @@ fn test_tokens() {
         ("&&", Token::AmpersandAmpersand),
         ("*", Token::Asterisk),
         ("**", Token::AsteriskAsterisk),
-        ("@", Token::At),
         ("|", Token::Bar),
         ("||", Token::BarBar),
         ("^", Token::Caret),
@@ -208,15 +203,13 @@ fn test_tokens() {
     ];
 
     for test in tests {
-        let logger = LoggerImpl::new();
-        let lexer = Lexer::new(test.0, &logger);
+        let lexer = js_lexer::create(test.0);
         assert_eq!(lexer.token, test.1);
     }
 }
 
 fn expect_number(content: &str, expected: f64) {
-    let logger = LoggerImpl::new();
-    let lexer = Lexer::new(content, &logger);
+    let lexer = js_lexer::create(content);
     assert_eq!(lexer.token, Token::NumericLiteral);
     assert_eq!(lexer.number, expected);
 }
@@ -234,8 +227,7 @@ fn test_numeric_literals() {
 }
 
 fn expect_big_int(content: &str, expected: &str) {
-    let logger = LoggerImpl::new();
-    let lexer = Lexer::new(content, &logger);
+    let lexer = js_lexer::create(content);
     assert_eq!(lexer.token, Token::BigIntegerLiteral);
     assert_eq!(lexer.identifier, expected);
 }
@@ -250,8 +242,7 @@ fn test_big_int_literal() {
 }
 
 fn expect_eof(content: &str) {
-    let logger = LoggerImpl::new();
-    let lexer = Lexer::new(content, &logger);
+    let lexer = js_lexer::create(content);
     assert_eq!(lexer.token, Token::EndOfFile);
 }
 
@@ -269,8 +260,7 @@ fn test_comments() {
 }
 
 fn expect_no_substitution_template_literal(content: &str, expected: &str) {
-    let logger = LoggerImpl::new();
-    let lexer = Lexer::new(content, &logger);
+    let lexer = js_lexer::create(content);
     assert_eq!(lexer.token, Token::TemplateNoSubstitutionLiteral);
     assert_eq!(lexer.identifier, expected);
 }
@@ -290,17 +280,16 @@ struct TemplateLiteralPart<'a> {
 }
 
 fn expect_template_literals(content: &str, head: &str, parts: Vec<TemplateLiteralPart>) {
-    let logger = LoggerImpl::new();
-    let mut lexer = Lexer::new(content, &logger);
+    let mut lexer = js_lexer::create(content);
     assert_eq!(lexer.token, Token::TemplateHead);
     assert_eq!(lexer.identifier, head);
     for part in &parts {
         for token in &part.expression_tokens {
-            lexer.next_token();
+            js_lexer::scan_next_token(&mut lexer);
             assert_eq!(lexer.token, *token);
         }
-        lexer.next_token();
-        lexer.scan_template_tail_or_middle();
+        js_lexer::scan_next_token(&mut lexer);
+        js_lexer::scan_template_tail_or_middle(&mut lexer);
         assert_eq!(lexer.identifier, part.text);
     }
 }
@@ -321,4 +310,30 @@ fn test_template_literals() {
             },
         ],
     )
+}
+
+fn expect_token_sequence(content: &str, tokens: &[Token]) {
+    let mut lexer = js_lexer::create(content);
+    assert_eq!(lexer.token, tokens[0]);
+    for token in &tokens[1..] {
+        scan_next_token(&mut lexer);
+        assert_eq!(lexer.token, *token);
+    }
+}
+
+#[test]
+fn test_token_sequence() {
+    expect_token_sequence(
+        "++--+-*/[]",
+        &vec![
+            Token::PlusPlus,
+            Token::MinusMinus,
+            Token::Plus,
+            Token::Minus,
+            Token::Asterisk,
+            Token::Slash,
+            Token::OpenBracket,
+            Token::CloseBracket,
+        ],
+    );
 }

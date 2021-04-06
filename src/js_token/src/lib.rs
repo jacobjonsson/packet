@@ -65,7 +65,7 @@ pub enum Token {
     Slash,
     Tilde,
 
-    // Assignments (keep in sync with IsAssign() below)
+    // Assignments
     AmpersandAmpersandEquals,
     AmpersandEquals,
     AsteriskAsteriskEquals,

@@ -46,7 +46,7 @@ pub enum LoggerLevel {
     Error,
 }
 
-fn compute_line_and_column(content: &str, offset: usize) -> (usize, usize, usize, usize) {
+pub fn compute_line_and_column(content: &str, offset: usize) -> (usize, usize, usize, usize) {
     let mut line_count: usize = 0;
     let mut line_start: usize = 0;
     let mut line_end: usize = content.len();

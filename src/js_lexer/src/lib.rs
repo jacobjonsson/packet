@@ -15,823 +15,777 @@
 use std::str::Chars;
 
 use js_token::{lookup_identifer, Token};
-use logger::Logger;
+use logger::compute_line_and_column;
 mod unicode;
 
 /// This means we've hit the end of the file
 pub const EOF_CHAR: char = '\0';
 
-pub struct Lexer<'a, L: Logger> {
+pub struct Lexer<'a> {
     input: &'a str,
     chars: Chars<'a>,
-    /// The position of the current character
     current: usize,
-    /// The start of the current token
     start: usize,
-    /// The end of the current token
     end: usize,
-    /// The next character to parsed
     character: char,
-    /// The value of the currently parsed string or identifier.
     pub identifier: String,
-    /// The number of the currently parsed token.
     pub number: f64,
-    /// The currently parsed token
     pub token: Token,
-
-    logger: &'a L,
 }
 
-/// Public
-impl<'a, L: Logger> Lexer<'a, L> {
-    /// Creates a new lexer
-    pub fn new(input: &'a str, logger: &'a L) -> Lexer<'a, L> {
-        let mut lexer = Lexer {
-            input,
-            identifier: String::new(),
-            number: 0.,
-            token: Token::EndOfFile,
-            start: 0,
-            current: 0,
-            end: 0,
-            chars: input.chars(),
-            character: EOF_CHAR,
-            logger,
-        };
+/// Creates a new lexer state object
+pub fn create<'a>(input: &'a str) -> Lexer<'a> {
+    let mut lexer = Lexer {
+        input,
+        identifier: String::new(),
+        number: 0.,
+        token: Token::EndOfFile,
+        start: 0,
+        current: 0,
+        end: 0,
+        chars: input.chars(),
+        character: EOF_CHAR,
+    };
 
-        lexer.step();
-        lexer.next_token();
-        return lexer;
-    }
+    bump(&mut lexer);
+    scan_next_token(&mut lexer);
+    lexer
+}
 
-    /// Asserts that the current token matches the provided one
-    pub fn expect_token(&self, token: Token) {
-        if self.token != token {
-            self.logger.add_error(
-                &self.input,
-                logger::Range {
-                    start: self.start,
-                    end: self.end,
-                },
-                format!("Expected \"{}\" but found \"{}\"", token, self.token),
-            );
-            std::process::exit(1);
-        }
-    }
+/// Returns the raw input slice associated with the current token
+pub fn raw<'a>(lexer: &'a Lexer) -> &'a str {
+    &lexer.input[lexer.start..lexer.end]
+}
 
-    /// Asserts that current token matches the provided one,
-    /// and if it does, increments the lexer.
-    pub fn eat_token(&mut self, token: Token) {
-        self.expect_token(token);
-        self.next_token();
-    }
+/// Scans the next token in the stream
+pub fn scan_next_token(lexer: &mut Lexer) {
+    loop {
+        lexer.start = lexer.end;
+        eat_comment(lexer);
 
-    /// Returns a boolean indicating if the current token
-    /// is either an identifier or a keyword.
-    pub fn is_identifier_or_keyword(&self) -> bool {
-        match &self.token {
-            Token::Identifier => true,
-            Token::Await => true,
-            Token::As => true,
-            Token::Break => true,
-            Token::Case => true,
-            Token::Catch => true,
-            Token::Class => true,
-            Token::Const => true,
-            Token::Continue => true,
-            Token::Debugger => true,
-            Token::Default => true,
-            Token::Delete => true,
-            Token::Do => true,
-            Token::Else => true,
-            Token::Enum => true,
-            Token::Export => true,
-            Token::Extends => true,
-            Token::From => true,
-            Token::False => true,
-            Token::Finally => true,
-            Token::For => true,
-            Token::Function => true,
-            Token::Let => true,
-            Token::If => true,
-            Token::Import => true,
-            Token::In => true,
-            Token::Instanceof => true,
-            Token::New => true,
-            Token::Null => true,
-            Token::Of => true,
-            Token::Return => true,
-            Token::Super => true,
-            Token::Switch => true,
-            Token::This => true,
-            Token::Throw => true,
-            Token::True => true,
-            Token::Try => true,
-            Token::Typeof => true,
-            Token::Var => true,
-            Token::Void => true,
-            Token::While => true,
-            Token::With => true,
+        match lexer.character {
+            c if is_whitespace(c) => {
+                bump(lexer);
+                continue;
+            }
 
-            _ => false,
-        }
-    }
+            c if is_line_terminator(c) => {
+                bump(lexer);
+                continue;
+            }
 
-    /// Reports the current token as unexpected.
-    /// Calls exit and will therefor never return.
-    pub fn unexpected(&self) -> ! {
-        self.logger.add_error(
-            &self.input,
-            logger::Range {
-                start: self.start,
-                end: self.end,
-            },
-            format!("Unexpected token \"{}\"", self.token),
-        );
-        std::process::exit(1);
-    }
+            // Identifier or keyword
+            c if is_identifier_start(c) => {
+                let identifier = read_identifer(lexer);
+                lexer.token = lookup_identifer(&identifier);
+                lexer.identifier = identifier;
+            }
 
-    /// Returns the raw slice of input related to the current token.
-    pub fn raw(&self) -> String {
-        self.input[self.start..self.end].into()
-    }
+            '~' => {
+                bump(lexer);
+                lexer.token = Token::Tilde;
+            }
 
-    /// Scans the current token as a regexp
-    pub fn scan_regexp(&mut self) {
-        loop {
-            match self.character {
-                '/' => {
-                    self.step();
-                    'inner: loop {
-                        if is_identifier_continue(self.character) {
-                            match self.character {
-                                'g' | 'i' | 'm' | 's' | 'u' | 'y' => self.step(),
-                                _ => self.unexpected(),
+            ';' => {
+                bump(lexer);
+                lexer.token = Token::Semicolon;
+            }
+
+            '(' => {
+                bump(lexer);
+                lexer.token = Token::OpenParen;
+            }
+
+            ')' => {
+                bump(lexer);
+                lexer.token = Token::CloseParen;
+            }
+
+            '{' => {
+                bump(lexer);
+                lexer.token = Token::OpenBrace;
+            }
+
+            '}' => {
+                bump(lexer);
+                lexer.token = Token::CloseBrace;
+            }
+
+            '[' => {
+                bump(lexer);
+                lexer.token = Token::OpenBracket;
+            }
+
+            ']' => {
+                bump(lexer);
+                lexer.token = Token::CloseBracket;
+            }
+
+            ',' => {
+                bump(lexer);
+                lexer.token = Token::Comma;
+            }
+
+            ':' => {
+                bump(lexer);
+                lexer.token = Token::Colon;
+            }
+
+            // + or ++ or +=
+            '+' => {
+                bump(lexer);
+                lexer.token = match lexer.character {
+                    '+' => {
+                        bump(lexer);
+                        Token::PlusPlus
+                    }
+                    '=' => {
+                        bump(lexer);
+                        Token::PlusEquals
+                    }
+                    _ => Token::Plus,
+                };
+            }
+
+            // - or -- or -=
+            '-' => {
+                bump(lexer);
+                lexer.token = match lexer.character {
+                    '-' => {
+                        bump(lexer);
+                        Token::MinusMinus
+                    }
+                    '=' => {
+                        bump(lexer);
+                        Token::MinusEquals
+                    }
+                    _ => Token::Minus,
+                };
+            }
+
+            // * or ** or *= or **=
+            '*' => {
+                bump(lexer);
+                lexer.token = match (lexer.character, peek(lexer)) {
+                    ('=', _) => {
+                        bump(lexer);
+                        Token::AsteriskEquals
+                    }
+                    ('*', '=') => {
+                        bump(lexer);
+                        bump(lexer);
+                        Token::AsteriskAsteriskEquals
+                    }
+                    ('*', _) => {
+                        bump(lexer);
+                        Token::AsteriskAsterisk
+                    }
+                    _ => Token::Asterisk,
+                }
+            }
+
+            // ? or '?.' or ?? or ??=
+            '?' => {
+                bump(lexer);
+                lexer.token = match (lexer.character, peek(lexer)) {
+                    ('.', _) => {
+                        bump(lexer);
+                        Token::QuestionDot
+                    }
+                    ('?', '=') => {
+                        bump(lexer);
+                        bump(lexer);
+                        Token::QuestionQuestionEquals
+                    }
+                    ('?', _) => {
+                        bump(lexer);
+                        Token::QuestionQuestion
+                    }
+                    _ => Token::Question,
+                }
+            }
+
+            // / or /=
+            '/' => {
+                bump(lexer);
+                lexer.token = match lexer.character {
+                    '=' => {
+                        bump(lexer);
+                        Token::SlashEquals
+                    }
+                    _ => Token::Slash,
+                }
+            }
+
+            // = or == or === or =>
+            '=' => {
+                bump(lexer);
+                lexer.token = match (lexer.character, peek(lexer)) {
+                    ('=', '=') => {
+                        bump(lexer);
+                        bump(lexer);
+                        Token::EqualsEqualsEquals
+                    }
+                    ('=', _) => {
+                        bump(lexer);
+                        Token::EqualsEquals
+                    }
+                    ('>', _) => {
+                        bump(lexer);
+                        Token::EqualsGreaterThan
+                    }
+                    _ => Token::Equals,
+                }
+            }
+
+            // ! or != or !==
+            '!' => {
+                bump(lexer);
+                lexer.token = match (lexer.character, peek(lexer)) {
+                    ('=', '=') => {
+                        bump(lexer);
+                        bump(lexer);
+                        Token::ExclamationEqualsEquals
+                    }
+                    ('=', _) => {
+                        bump(lexer);
+                        Token::ExclamationEquals
+                    }
+                    _ => Token::Exclamation,
+                }
+            }
+
+            // % or %=
+            '%' => {
+                bump(lexer);
+                lexer.token = match lexer.character {
+                    '=' => {
+                        bump(lexer);
+                        Token::PercentEquals
+                    }
+                    _ => Token::Percent,
+                };
+            }
+
+            // > or >> or >>> or >= or >>= or >>>=
+            '>' => {
+                bump(lexer);
+                lexer.token = match (lexer.character, peek(lexer)) {
+                    ('>', '>') => {
+                        bump(lexer);
+                        bump(lexer);
+                        match lexer.character {
+                            '=' => {
+                                bump(lexer);
+                                Token::GreaterThanGreaterThanGreaterThanEquals
                             }
-                        } else {
-                            break 'inner;
+                            _ => Token::GreaterThanGreaterThanGreaterThan,
                         }
                     }
-
-                    return;
-                }
-
-                '[' => {
-                    self.step();
-                    while self.character != ']' {
-                        if self.character == '\\' {
-                            self.step();
-                        }
-
-                        match self.character {
-                            '\r' | '\n' | EOF_CHAR => {
-                                self.unexpected();
-                            }
-                            _ => self.step(),
-                        };
+                    ('>', '=') => {
+                        bump(lexer);
+                        bump(lexer);
+                        Token::GreaterThanGreaterThanEquals
                     }
-                    self.step();
-                }
-
-                _ => {
-                    if self.character == '\\' {
-                        self.step();
+                    ('>', _) => {
+                        bump(lexer);
+                        Token::GreaterThanGreaterThan
                     }
-
-                    match self.character {
-                        '\r' | '\n' | EOF_CHAR => {
-                            self.unexpected();
-                        }
-                        _ => self.step(),
-                    };
-                }
-            };
-        }
-    }
-
-    /// Scans the next token
-    pub fn next_token(&mut self) {
-        loop {
-            self.start = self.end;
-
-            self.consume_comment();
-
-            match self.character {
-                c if is_whitespace(c) => {
-                    self.step();
-                    continue;
-                }
-
-                c if is_line_terminator(c) => {
-                    self.step();
-                    continue;
-                }
-
-                c if is_identifier_start(c) => {
-                    let identifier = self.read_identifier();
-                    self.token = lookup_identifer(&identifier);
-                    self.identifier = identifier;
-                }
-
-                '~' => {
-                    self.step();
-                    self.token = Token::Tilde;
-                }
-
-                '/' => {
-                    self.step();
-                    if self.character == '=' {
-                        self.step();
-                        self.token = Token::SlashEquals;
-                    } else {
-                        self.token = Token::Slash;
+                    ('=', _) => {
+                        bump(lexer);
+                        Token::GreaterThanEquals
                     }
-                }
+                    _ => Token::GreaterThan,
+                };
+            }
 
-                '?' => {
-                    self.step();
-                    if self.character == '.' {
-                        self.step();
-                        self.token = Token::QuestionDot;
-                    } else if self.character == '?' {
-                        self.step();
-                        if self.character == '=' {
-                            self.step();
-                            self.token = Token::QuestionQuestionEquals;
-                        } else {
-                            self.token = Token::QuestionQuestion;
-                        }
-                    } else {
-                        self.token = Token::Question;
+            // < or << or <= or <<=
+            '<' => {
+                bump(lexer);
+                lexer.token = match (lexer.character, peek(lexer)) {
+                    ('<', '=') => {
+                        bump(lexer);
+                        bump(lexer);
+                        Token::LessThanLessThanEquals
                     }
-                }
-
-                ';' => {
-                    self.step();
-                    self.token = Token::Semicolon;
-                }
-
-                '(' => {
-                    self.step();
-                    self.token = Token::OpenParen;
-                }
-
-                ')' => {
-                    self.step();
-                    self.token = Token::CloseParen;
-                }
-
-                '{' => {
-                    self.step();
-                    self.token = Token::OpenBrace;
-                }
-
-                '}' => {
-                    self.step();
-                    self.token = Token::CloseBrace;
-                }
-
-                ',' => {
-                    self.step();
-                    self.token = Token::Comma;
-                }
-
-                '+' => {
-                    self.step();
-                    if self.character == '+' {
-                        self.step();
-                        self.token = Token::PlusPlus;
-                    } else if self.character == '=' {
-                        self.step();
-                        self.token = Token::PlusEquals;
-                    } else {
-                        self.token = Token::Plus;
+                    ('<', _) => {
+                        bump(lexer);
+                        Token::LessThanLessThan
                     }
-                }
-
-                '-' => {
-                    self.step();
-                    if self.character == '-' {
-                        self.step();
-                        self.token = Token::MinusMinus;
-                    } else if self.character == '=' {
-                        self.step();
-                        self.token = Token::MinusEquals;
-                    } else {
-                        self.token = Token::Minus;
+                    ('=', _) => {
+                        bump(lexer);
+                        Token::LessThanEquals
                     }
-                }
+                    _ => Token::LessThan,
+                };
+            }
 
-                '*' => {
-                    self.step();
-                    if self.character == '*' {
-                        self.step();
-                        if self.character == '=' {
-                            self.step();
-                            self.token = Token::AsteriskAsteriskEquals;
-                        } else {
-                            self.token = Token::AsteriskAsterisk;
-                        }
-                    } else if self.character == '=' {
-                        self.step();
-                        self.token = Token::AsteriskEquals;
-                    } else {
-                        self.token = Token::Asterisk;
+            // | or || or |= or ||=
+            '|' => {
+                bump(lexer);
+                lexer.token = match (lexer.character, peek(lexer)) {
+                    ('|', '=') => {
+                        bump(lexer);
+                        bump(lexer);
+                        Token::BarBarEquals
                     }
-                }
-
-                '<' => {
-                    self.step();
-                    if self.character == '<' {
-                        self.step();
-                        if self.character == '=' {
-                            self.step();
-                            self.token = Token::LessThanLessThanEquals;
-                        } else {
-                            self.token = Token::LessThanLessThan;
-                        }
-                    } else if self.character == '=' {
-                        self.step();
-                        self.token = Token::LessThanEquals;
-                    } else {
-                        self.token = Token::LessThan;
+                    ('=', _) => {
+                        bump(lexer);
+                        Token::BarEquals
                     }
-                }
-
-                '>' => {
-                    self.step();
-                    if self.character == '>' {
-                        self.step();
-                        if self.character == '>' {
-                            self.step();
-                            if self.character == '=' {
-                                self.step();
-                                self.token = Token::GreaterThanGreaterThanGreaterThanEquals;
-                            } else {
-                                self.token = Token::GreaterThanGreaterThanGreaterThan;
-                            }
-                        } else if self.character == '=' {
-                            self.step();
-                            self.token = Token::GreaterThanGreaterThanEquals;
-                        } else {
-                            self.token = Token::GreaterThanGreaterThan;
-                        }
-                    } else if self.character == '=' {
-                        self.step();
-                        self.token = Token::GreaterThanEquals;
-                    } else {
-                        self.token = Token::GreaterThan;
+                    ('|', _) => {
+                        bump(lexer);
+                        Token::BarBar
                     }
-                }
+                    _ => Token::Bar,
+                };
+            }
 
-                '[' => {
-                    self.step();
-                    self.token = Token::OpenBracket;
-                }
-
-                ']' => {
-                    self.step();
-                    self.token = Token::CloseBracket;
-                }
-
-                '=' => {
-                    self.step();
-                    if self.character == '=' {
-                        self.step();
-                        if self.character == '=' {
-                            self.step();
-                            self.token = Token::EqualsEqualsEquals;
-                        } else {
-                            self.token = Token::EqualsEquals;
-                        }
-                    } else if self.character == '>' {
-                        self.step();
-                        self.token = Token::EqualsGreaterThan;
-                    } else {
-                        self.token = Token::Equals;
+            // ^ or ^=
+            '^' => {
+                bump(lexer);
+                lexer.token = match lexer.character {
+                    '=' => {
+                        bump(lexer);
+                        Token::CaretEquals
                     }
-                }
+                    _ => Token::Caret,
+                };
+            }
 
-                '!' => {
-                    self.step();
-                    if self.character == '=' {
-                        self.step();
-                        if self.character == '=' {
-                            self.step();
-                            self.token = Token::ExclamationEqualsEquals;
-                        } else {
-                            self.token = Token::ExclamationEquals;
-                        }
-                    } else {
-                        self.token = Token::Exclamation;
+            // & or && or &= or &&=
+            '&' => {
+                bump(lexer);
+                lexer.token = match (lexer.character, peek(lexer)) {
+                    ('&', '=') => {
+                        bump(lexer);
+                        bump(lexer);
+                        Token::AmpersandAmpersandEquals
                     }
-                }
-
-                '%' => {
-                    self.step();
-                    if self.character == '=' {
-                        self.step();
-                        self.token = Token::PercentEquals;
-                    } else {
-                        self.token = Token::Percent;
+                    ('=', _) => {
+                        bump(lexer);
+                        Token::AmpersandEquals
                     }
-                }
-
-                ':' => {
-                    self.step();
-                    self.token = Token::Colon;
-                }
-
-                '|' => {
-                    self.step();
-                    if self.character == '|' {
-                        self.step();
-                        if self.character == '=' {
-                            self.step();
-                            self.token = Token::BarBarEquals;
-                        } else {
-                            self.token = Token::BarBar;
-                        }
-                    } else if self.character == '=' {
-                        self.step();
-                        self.token = Token::BarEquals;
-                    } else {
-                        self.token = Token::Bar;
+                    ('&', _) => {
+                        bump(lexer);
+                        Token::AmpersandAmpersand
                     }
+                    _ => Token::Ampersand,
                 }
+            }
 
-                '@' => {
-                    self.step();
-                    self.token = Token::At;
-                }
+            // string literal
+            '"' | '\'' => {
+                let quote = lexer.character;
+                bump(lexer);
 
-                '^' => {
-                    self.step();
-                    if self.character == '=' {
-                        self.step();
-                        self.token = Token::CaretEquals;
-                    } else {
-                        self.token = Token::Caret;
-                    }
-                }
-
-                '&' => {
-                    self.step();
-                    if self.character == '&' {
-                        self.step();
-                        if self.character == '=' {
-                            self.step();
-                            self.token = Token::AmpersandAmpersandEquals;
-                        } else {
-                            self.token = Token::AmpersandAmpersand;
-                        }
-                    } else if self.character == '=' {
-                        self.step();
-                        self.token = Token::AmpersandEquals;
-                    } else {
-                        self.token = Token::Ampersand;
-                    }
-                }
-
-                '"' | '\'' => {
-                    let quote = self.character.clone();
-                    self.step();
-
-                    'string_literal: loop {
-                        if self.character == quote {
-                            self.step();
-                            break 'string_literal;
-                        }
-
-                        match self.character {
-                            '\\' => self.step(),
-                            EOF_CHAR => self.unexpected(),
-                            _ => {}
-                        }
-                        self.step();
+                'string_literal: loop {
+                    if lexer.character == quote {
+                        bump(lexer);
+                        break 'string_literal;
                     }
 
-                    self.identifier = self.input[self.start + 1..self.end - 1].into();
-                    self.token = Token::StringLiteral;
+                    match lexer.character {
+                        '\\' => bump(lexer),
+                        EOF_CHAR => todo!(),
+                        _ => {}
+                    }
+                    bump(lexer);
                 }
 
-                '`' => {
-                    self.step();
+                lexer.identifier = lexer.input[lexer.start + 1..lexer.end - 1].into();
+                lexer.token = Token::StringLiteral;
+            }
 
-                    let mut suffix_length = 1;
-                    self.token = Token::TemplateNoSubstitutionLiteral;
-                    'template_literal: loop {
-                        match self.character {
-                            '$' => {
-                                self.step();
-                                if self.character == '{' {
-                                    self.step();
-                                    suffix_length = 2;
-                                    self.token = Token::TemplateHead;
-                                    break 'template_literal;
-                                }
-                                continue 'template_literal;
-                            }
-                            '\\' => self.step(),
-                            '`' => {
-                                self.step();
+            // template literal
+            '`' => {
+                bump(lexer);
+
+                let mut suffix_length = 1;
+                lexer.token = Token::TemplateNoSubstitutionLiteral;
+                'template_literal: loop {
+                    match lexer.character {
+                        '$' => {
+                            bump(lexer);
+                            if lexer.character == '{' {
+                                bump(lexer);
+                                suffix_length = 2;
+                                lexer.token = Token::TemplateHead;
                                 break 'template_literal;
                             }
-                            EOF_CHAR => self.unexpected(),
-                            _ => {}
+                            continue 'template_literal;
                         }
-                        self.step();
+                        '\\' => bump(lexer),
+                        '`' => {
+                            bump(lexer);
+                            break 'template_literal;
+                        }
+                        EOF_CHAR => todo!(),
+                        _ => {}
                     }
-
-                    self.identifier = self.input[self.start + 1..self.end - suffix_length].into();
+                    bump(lexer);
                 }
 
+                lexer.identifier = lexer.input[lexer.start + 1..lexer.end - suffix_length].into();
+            }
+
+            // . or ... or .123
+            '.' => match peek(&lexer) {
                 '.' => {
-                    if self.peek() == '.' {
-                        self.step();
-                        self.step();
-                        self.step();
-                        self.token = Token::DotDotDot;
-                    } else if self.peek() >= '0' && self.peek() <= '9' {
-                        self.read_number();
-                    } else {
-                        self.step();
-                        self.token = Token::Dot;
-                    }
+                    bump(lexer);
+                    bump(lexer);
+                    bump(lexer);
+                    lexer.token = Token::DotDotDot;
                 }
 
-                '0' => match self.peek() {
-                    'b' => self.read_radix_number(2),
-                    'o' => self.read_radix_number(8),
-                    'x' => self.read_radix_number(16),
-                    _ => self.read_number(),
-                },
-
-                '1'..='9' => self.read_number(),
-
-                EOF_CHAR => self.token = Token::EndOfFile,
+                '0'..='1' => {
+                    read_number(lexer);
+                }
 
                 _ => {
-                    self.step();
-                    self.token = Token::Illegal;
+                    bump(lexer);
+                    lexer.token = Token::Dot;
                 }
-            };
+            },
 
-            return;
-        }
-    }
+            '0' => match peek(&lexer) {
+                'b' => read_radix_number(lexer, 2),
+                'o' => read_radix_number(lexer, 8),
+                'x' => read_radix_number(lexer, 16),
+                _ => read_number(lexer),
+            },
 
-    /// Scans the next token as either a template tail
-    /// or a template middle.
-    pub fn scan_template_tail_or_middle(&mut self) {
-        self.expect_token(Token::CloseBrace);
-        let mut suffix_length = 1;
-        self.token = Token::TemplateTail;
-        'template_literal: loop {
-            match self.character {
-                '$' => {
-                    self.step();
-                    if self.character == '{' {
-                        self.step();
-                        suffix_length = 2;
-                        self.token = Token::TemplateMiddle;
-                        break 'template_literal;
-                    }
-                    continue 'template_literal;
-                }
-                '\\' => self.step(),
-                '`' => {
-                    self.step();
-                    break 'template_literal;
-                }
-                EOF_CHAR => self.unexpected(),
-                _ => {}
+            '1'..='9' => read_number(lexer),
+
+            EOF_CHAR => lexer.token = Token::EndOfFile,
+
+            _ => {
+                bump(lexer);
+                lexer.token = Token::Illegal;
             }
-            self.step();
-        }
+        };
 
-        self.identifier = self.input[self.start + 1..self.end - suffix_length].into();
+        break;
     }
 }
 
-/// Internal
-impl<'a, L: Logger> Lexer<'a, L> {
-    fn step(&mut self) {
-        self.character = self.chars.next().unwrap_or(EOF_CHAR);
-        self.end = self.current;
-        self.current += 1;
-    }
-
-    // Returns the next token without moving the current.
-    fn peek(&mut self) -> char {
-        self.chars.clone().nth(0).unwrap_or(EOF_CHAR)
-    }
-
-    /// Skip over the comment if the current character marks
-    /// the start of a comment.
-    fn consume_comment(&mut self) {
-        match (self.character, self.peek()) {
-            // Single line comment
-            ('/', '/') => {
-                self.step(); // First /
-                self.step(); // Second /
-
-                // Loop until we reach a line terminator or EOF
-                'single_line_comment: loop {
-                    match self.character {
-                        c if is_line_terminator(c) => {
-                            self.step();
-                            break 'single_line_comment;
+/// Scans the next token as part of an regexp
+pub fn scan_regexp(lexer: &mut Lexer) {
+    loop {
+        match lexer.character {
+            '/' => {
+                bump(lexer);
+                'inner: loop {
+                    if is_identifier_continue(lexer.character) {
+                        match lexer.character {
+                            'g' | 'i' | 'm' | 's' | 'u' | 'y' => bump(lexer),
+                            _ => todo!(),
                         }
-                        EOF_CHAR => {
-                            self.step();
-                            break 'single_line_comment;
-                        }
-                        _ => self.step(),
+                    } else {
+                        break 'inner;
                     }
                 }
+
+                return;
             }
 
-            // Multi-line comment
-            ('/', '*') => {
-                self.step(); // /
-                self.step(); // *
-
-                'multi_line_comment: loop {
-                    match (self.character, self.peek()) {
-                        ('*', '/') => {
-                            self.step(); // *
-                            self.step(); // /
-                            break 'multi_line_comment;
-                        }
-                        (EOF_CHAR, _) | (_, EOF_CHAR) => {
-                            panic!("File ended without terminating multi-line comment")
-                        }
-                        _ => self.step(),
+            '[' => {
+                bump(lexer);
+                while lexer.character != ']' {
+                    if lexer.character == '\\' {
+                        bump(lexer);
                     }
+
+                    match lexer.character {
+                        '\r' | '\n' | EOF_CHAR => {
+                            todo!();
+                        }
+                        _ => bump(lexer),
+                    };
                 }
+                bump(lexer);
             }
 
-            // For anything else, ignore.
-            _ => {}
+            _ => {
+                if lexer.character == '\\' {
+                    bump(lexer);
+                }
+
+                match lexer.character {
+                    '\r' | '\n' | EOF_CHAR => {
+                        todo!();
+                    }
+                    _ => bump(lexer),
+                };
+            }
         };
     }
+}
 
-    fn read_identifier(&mut self) -> String {
-        let mut word = String::new();
-        while self.character != EOF_CHAR {
-            if is_identifier_continue(self.character) {
-                word.push(self.character);
-                self.step();
-            } else {
-                break;
+/// Scans the next token as part of a template literal
+pub fn scan_template_tail_or_middle(lexer: &mut Lexer) {
+    expect_token(lexer, Token::CloseBrace);
+    let mut suffix_length = 1;
+    lexer.token = Token::TemplateTail;
+    'template_literal: loop {
+        match lexer.character {
+            '$' => {
+                bump(lexer);
+                if lexer.character == '{' {
+                    bump(lexer);
+                    suffix_length = 2;
+                    lexer.token = Token::TemplateMiddle;
+                    break 'template_literal;
+                }
+                continue 'template_literal;
             }
+            '\\' => bump(lexer),
+            '`' => {
+                bump(lexer);
+                break 'template_literal;
+            }
+            EOF_CHAR => todo!(),
+            _ => {}
         }
-        return word;
+        bump(lexer);
     }
 
-    fn read_number(&mut self) {
-        // 00
-        if self.character == '0' && self.peek() == '0' {
-            panic!("Legacy octal literals are not supported in strict mode");
-        }
+    lexer.identifier = lexer.input[lexer.start + 1..lexer.end - suffix_length].into();
+}
 
-        // Means we've hit a fractal number .012
-        if self.character == '.' {
-            self.step();
-            let number = self.read_decimal_number();
+/// Asserts that next token matches the given one
+/// and advances to the lexer to the next token in the stream.
+pub fn eat_token(lexer: &mut Lexer, token: Token) {
+    expect_token(lexer, token);
+    scan_next_token(lexer);
+}
 
-            // Exponent
-            if self.character == 'e' || self.character == 'E' {
-                todo!()
+/// Asserts that the next token matches the given one
+pub fn expect_token(lexer: &Lexer, token: Token) {
+    if lexer.token != token {
+        let (line, _, _, _) = compute_line_and_column(lexer.input, lexer.start);
+        panic!(
+            "Expected {} but got {} at line: {}",
+            token, lexer.token, line
+        );
+    }
+}
+
+/// Bumps the lexer
+fn bump(lexer: &mut Lexer) {
+    lexer.character = lexer.chars.next().unwrap_or(EOF_CHAR);
+    lexer.end = lexer.current;
+    lexer.current += 1;
+}
+
+/// Return the next token without affecting the internal state
+fn peek(lexer: &Lexer) -> char {
+    lexer.chars.clone().nth(0).unwrap_or(EOF_CHAR)
+}
+
+/// Eats and discards the comment if the current token is the start of a comment
+fn eat_comment(lexer: &mut Lexer) {
+    match (lexer.character, peek(&lexer)) {
+        // Single line comment
+        ('/', '/') => {
+            bump(lexer); // First /
+            bump(lexer); // Second /
+
+            // Loop until we reach a line terminator or EOF
+            'single_line_comment: loop {
+                match lexer.character {
+                    c if is_line_terminator(c) => {
+                        bump(lexer);
+                        break 'single_line_comment;
+                    }
+                    EOF_CHAR => {
+                        bump(lexer);
+                        break 'single_line_comment;
+                    }
+                    _ => bump(lexer),
+                }
             }
-
-            self.token = Token::NumericLiteral;
-            self.number = format!("0.{}", number)
-                .parse::<f64>()
-                .expect(&format!("Failed to parse .{} into an f64", number));
-
-            return;
         }
 
-        let mut number = self.read_decimal_number();
+        // Multi-line comment
+        ('/', '*') => {
+            bump(lexer); // /
+            bump(lexer); // *
+
+            'multi_line_comment: loop {
+                match (lexer.character, peek(&lexer)) {
+                    ('*', '/') => {
+                        bump(lexer); // *
+                        bump(lexer); // /
+                        break 'multi_line_comment;
+                    }
+                    (EOF_CHAR, _) | (_, EOF_CHAR) => {
+                        panic!("File ended without terminating multi-line comment")
+                    }
+                    _ => bump(lexer),
+                }
+            }
+        }
+
+        // For anything else, ignore.
+        _ => {}
+    };
+}
+
+/// Bumps and reads until the until the end of the identifier
+fn read_identifer(lexer: &mut Lexer) -> String {
+    let mut word = String::new();
+    while is_identifier_continue(lexer.character) {
+        word.push(lexer.character);
+        bump(lexer);
+    }
+    word
+}
+
+/// Bumps and reads until the the end of the decimal number
+fn read_number(lexer: &mut Lexer) {
+    // 00
+    if lexer.character == '0' && peek(lexer) == '0' {
+        panic!("Legacy octal literals are not supported in strict mode");
+    }
+
+    // Means we've hit a fractal number .012
+    if lexer.character == '.' {
+        bump(lexer);
+        let number = read_decimal_number(lexer);
 
         // Exponent
-        if self.character == 'e' || self.character == 'E' {
+        if lexer.character == 'e' || lexer.character == 'E' {
             todo!()
         }
 
-        // Fractal 1.1
-        if self.character == '.' {
-            self.step();
-            number = format!("{}.{}", number, self.read_decimal_number());
-        }
-
-        // BitInt
-        if self.character == 'n' {
-            self.step();
-            self.token = Token::BigIntegerLiteral;
-            self.identifier = number;
-            return;
-        }
-
-        self.token = Token::NumericLiteral;
-        self.number = number
+        lexer.token = Token::NumericLiteral;
+        lexer.number = format!("0.{}", number)
             .parse::<f64>()
             .expect(&format!("Failed to parse .{} into an f64", number));
+        return;
     }
 
-    /// Reads a radix number (0b, 0x, 0o)
-    fn read_radix_number(&mut self, radix: u32) {
-        self.step(); // 0
-        self.step(); // x/b/o
+    let mut number = read_decimal_number(lexer);
 
-        let number = match radix {
-            2 => self.read_binary_number(),
-            8 => self.read_octal_number(),
-            16 => self.read_hexadecimal_number(),
+    // Exponent
+    if lexer.character == 'e' || lexer.character == 'E' {
+        todo!()
+    }
 
-            _ => self.unexpected(),
+    // Fractal 1.1
+    if lexer.character == '.' {
+        bump(lexer);
+        number = format!("{}.{}", number, read_decimal_number(lexer));
+    }
+
+    // BitInt
+    if lexer.character == 'n' {
+        bump(lexer);
+        lexer.token = Token::BigIntegerLiteral;
+        lexer.identifier = number;
+        return;
+    }
+
+    lexer.token = Token::NumericLiteral;
+    lexer.number = number
+        .parse::<f64>()
+        .expect(&format!("Failed to parse .{} into an f64", number));
+}
+
+/// Reads a radix number (0b, 0x, 0o)
+fn read_radix_number(lexer: &mut Lexer, radix: u32) {
+    bump(lexer);
+    bump(lexer);
+
+    let number = match radix {
+        2 => read_binary_number(lexer),
+        8 => read_octal_number(lexer),
+        16 => read_hexadecimal_number(lexer),
+
+        _ => todo!(),
+    };
+
+    // Exponent
+    if lexer.character == 'e' || lexer.character == 'E' {
+        todo!()
+    }
+
+    // Means we've hit a big int literal
+    // We do not attempt to convert the string into
+    // a number since that could mean precision loss.
+    if lexer.character == 'n' {
+        bump(lexer);
+        lexer.token = Token::BigIntegerLiteral;
+        lexer.identifier = match radix {
+            2 => format!("0b{}", number),
+            8 => format!("0o{}", number),
+            16 => format!("0x{}", number),
+            _ => todo!(),
         };
-
-        // Exponent
-        if self.character == 'e' || self.character == 'E' {
-            todo!()
-        }
-
-        // Means we've hit a big int literal
-        // We do not attempt to convert the string into
-        // a number since that could mean precision loss.
-        if self.character == 'n' {
-            self.step();
-            self.token = Token::BigIntegerLiteral;
-            self.identifier = match radix {
-                2 => format!("0b{}", number),
-                8 => format!("0o{}", number),
-                16 => format!("0x{}", number),
-                _ => self.unexpected(),
-            };
-            return;
-        }
-
-        self.number = i64::from_str_radix(&number, radix)
-            .expect(&format!("[Packet]: Failed to convert {} to an i64", number))
-            as f64;
-        self.token = Token::NumericLiteral;
+        return;
     }
 
-    fn read_binary_number(&mut self) -> String {
-        let mut num = String::new();
-        loop {
-            match self.character {
-                '0' | '1' => num.push(self.character),
-                '_' => {}
-                _ => break,
-            }
-            self.step();
-        }
-        return num;
-    }
+    lexer.number = i64::from_str_radix(&number, radix)
+        .expect(&format!("[Packet]: Failed to convert {} to an i64", number))
+        as f64;
+    lexer.token = Token::NumericLiteral;
+}
 
-    fn read_octal_number(&mut self) -> String {
-        let mut num = String::new();
-        loop {
-            match self.character {
-                '0'..='8' => num.push(self.character),
-                '_' => {}
-                _ => break,
-            }
-            self.step();
+/// Reads a binary number
+fn read_binary_number(lexer: &mut Lexer) -> String {
+    let mut num = String::new();
+    loop {
+        match lexer.character {
+            '0' | '1' => num.push(lexer.character),
+            '_' => {}
+            _ => break,
         }
-        return num;
+        bump(lexer);
     }
+    return num;
+}
 
-    fn read_decimal_number(&mut self) -> String {
-        let mut num = String::new();
-        loop {
-            match self.character {
-                '0'..='9' => num.push(self.character),
-
-                '_' => {}
-                _ => break,
-            }
-            self.step();
+/// Reads an octal number
+fn read_octal_number(lexer: &mut Lexer) -> String {
+    let mut num = String::new();
+    loop {
+        match lexer.character {
+            '0'..='8' => num.push(lexer.character),
+            '_' => {}
+            _ => break,
         }
-        return num;
+        bump(lexer);
     }
+    return num;
+}
 
-    fn read_hexadecimal_number(&mut self) -> String {
-        let mut num = String::new();
-        loop {
-            match self.character {
-                '0'..='9' | 'a'..='f' | 'A'..='F' => num.push(self.character),
-                '_' => {}
-                _ => break,
-            }
-            self.step();
+/// Reads a decimal number
+fn read_decimal_number(lexer: &mut Lexer) -> String {
+    let mut num = String::new();
+    loop {
+        match lexer.character {
+            '0'..='9' => num.push(lexer.character),
+            '_' => {}
+            _ => break,
         }
-        return num;
+        bump(lexer);
     }
+    return num;
+}
+
+/// Reads a hexadecimal number
+fn read_hexadecimal_number(lexer: &mut Lexer) -> String {
+    let mut num = String::new();
+    loop {
+        match lexer.character {
+            '0'..='9' | 'a'..='f' | 'A'..='F' => num.push(lexer.character),
+            '_' => {}
+            _ => break,
+        }
+        bump(lexer);
+    }
+    return num;
 }
 
 /// True if `c` is considered whitespace according to the ECMAScript specification
