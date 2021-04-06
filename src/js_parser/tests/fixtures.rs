@@ -1,5 +1,4 @@
 use js_parser::parse;
-use logger::LoggerImpl;
 use source::Source;
 
 use std::fs;
@@ -22,8 +21,7 @@ macro_rules! test_fixture {
                 content: &content,
             };
 
-            let logger = LoggerImpl::new();
-            parse(&source, &logger);
+            parse(&source);
         }
     };
 }

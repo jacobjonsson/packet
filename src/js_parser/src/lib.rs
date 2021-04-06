@@ -4,13 +4,12 @@ use js_lexer::{
     scan_template_tail_or_middle, Lexer,
 };
 use js_token::Token;
-use logger::Logger;
 use source::Source;
 
 /// Parses the given source into an AST.
-pub fn parse<L: Logger>(source: &Source, logger: &L) -> AST {
+pub fn parse(source: &Source) -> AST {
     let lexer = create(source.content);
-    let mut parser = Parser::new(lexer, logger);
+    let mut parser = Parser::new(lexer);
     let ast = parser.parse_program();
     ast
 }
@@ -19,21 +18,18 @@ pub struct ParserError(String);
 
 pub type ParseResult<T> = Result<T, ParserError>;
 
-pub struct Parser<'a, L: Logger> {
+pub struct Parser<'a> {
     lexer: Lexer<'a>,
-    #[allow(dead_code)]
-    logger: &'a L,
     /// in statement are only allowed in certain expressions.
     allow_in: bool,
 }
 
 /// Public
-impl<'a, L: Logger> Parser<'a, L> {
-    pub fn new(lexer: Lexer<'a>, logger: &'a L) -> Parser<'a, L> {
+impl<'a> Parser<'a> {
+    pub fn new(lexer: Lexer<'a>) -> Parser<'a> {
         Parser {
             allow_in: true,
             lexer,
-            logger,
         }
     }
 
@@ -59,7 +55,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 }
 
 // Bindings
-impl<'a, L: Logger> Parser<'a, L> {
+impl<'a> Parser<'a> {
     fn parse_binding(&mut self) -> ParseResult<Binding> {
         match self.lexer.token {
             Token::Identifier => self.parse_identifier().map(Binding::Identifier),
@@ -189,7 +185,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 }
 
 // Expressions
-impl<'a, L: Logger> Parser<'a, L> {
+impl<'a> Parser<'a> {
     fn parse_expression(&mut self, precedence: &Precedence) -> ParseResult<Expression> {
         let left = self.parse_prefix()?;
 
@@ -1876,7 +1872,7 @@ impl<'a, L: Logger> Parser<'a, L> {
 }
 
 // Statements
-impl<'a, L: Logger> Parser<'a, L> {
+impl<'a> Parser<'a> {
     fn parse_statement(&mut self) -> ParseResult<Statement> {
         match &self.lexer.token {
             Token::Const | Token::Var | Token::Let => self

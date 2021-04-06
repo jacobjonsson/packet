@@ -1,6 +1,5 @@
 use js_parser::parse;
 use js_printer::Printer;
-use logger::LoggerImpl;
 use source::Source;
 use std::fs;
 use std::path::PathBuf;
@@ -27,8 +26,7 @@ fn main() {
         content: &content,
     };
 
-    let logger = LoggerImpl::new();
-    let ast = parse(&source, &logger);
+    let ast = parse(&source);
     if let Some(out_file) = args.out_file {
         let output = Printer::new().print_program(&ast);
         fs::write(out_file, output).expect("Failed to write to file");

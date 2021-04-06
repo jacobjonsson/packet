@@ -1,6 +1,5 @@
 use js_parser::parse;
 use js_printer::Printer;
-use logger::LoggerImpl;
 use source::Source;
 
 fn expect_printed(content: &str, expected: &str) {
@@ -10,8 +9,7 @@ fn expect_printed(content: &str, expected: &str) {
         content: content.into(),
     };
 
-    let logger = LoggerImpl::new();
-    let ast = parse(&source, &logger);
+    let ast = parse(&source);
     let output = Printer::new().print_program(&ast);
     assert_eq!(output, expected);
 }
