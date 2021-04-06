@@ -1,7 +1,5 @@
 use fs::FS;
 use js_ast::AST;
-use js_lexer;
-use js_parser::Parser;
 
 #[derive(Debug)]
 pub struct File {
@@ -52,8 +50,7 @@ impl Bundler {
             }
         };
 
-        let lexer = js_lexer::create(&content);
-        let ast = Parser::new(lexer).parse_program();
+        let ast = js_parser::parse(&content);
 
         // TODO: Look at the import records and push them to the queue.
 

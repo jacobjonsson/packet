@@ -1,15 +1,8 @@
 use js_parser::parse;
 use js_printer::Printer;
-use source::Source;
 
 fn expect_printed(content: &str, expected: &str) {
-    let source = Source {
-        absolute_path: "/test.js",
-        pretty_path: "./test.js",
-        content: content.into(),
-    };
-
-    let ast = parse(&source);
+    let ast = parse(&content);
     let output = Printer::new().print_program(&ast);
     assert_eq!(output, expected);
 }
