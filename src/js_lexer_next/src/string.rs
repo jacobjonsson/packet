@@ -1,7 +1,7 @@
 use js_error::JSError;
 
 use crate::Token;
-use crate::{Lexer, LexerResult};
+use crate::{whitespace::is_line_terminator, Lexer, LexerResult};
 
 impl<'a> Lexer<'a> {
     /// Scans a string
@@ -11,22 +11,24 @@ impl<'a> Lexer<'a> {
 
         let end: usize;
         loop {
-            let character = match self.current_character() {
+            let c = match self.current_character() {
                 Some(c) => c,
                 None => return Err(JSError::UnterminatedStringLiteral),
             };
 
-            // TODO: Check for new line and report as unterminated string literal
+            if is_line_terminator(c) {
+                return Err(JSError::UnterminatedStringLiteral);
+            }
 
             // Break on ending quote
-            if character == quote {
+            if c == quote {
                 end = self.current_position();
                 self.index += 1;
                 break;
             }
 
             // A slash escapes any character after it so we skip twice and continue;
-            if character == '\\' {
+            if c == '\\' {
                 self.index += 2;
                 continue;
             }
@@ -71,6 +73,13 @@ mod tests {
             ("'hello", JSError::UnterminatedStringLiteral),
             ("'hello\"", JSError::UnterminatedStringLiteral),
             ("\"hello'", JSError::UnterminatedStringLiteral),
+            (
+                "\"hello
+
+
+            \"",
+                JSError::UnterminatedStringLiteral,
+            ),
         ];
 
         for test in tests {

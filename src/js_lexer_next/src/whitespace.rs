@@ -5,7 +5,7 @@ use crate::{Lexer, LexerResult};
 /// True if `c` is considered whitespace according to the ECMAScript specification
 ///
 /// See [ECMAScript specification](https://262.ecma-international.org/11.0/#sec-white-space)
-fn is_whitespace(c: char) -> bool {
+pub fn is_whitespace(c: char) -> bool {
     matches!(
         c,
         '\u{0009}' // Tab
@@ -35,7 +35,7 @@ fn is_whitespace(c: char) -> bool {
 /// True if `c` is considered a line terminator according to the ECMAScript specification
 ///
 /// See [ECMAScript specification](https://262.ecma-international.org/11.0/#sec-line-terminators)
-fn is_line_terminator(c: char) -> bool {
+pub fn is_line_terminator(c: char) -> bool {
     matches!(
         c,
         '\u{000A}' // Line feed
