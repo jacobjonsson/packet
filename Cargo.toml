@@ -1,6 +1,9 @@
 [workspace]
 
 members = [
+    "src/js_error",
+    "src/unicode",
+    "src/js_lexer_next",
     "src/js_token",
     "src/js_lexer",
     "src/js_ast",
