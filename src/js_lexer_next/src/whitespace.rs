@@ -114,7 +114,7 @@ impl<'a> Lexer<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Token;
+    use crate::TokenKind;
 
     #[test]
     fn test_single_line_comment() {
@@ -126,7 +126,7 @@ mod tests {
 
         for test in tests {
             let mut lexer = Lexer::new(test);
-            assert_eq!(lexer.next().unwrap(), Token::Eof);
+            assert_eq!(lexer.next().unwrap().kind, TokenKind::Eof);
         }
     }
 
@@ -144,7 +144,7 @@ mod tests {
 
         for test in tests {
             let mut lexer = Lexer::new(test);
-            assert_eq!(lexer.next().unwrap(), Token::Eof);
+            assert_eq!(lexer.next().unwrap().kind, TokenKind::Eof);
         }
     }
 
@@ -163,7 +163,7 @@ mod tests {
 
         for test in tests {
             let mut lexer = Lexer::new(test);
-            assert_eq!(lexer.next().unwrap(), Token::Eof);
+            assert_eq!(lexer.next().unwrap().kind, TokenKind::Eof);
         }
     }
 
@@ -172,16 +172,16 @@ mod tests {
         let tests = vec![
             (
                 "/* hello world */identifier",
-                Token::Identifier {
+                TokenKind::Identifier {
                     name: "identifier".into(),
                 },
             ),
-            ("/* hello world */123", Token::Number { value: 123. }),
+            ("/* hello world */123", TokenKind::Number { value: 123. }),
         ];
 
         for test in tests {
             let mut lexer = Lexer::new(test.0);
-            assert_eq!(lexer.next().unwrap(), test.1);
+            assert_eq!(lexer.next().unwrap().kind, test.1);
         }
     }
 

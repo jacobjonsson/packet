@@ -1,11 +1,11 @@
 use js_error::JSError;
 
-use crate::Token;
+use crate::TokenKind;
 use crate::{Lexer, LexerResult};
 
 impl<'a> Lexer<'a> {
     /// Scans a template
-    pub(crate) fn scan_template(&mut self) -> LexerResult<Token> {
+    pub(crate) fn scan_template(&mut self) -> LexerResult<TokenKind> {
         self.index += 1;
         let start = self.current_position();
         loop {
@@ -18,7 +18,7 @@ impl<'a> Lexer<'a> {
                 let end = self.current_position();
                 self.index += 1;
                 let text = &self.input[start..end];
-                return Ok(Token::NoSubstationTemplate { value: text.into() });
+                return Ok(TokenKind::String { value: text.into() });
             }
 
             if c == '$' {
@@ -27,7 +27,7 @@ impl<'a> Lexer<'a> {
                     let end = self.previous_position();
                     self.index += 1;
                     let text = &self.input[start..end];
-                    return Ok(Token::TemplateHead { value: text.into() });
+                    return Ok(TokenKind::TemplateHead { value: text.into() });
                 } else {
                     continue;
                 }
@@ -39,7 +39,7 @@ impl<'a> Lexer<'a> {
 
     /// Scans the next token as part of a template span
     /// This function assumes that the current character is `}`
-    pub fn next_as_template_span(&mut self) -> LexerResult<Token> {
+    pub fn next_as_template_span(&mut self) -> LexerResult<TokenKind> {
         self.index += 1; // Skip the leading }
         let start = self.current_position();
         loop {
@@ -52,7 +52,7 @@ impl<'a> Lexer<'a> {
                 let end = self.current_position();
                 self.index += 1;
                 let text = &self.input[start..end];
-                return Ok(Token::TemplateTail { value: text.into() });
+                return Ok(TokenKind::TemplateTail { value: text.into() });
             }
 
             if c == '$' {
@@ -61,7 +61,7 @@ impl<'a> Lexer<'a> {
                     let end = self.previous_position();
                     self.index += 1;
                     let text = &self.input[start..end];
-                    return Ok(Token::TemplateMiddle { value: text.into() });
+                    return Ok(TokenKind::TemplateMiddle { value: text.into() });
                 } else {
                     continue;
                 }
@@ -77,7 +77,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_no_substitution_template() {
+    fn test_string_template() {
         let tests = vec![
             ("`hello`", "hello"),
             ("`hello $`", "hello $"),
@@ -89,10 +89,10 @@ mod tests {
         for test in tests {
             let mut lexer = Lexer::new(test.0);
             assert_eq!(
-                Token::NoSubstationTemplate {
+                TokenKind::String {
                     value: test.1.into()
                 },
-                lexer.next().unwrap()
+                lexer.next().unwrap().kind
             );
         }
     }
@@ -104,10 +104,10 @@ mod tests {
         for test in tests {
             let mut lexer = Lexer::new(test.0);
             assert_eq!(
-                Token::TemplateHead {
+                TokenKind::TemplateHead {
                     value: test.1.into()
                 },
-                lexer.next().unwrap()
+                lexer.next().unwrap().kind
             );
         }
     }
@@ -119,7 +119,7 @@ mod tests {
         for test in tests {
             let mut lexer = Lexer::new(test.0);
             assert_eq!(
-                Token::TemplateMiddle {
+                TokenKind::TemplateMiddle {
                     value: test.1.into()
                 },
                 lexer.next_as_template_span().unwrap(),
@@ -134,7 +134,7 @@ mod tests {
         for test in tests {
             let mut lexer = Lexer::new(test.0);
             assert_eq!(
-                Token::TemplateTail {
+                TokenKind::TemplateTail {
                     value: test.1.into()
                 },
                 lexer.next_as_template_span().unwrap(),

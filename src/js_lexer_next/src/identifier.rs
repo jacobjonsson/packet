@@ -1,4 +1,4 @@
-use crate::{token::lookup_keyword, Lexer, LexerResult, Token};
+use crate::{Lexer, LexerResult, TokenKind};
 
 /// True if `c` is considered a identifier start according to the ECMAScript specification
 ///
@@ -30,7 +30,7 @@ pub fn is_identifier_continue(c: char) -> bool {
 }
 
 impl<'a> Lexer<'a> {
-    pub(crate) fn scan_identifier(&mut self) -> LexerResult<Token> {
+    pub(crate) fn scan_identifier(&mut self) -> LexerResult<TokenKind> {
         let start = self.current_position();
 
         loop {
@@ -49,9 +49,7 @@ impl<'a> Lexer<'a> {
         let end = self.current_position();
         let identifier = &self.input[start..end];
 
-        Ok(lookup_keyword(identifier).unwrap_or(Token::Identifier {
-            name: identifier.into(),
-        }))
+        Ok(TokenKind::from_potential_keyword(identifier))
     }
 }
 
@@ -71,8 +69,8 @@ mod tests {
 
         for test in tests {
             let mut lexer = Lexer::new(test.0);
-            match lexer.next() {
-                Ok(Token::Identifier { name }) => assert_eq!(test.1, name),
+            match lexer.next().unwrap().kind {
+                TokenKind::Identifier { name } => assert_eq!(test.1, name),
                 _ => panic!(),
             };
         }
@@ -81,47 +79,47 @@ mod tests {
     #[test]
     fn test_valid_keywords() {
         let tests = vec![
-            ("break", Token::Break),
-            ("case", Token::Case),
-            ("catch", Token::Catch),
-            ("class", Token::Class),
-            ("const", Token::Const),
-            ("continue", Token::Continue),
-            ("debugger", Token::Debugger),
-            ("default", Token::Default),
-            ("delete", Token::Delete),
-            ("do", Token::Do),
-            ("else", Token::Else),
-            ("enum", Token::Enum),
-            ("export", Token::Export),
-            ("extends", Token::Extends),
-            ("false", Token::False),
-            ("finally", Token::Finally),
-            ("for", Token::For),
-            ("function", Token::Function),
-            ("if", Token::If),
-            ("import", Token::Import),
-            ("in", Token::In),
-            ("instanceof", Token::Instanceof),
-            ("new", Token::New),
-            ("null", Token::Null),
-            ("return", Token::Return),
-            ("super", Token::Super),
-            ("switch", Token::Switch),
-            ("this", Token::This),
-            ("throw", Token::Throw),
-            ("true", Token::True),
-            ("try", Token::Try),
-            ("typeof", Token::Typeof),
-            ("var", Token::Var),
-            ("void", Token::Void),
-            ("while", Token::While),
-            ("with", Token::With),
+            ("break", TokenKind::Break),
+            ("case", TokenKind::Case),
+            ("catch", TokenKind::Catch),
+            ("class", TokenKind::Class),
+            ("const", TokenKind::Const),
+            ("continue", TokenKind::Continue),
+            ("debugger", TokenKind::Debugger),
+            ("default", TokenKind::Default),
+            ("delete", TokenKind::Delete),
+            ("do", TokenKind::Do),
+            ("else", TokenKind::Else),
+            ("enum", TokenKind::Enum),
+            ("export", TokenKind::Export),
+            ("extends", TokenKind::Extends),
+            ("false", TokenKind::False),
+            ("finally", TokenKind::Finally),
+            ("for", TokenKind::For),
+            ("function", TokenKind::Function),
+            ("if", TokenKind::If),
+            ("import", TokenKind::Import),
+            ("in", TokenKind::In),
+            ("instanceof", TokenKind::Instanceof),
+            ("new", TokenKind::New),
+            ("null", TokenKind::Null),
+            ("return", TokenKind::Return),
+            ("super", TokenKind::Super),
+            ("switch", TokenKind::Switch),
+            ("this", TokenKind::This),
+            ("throw", TokenKind::Throw),
+            ("true", TokenKind::True),
+            ("try", TokenKind::Try),
+            ("typeof", TokenKind::Typeof),
+            ("var", TokenKind::Var),
+            ("void", TokenKind::Void),
+            ("while", TokenKind::While),
+            ("with", TokenKind::With),
         ];
 
         for test in tests {
             let mut lexer = Lexer::new(test.0);
-            assert_eq!(lexer.next(), Ok(test.1));
+            assert_eq!(lexer.next().unwrap().kind, test.1);
         }
     }
 }

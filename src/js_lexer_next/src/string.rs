@@ -1,11 +1,11 @@
 use js_error::JSError;
 
-use crate::Token;
+use crate::TokenKind;
 use crate::{whitespace::is_line_terminator, Lexer, LexerResult};
 
 impl<'a> Lexer<'a> {
     /// Scans a string
-    pub(crate) fn scan_string(&mut self, quote: char) -> LexerResult<Token> {
+    pub(crate) fn scan_string(&mut self, quote: char) -> LexerResult<TokenKind> {
         self.index += 1; // Skip over the leading quote
         let start = self.current_position();
 
@@ -38,7 +38,7 @@ impl<'a> Lexer<'a> {
         }
 
         let value = &self.input[start..end];
-        Ok(Token::String {
+        Ok(TokenKind::String {
             value: value.into(),
         })
     }
@@ -59,8 +59,8 @@ mod tests {
 
         for test in tests {
             let mut lexer = Lexer::new(test.0);
-            match lexer.next().unwrap() {
-                Token::String { value } => assert_eq!(test.1, value),
+            match lexer.next().unwrap().kind {
+                TokenKind::String { value } => assert_eq!(test.1, value),
                 _ => panic!(),
             }
         }

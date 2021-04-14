@@ -1,16 +1,16 @@
-use crate::{identifier::is_identifier_continue, Token};
+use crate::{identifier::is_identifier_continue, TokenKind};
 use crate::{Lexer, LexerResult};
 use js_error::JSError;
 
 impl<'a> Lexer<'a> {
     // Scans the next token as part of a regexp instead of a normal token
     // Calling this function assumes that the leading slash has already been consumed
-    pub fn next_as_regexp(&mut self) -> LexerResult<Token> {
+    pub fn next_as_regexp(&mut self) -> LexerResult<TokenKind> {
         let pattern = self.scan_regexp_pattern()?;
         self.index += 1; // Skip over the ending slash
         let flags = self.scan_regexp_flags()?;
 
-        Ok(Token::Regexp { flags, pattern })
+        Ok(TokenKind::Regexp { flags, pattern })
     }
 
     fn scan_regexp_pattern(&mut self) -> LexerResult<String> {
@@ -75,10 +75,10 @@ mod tests {
 
         for test in tests {
             let mut lexer = Lexer::new(test.0);
-            assert_eq!(lexer.next().unwrap(), Token::Slash);
+            assert_eq!(lexer.next().unwrap().kind, TokenKind::Slash);
             assert_eq!(
                 lexer.next_as_regexp().unwrap(),
-                Token::Regexp {
+                TokenKind::Regexp {
                     pattern: test.1.into(),
                     flags: test.2
                 }
@@ -95,7 +95,7 @@ mod tests {
 
         for test in tests {
             let mut lexer = Lexer::new(test.0);
-            assert_eq!(lexer.next().unwrap(), Token::Slash);
+            assert_eq!(lexer.next().unwrap().kind, TokenKind::Slash);
             assert_eq!(lexer.next_as_regexp(), Err(test.1));
         }
     }

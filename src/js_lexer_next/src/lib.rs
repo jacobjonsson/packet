@@ -9,7 +9,8 @@ mod whitespace;
 
 use identifier::is_identifier_start;
 use js_error::JSError;
-pub use token::Token;
+use span::Span;
+use token::{Token, TokenKind};
 
 pub type LexerResult<T> = Result<T, JSError>;
 
@@ -47,41 +48,44 @@ impl<'a> Lexer<'a> {
 
         let character = match self.current_character() {
             Some(c) => c,
-            None => return Ok(Token::Eof),
+            None => return Ok(Token::new(TokenKind::Eof, Span::new(0, 0))),
         };
 
-        match character {
-            c if is_identifier_start(c) => self.scan_identifier(),
-            '0' => self.scan_zero(),
-            '1'..='9' => self.scan_decimal_number(),
-            '"' | '\'' => self.scan_string(character),
-            '`' => self.scan_template(),
-            '-' => Ok(self.scan_minus()),
-            ',' => Ok(self.scan_comma()),
-            ';' => Ok(self.scan_semicolon()),
-            ':' => Ok(self.scan_colon()),
-            '!' => Ok(self.scan_exclamation()),
-            '?' => Ok(self.scan_question_mark()),
-            '.' => self.scan_dot(),
-            '(' => Ok(self.scan_open_paren()),
-            ')' => Ok(self.scan_close_paren()),
-            '[' => Ok(self.scan_open_bracket()),
-            ']' => Ok(self.scan_close_bracket()),
-            '{' => Ok(self.scan_open_brace()),
-            '}' => Ok(self.scan_close_brace()),
-            '*' => Ok(self.scan_asterisk()),
-            '/' => Ok(self.scan_slash()),
-            '&' => Ok(self.scan_ampersand()),
-            '%' => Ok(self.scan_percent()),
-            '^' => Ok(self.scan_caret()),
-            '+' => Ok(self.scan_plus()),
-            '<' => Ok(self.scan_less_than()),
-            '=' => Ok(self.scan_equals()),
-            '>' => Ok(self.scan_greater_than()),
-            '|' => Ok(self.scan_bar()),
-            '~' => Ok(self.scan_tilde()),
-            _ => Ok(Token::Illegal),
-        }
+        let start = self.current_position();
+        let kind = match character {
+            c if is_identifier_start(c) => self.scan_identifier()?,
+            '0' => self.scan_zero()?,
+            '1'..='9' => self.scan_decimal_number()?,
+            '"' | '\'' => self.scan_string(character)?,
+            '`' => self.scan_template()?,
+            '-' => self.scan_minus(),
+            ',' => self.scan_comma(),
+            ';' => self.scan_semicolon(),
+            ':' => self.scan_colon(),
+            '!' => self.scan_exclamation(),
+            '?' => self.scan_question_mark(),
+            '.' => self.scan_dot()?,
+            '(' => self.scan_open_paren(),
+            ')' => self.scan_close_paren(),
+            '[' => self.scan_open_bracket(),
+            ']' => self.scan_close_bracket(),
+            '{' => self.scan_open_brace(),
+            '}' => self.scan_close_brace(),
+            '*' => self.scan_asterisk(),
+            '/' => self.scan_slash(),
+            '&' => self.scan_ampersand(),
+            '%' => self.scan_percent(),
+            '^' => self.scan_caret(),
+            '+' => self.scan_plus(),
+            '<' => self.scan_less_than(),
+            '=' => self.scan_equals(),
+            '>' => self.scan_greater_than(),
+            '|' => self.scan_bar(),
+            '~' => self.scan_tilde(),
+            _ => TokenKind::Illegal,
+        };
+
+        Ok(Token::new(kind, Span::new(start, self.current_position())))
     }
 
     /// Returns the current character
