@@ -1,4 +1,5 @@
-use js_error::JSError;
+use js_error::{JSError, JSErrorKind};
+use span::Span;
 
 use crate::TokenKind;
 use crate::{whitespace::is_line_terminator, Lexer, LexerResult};
@@ -13,11 +14,19 @@ impl<'a> Lexer<'a> {
         loop {
             let c = match self.current_character() {
                 Some(c) => c,
-                None => return Err(JSError::UnterminatedStringLiteral),
+                None => {
+                    return Err(JSError::new(
+                        JSErrorKind::UnterminatedStringLiteral,
+                        Span::new(start, self.current_position()),
+                    ))
+                }
             };
 
             if is_line_terminator(c) {
-                return Err(JSError::UnterminatedStringLiteral);
+                return Err(JSError::new(
+                    JSErrorKind::UnterminatedStringLiteral,
+                    Span::new(start, self.current_position()),
+                ));
             }
 
             // Break on ending quote
@@ -69,22 +78,22 @@ mod tests {
     #[test]
     fn test_invalid_strings() {
         let tests = vec![
-            ("\"hello", JSError::UnterminatedStringLiteral),
-            ("'hello", JSError::UnterminatedStringLiteral),
-            ("'hello\"", JSError::UnterminatedStringLiteral),
-            ("\"hello'", JSError::UnterminatedStringLiteral),
+            ("\"hello", JSErrorKind::UnterminatedStringLiteral),
+            ("'hello", JSErrorKind::UnterminatedStringLiteral),
+            ("'hello\"", JSErrorKind::UnterminatedStringLiteral),
+            ("\"hello'", JSErrorKind::UnterminatedStringLiteral),
             (
                 "\"hello
 
 
             \"",
-                JSError::UnterminatedStringLiteral,
+                JSErrorKind::UnterminatedStringLiteral,
             ),
         ];
 
         for test in tests {
             let mut lexer = Lexer::new(test.0);
-            assert_eq!(lexer.next(), Err(test.1));
+            assert_eq!(lexer.next().unwrap_err().kind, test.1);
         }
     }
 }

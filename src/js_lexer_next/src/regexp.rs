@@ -1,6 +1,7 @@
 use crate::{identifier::is_identifier_continue, TokenKind};
 use crate::{Lexer, LexerResult};
-use js_error::JSError;
+use js_error::{JSError, JSErrorKind};
+use span::Span;
 
 impl<'a> Lexer<'a> {
     // Scans the next token as part of a regexp instead of a normal token
@@ -19,7 +20,12 @@ impl<'a> Lexer<'a> {
         loop {
             let c = match self.current_character() {
                 Some(c) => c,
-                None => return Err(JSError::UnterminatedRegexp),
+                None => {
+                    return Err(JSError::new(
+                        JSErrorKind::UnterminatedRegexp,
+                        Span::new(start, self.current_position()),
+                    ))
+                }
             };
 
             if c == '/' {
@@ -50,7 +56,10 @@ impl<'a> Lexer<'a> {
                 continue;
             }
 
-            return Err(JSError::InvalidRegexpFlag);
+            return Err(JSError::new(
+                JSErrorKind::InvalidRegexpFlag,
+                Span::new(start, self.current_position()),
+            ));
         }
 
         let end = self.current_position();
@@ -89,14 +98,14 @@ mod tests {
     #[test]
     fn test_invalid_regexp() {
         let tests = vec![
-            ("/abc", JSError::UnterminatedRegexp),
-            ("/abc/bc", JSError::InvalidRegexpFlag),
+            ("/abc", JSErrorKind::UnterminatedRegexp),
+            ("/abc/bc", JSErrorKind::InvalidRegexpFlag),
         ];
 
         for test in tests {
             let mut lexer = Lexer::new(test.0);
             assert_eq!(lexer.next().unwrap().kind, TokenKind::Slash);
-            assert_eq!(lexer.next_as_regexp(), Err(test.1));
+            assert_eq!(lexer.next_as_regexp().unwrap_err().kind, test.1);
         }
     }
 }

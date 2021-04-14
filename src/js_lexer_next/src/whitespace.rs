@@ -1,4 +1,5 @@
-use js_error::JSError;
+use js_error::{JSError, JSErrorKind};
+use span::Span;
 
 use crate::{Lexer, LexerResult};
 
@@ -89,12 +90,18 @@ impl<'a> Lexer<'a> {
     }
 
     fn skip_block_comment(&mut self) -> LexerResult<()> {
+        let start = self.current_position();
         self.index += 2;
 
         loop {
             let c = match self.current_character() {
                 Some(c) => c,
-                None => return Err(JSError::UnterminatedBlockComment),
+                None => {
+                    return Err(JSError::new(
+                        JSErrorKind::UnterminatedBlockComment,
+                        Span::new(start, self.current_position()),
+                    ))
+                }
             };
 
             if c == '*' {
@@ -188,20 +195,20 @@ mod tests {
     #[test]
     fn test_invalid_comments() {
         let tests = vec![
-            ("/*", JSError::UnterminatedBlockComment),
-            ("/****", JSError::UnterminatedBlockComment),
+            ("/*", JSErrorKind::UnterminatedBlockComment),
+            ("/****", JSErrorKind::UnterminatedBlockComment),
             (
                 "/*
 
 
             *",
-                JSError::UnterminatedBlockComment,
+                JSErrorKind::UnterminatedBlockComment,
             ),
         ];
 
         for test in tests {
             let mut lexer = Lexer::new(test.0);
-            assert_eq!(lexer.next(), Err(test.1));
+            assert_eq!(lexer.next().unwrap_err().kind, test.1);
         }
     }
 }

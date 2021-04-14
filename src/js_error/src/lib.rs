@@ -1,7 +1,21 @@
 use std::fmt;
 
+use span::Span;
+
 #[derive(Debug, PartialEq)]
-pub enum JSError {
+pub struct JSError {
+    pub kind: JSErrorKind,
+    pub span: Span,
+}
+
+impl JSError {
+    pub fn new(kind: JSErrorKind, span: Span) -> JSError {
+        JSError { kind, span }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum JSErrorKind {
     SyntaxError,
     IdentifierAfterNumber,
     UnterminatedBlockComment,
@@ -11,18 +25,18 @@ pub enum JSError {
     InvalidRegexpFlag,
 }
 
-impl fmt::Display for JSError {
+impl fmt::Display for JSErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            JSError::SyntaxError => write!(f, "Syntax error"),
-            JSError::IdentifierAfterNumber => {
+            JSErrorKind::SyntaxError => write!(f, "Syntax error"),
+            JSErrorKind::IdentifierAfterNumber => {
                 write!(f, "Identifiers are not allowed directly after a number")
             }
-            JSError::UnterminatedBlockComment => write!(f, "Unterminated block comment"),
-            JSError::UnterminatedStringLiteral => write!(f, "Unterminated string literal"),
-            JSError::UnterminatedTemplateLiteral => write!(f, "Unterminated template literal"),
-            JSError::UnterminatedRegexp => write!(f, "Unterminated regexp"),
-            JSError::InvalidRegexpFlag => write!(f, "The regexp flag is invalid"),
+            JSErrorKind::UnterminatedBlockComment => write!(f, "Unterminated block comment"),
+            JSErrorKind::UnterminatedStringLiteral => write!(f, "Unterminated string literal"),
+            JSErrorKind::UnterminatedTemplateLiteral => write!(f, "Unterminated template literal"),
+            JSErrorKind::UnterminatedRegexp => write!(f, "Unterminated regexp"),
+            JSErrorKind::InvalidRegexpFlag => write!(f, "The regexp flag is invalid"),
         }
     }
 }

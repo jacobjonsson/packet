@@ -1,4 +1,5 @@
-use js_error::JSError;
+use js_error::{JSError, JSErrorKind};
+use span::Span;
 
 use crate::TokenKind;
 use crate::{Lexer, LexerResult};
@@ -11,7 +12,12 @@ impl<'a> Lexer<'a> {
         loop {
             let c = match self.current_character() {
                 Some(c) => c,
-                None => return Err(JSError::UnterminatedTemplateLiteral),
+                None => {
+                    return Err(JSError::new(
+                        JSErrorKind::UnterminatedTemplateLiteral,
+                        Span::new(start, self.current_position()),
+                    ))
+                }
             };
 
             if c == '`' {
@@ -45,7 +51,12 @@ impl<'a> Lexer<'a> {
         loop {
             let c = match self.current_character() {
                 Some(c) => c,
-                None => return Err(JSError::UnterminatedTemplateLiteral),
+                None => {
+                    return Err(JSError::new(
+                        JSErrorKind::UnterminatedTemplateLiteral,
+                        Span::new(start, self.current_position()),
+                    ))
+                }
             };
 
             if c == '`' {
@@ -145,18 +156,18 @@ mod tests {
     #[test]
     fn test_invalid_template() {
         let tests = vec![
-            ("`", JSError::UnterminatedTemplateLiteral),
+            ("`", JSErrorKind::UnterminatedTemplateLiteral),
             (
                 "`
 
             ",
-                JSError::UnterminatedTemplateLiteral,
+                JSErrorKind::UnterminatedTemplateLiteral,
             ),
         ];
 
         for test in tests {
             let mut lexer = Lexer::new(test.0);
-            assert_eq!(Err(test.1), lexer.next());
+            assert_eq!(lexer.next_as_template_span().unwrap_err().kind, test.1);
         }
     }
 }
