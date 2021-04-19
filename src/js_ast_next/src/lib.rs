@@ -1,3 +1,4 @@
+pub mod array_binding_pattern;
 pub mod array_expression;
 pub mod array_hole;
 pub mod assignment_expression;
@@ -16,6 +17,7 @@ pub mod lexical_binding;
 pub mod lexical_declaration;
 pub mod null_literal;
 pub mod numeric_literal;
+pub mod object_binding_pattern;
 pub mod precedence;
 pub mod regexp_literal;
 pub mod sequence_expression;
@@ -26,6 +28,7 @@ pub mod update_expression;
 pub mod variable_declaration;
 pub mod variable_statement;
 
+use array_binding_pattern::ArrayBindingPattern;
 use array_expression::ArrayExpression;
 use assignment_expression::AssignmentExpression;
 use binary_expression::BinaryExpression;
@@ -39,6 +42,7 @@ use identifier_name::IdentifierName;
 use lexical_declaration::LexicalDeclaration;
 use null_literal::NullLiteral;
 use numeric_literal::NumericLiteral;
+use object_binding_pattern::BindingObjectPattern;
 use regexp_literal::RegexpLiteral;
 use span::Span;
 use string_literal::StringLiteral;
@@ -50,13 +54,6 @@ use variable_statement::VariableStatement;
 #[derive(Debug, Clone)]
 pub struct AST {
     pub statements: Vec<Statement>,
-}
-
-#[derive(Debug, Clone)]
-pub enum TargetBindingPattern {
-    BindingIdentifier(BindingIdentifier),
-    // TODO: ArrayBindingPattern
-    // TODO: ObjectBindingPattern
 }
 
 /// The top level expression union
@@ -74,6 +71,16 @@ pub enum Expression {
     UpdateExpression(UpdateExpression),
 }
 
+#[derive(Debug, Clone)]
+pub enum LiteralPropertyName {
+    IdentifierName(IdentifierName),
+    NumericLiteral(NumericLiteral),
+    StringLiteral(StringLiteral),
+}
+
+#[derive(Debug, Clone)]
+pub enum ObjectPropertyKey {}
+
 /// The top level statement union
 #[derive(Debug, Clone)]
 pub enum Statement {
@@ -86,8 +93,8 @@ pub enum Statement {
 }
 
 #[derive(Debug, Clone)]
-pub enum LiteralPropertyName {
-    IdentifierName(IdentifierName),
-    NumericLiteral(NumericLiteral),
-    StringLiteral(StringLiteral),
+pub enum TargetBindingPattern {
+    BindingIdentifier(BindingIdentifier),
+    BindingArrayPattern(ArrayBindingPattern),
+    BindingObjectPattern(BindingObjectPattern),
 }

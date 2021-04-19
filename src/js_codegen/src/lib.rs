@@ -1,10 +1,12 @@
 use js_ast_next::{
+    array_binding_pattern::{ArrayBindingElementKind, ArrayBindingPattern},
     array_expression::{ArrayExpression, ArrayExpressionElement},
     binding_identifier::BindingIdentifier,
     boolean_literal::BooleanLiteral,
     expression_statement::ExpressionStatement,
     lexical_declaration::LexicalDeclaration,
     numeric_literal::NumericLiteral,
+    object_binding_pattern::BindingObjectPattern,
     regexp_literal::RegexpLiteral,
     string_literal::StringLiteral,
     variable_statement::VariableStatement,
@@ -118,12 +120,50 @@ impl Codegen {
     fn print_target_binding_pattern(&mut self, target_binding_pattern: &TargetBindingPattern) {
         match target_binding_pattern {
             TargetBindingPattern::BindingIdentifier(i) => self.print_binding_identifier(i),
+            TargetBindingPattern::BindingArrayPattern(a) => self.print_array_binding_pattern(a),
+            TargetBindingPattern::BindingObjectPattern(o) => self.print_object_binding_pattern(o),
         }
     }
 
     /// Prints a binding identifier
     fn print_binding_identifier(&mut self, binding_identifier: &BindingIdentifier) {
         self.print(&binding_identifier.name);
+    }
+
+    /// Prints a array binding pattern
+    fn print_array_binding_pattern(&mut self, array_binding_pattern: &ArrayBindingPattern) {
+        self.print("[");
+        for (idx, element) in array_binding_pattern.elements.iter().enumerate() {
+            let is_last_element = idx == array_binding_pattern.elements.len() - 1;
+            match element {
+                ArrayBindingElementKind::ArrayHole(_) => {
+                    self.print(",");
+                    continue;
+                }
+                ArrayBindingElementKind::ArrayBindingElement(b) => {
+                    self.print_target_binding_pattern(&b.binding);
+                    if let Some(initializer) = &b.initializer {
+                        self.print_space();
+                        self.print("=");
+                        self.print_space();
+                        self.print_expression(initializer);
+                    }
+                    if !is_last_element {
+                        self.print(",");
+                    }
+                }
+            }
+        }
+        if let Some(rest) = &array_binding_pattern.rest {
+            self.print("...");
+            self.print_target_binding_pattern(rest);
+        }
+        self.print("]");
+    }
+
+    /// Prints an object binding pattern
+    fn print_object_binding_pattern(&mut self, _: &BindingObjectPattern) {
+        todo!()
     }
 
     /// Prints an expression

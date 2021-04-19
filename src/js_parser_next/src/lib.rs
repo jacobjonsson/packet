@@ -20,6 +20,8 @@ use span::Span;
 
 pub type ParserError<T> = Result<T, JSError>;
 
+mod binding;
+
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
     /// Are we in strict mode
@@ -207,9 +209,14 @@ impl<'a> Parser<'a> {
     ///     BindingPattern Option<Initializer>
     fn parse_variable_declaration(&mut self) -> ParserError<VariableDeclaration> {
         let start = self.lexer.token_start;
-        let binding = match self.lexer.token.is_keyword() {
-            true => todo!(),
-            false => self
+        let binding = match self.lexer.token {
+            Token::OpenBracket => self
+                .parse_array_binding_pattern()
+                .map(TargetBindingPattern::BindingArrayPattern)?,
+            Token::OpenBrace => self
+                .parse_object_binding_pattern()
+                .map(TargetBindingPattern::BindingObjectPattern)?,
+            _ => self
                 .parse_binding_identifier()
                 .map(TargetBindingPattern::BindingIdentifier)?,
         };
@@ -225,47 +232,6 @@ impl<'a> Parser<'a> {
             span: Span::new(start, end),
             binding,
             initializer,
-        })
-    }
-
-    /// Parses a binding identifier
-    fn parse_binding_identifier(&mut self) -> ParserError<BindingIdentifier> {
-        let name = self.lexer.token_text.to_string();
-
-        if self.strict && self.lexer.token == Token::Yield {
-            return Err(JSError::new(
-                JSErrorKind::UnexpectedYieldAsBindingIdentifier,
-                Span::new(self.lexer.token_start, self.lexer.token_end),
-            ));
-        }
-
-        if self.module && self.lexer.token == Token::Await {
-            return Err(JSError::new(
-                JSErrorKind::UnexpectedAwaitAsBindingIdentifier,
-                Span::new(self.lexer.token_start, self.lexer.token_end),
-            ));
-        }
-
-        if self.lexer.token.is_keyword() {
-            return Err(JSError::new(
-                JSErrorKind::ExpectedBindingIdentifier,
-                Span::new(self.lexer.token_start, self.lexer.token_end),
-            ));
-        }
-
-        if self.strict && self.lexer.token.is_future_reserved() {
-            return Err(JSError::new(
-                JSErrorKind::StrictModeReserved,
-                Span::new(self.lexer.token_start, self.lexer.token_end),
-            ));
-        }
-
-        let start = self.lexer.token_start;
-        self.lexer.next()?;
-        let end = self.lexer.token_start;
-        Ok(BindingIdentifier {
-            name,
-            span: Span::new(start, end),
         })
     }
 
@@ -307,7 +273,12 @@ impl<'a> Parser<'a> {
     fn parse_lexical_binding(&mut self, is_const: bool) -> ParserError<LexicalBinding> {
         let start = self.lexer.token_start;
         let binding = match self.lexer.token {
-            Token::OpenBrace | Token::OpenBracket => todo!(),
+            Token::OpenBracket => self
+                .parse_array_binding_pattern()
+                .map(TargetBindingPattern::BindingArrayPattern)?,
+            Token::OpenBrace => self
+                .parse_object_binding_pattern()
+                .map(TargetBindingPattern::BindingObjectPattern)?,
             _ => self
                 .parse_binding_identifier()
                 .map(TargetBindingPattern::BindingIdentifier)?,

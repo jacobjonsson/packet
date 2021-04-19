@@ -68,6 +68,10 @@ fn test_variable_statements() {
     expect_printed("var async;", "var async;\n");
     expect_printed("var a = 1;", "var a = 1;\n");
     expect_printed("var a = \"b\";", "var a = \"b\";\n");
+    expect_printed("var [a] = \"b\";", "var [a] = \"b\";\n");
+    expect_printed("var [...a] = \"b\";", "var [...a] = \"b\";\n");
+    expect_printed("var [a = 1] = \"b\";", "var [a = 1] = \"b\";\n");
+    expect_printed("var [[[[a]]]] = \"b\";", "var [[[[a]]]] = \"b\";\n");
 
     expect_error(
         "var yield;",
@@ -90,10 +94,18 @@ fn test_variable_statements() {
 fn test_lexical_bindings() {
     expect_printed("const a = 1;", "const a = 1;\n");
     expect_printed("const a = \"b\";", "const a = \"b\";\n");
+    expect_printed("const [a] = \"b\";", "const [a] = \"b\";\n");
+    expect_printed("const [...a] = \"b\";", "const [...a] = \"b\";\n");
+    expect_printed("const [a = 1] = \"b\";", "const [a = 1] = \"b\";\n");
+    expect_printed("const [[[[a]]]] = \"b\";", "const [[[[a]]]] = \"b\";\n");
 
     expect_printed("let a;", "let a;\n");
     expect_printed("let a = 1;", "let a = 1;\n");
     expect_printed("let a = \"b\";", "let a = \"b\";\n");
+    expect_printed("let [a] = \"b\";", "let [a] = \"b\";\n");
+    expect_printed("let [...a] = \"b\";", "let [...a] = \"b\";\n");
+    expect_printed("let [a = 1] = \"b\";", "let [a = 1] = \"b\";\n");
+    expect_printed("let [[[[a]]]] = \"b\";", "let [[[[a]]]] = \"b\";\n");
 
     expect_error("const a;", JSErrorKind::MissingConstInitializer);
     expect_error("const let;", JSErrorKind::StrictModeReserved);
