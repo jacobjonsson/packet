@@ -1997,11 +1997,13 @@ impl<'a, L: Logger> Parser<'a, L> {
                                     },
                                 )
                             } else {
-                                ExportDefaultDeclarationKind::AnonymousDefaultExportedFunctionDeclaration(AnonymousDefaultExportedFunctionDeclaration {
-                                    generator,
-                                    body,
-                                    parameters,
-                                })
+                                ExportDefaultDeclarationKind::AnonymousDefaultExportedFunctionDeclaration(
+                                    AnonymousDefaultExportedFunctionDeclaration {
+                                        generator,
+                                        body,
+                                        parameters,
+                                    },
+                                )
                             }
                         }
 
@@ -2023,12 +2025,11 @@ impl<'a, L: Logger> Parser<'a, L> {
                                 Some(ident) => ExportDefaultDeclarationKind::ClassDeclaration(ClassDeclaration {
                                     body,
                                     extends,
-                                    identifier: ident
+                                    identifier: ident,
                                 }),
-                                None => ExportDefaultDeclarationKind::AnonymousDefaultExportedClassDeclaration(AnonymousDefaultExportedClassDeclaration {
-                                    body,
-                                    extends,
-                                }),
+                                None => ExportDefaultDeclarationKind::AnonymousDefaultExportedClassDeclaration(
+                                    AnonymousDefaultExportedClassDeclaration { body, extends },
+                                ),
                             }
                         }
 
@@ -2463,9 +2464,9 @@ impl<'a, L: Logger> Parser<'a, L> {
 
         let consequent = self.parse_statement().map(Box::new)?;
         match consequent.as_ref() {
-            Statement::FunctionDeclaration(_) => panic!(
-                "Function declarations are not allowed to follow an if-statement in strict mode"
-            ),
+            Statement::FunctionDeclaration(_) => {
+                panic!("Function declarations are not allowed to follow an if-statement in strict mode")
+            }
             _ => {}
         };
 
@@ -2474,7 +2475,9 @@ impl<'a, L: Logger> Parser<'a, L> {
             self.lexer.next_token();
             let tmp_alternate = self.parse_statement()?;
             match &tmp_alternate {
-                Statement::FunctionDeclaration(_) => panic!("Function declarations are not allowed to follow an if-statement in strict mode"),
+                Statement::FunctionDeclaration(_) => {
+                    panic!("Function declarations are not allowed to follow an if-statement in strict mode")
+                }
                 _ => {}
             };
             alternate = Some(Box::new(tmp_alternate));

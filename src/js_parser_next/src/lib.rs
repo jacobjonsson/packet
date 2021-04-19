@@ -50,8 +50,12 @@ impl<'a> Parser<'a> {
             Token::Do => self.parse_do_statement(),
             Token::While => self.parse_while_statement(),
             Token::For => self.parse_for_statement(),
-            Token::Var => self.parse_variable_statement().map(Statement::VariableStatement),
-            Token::Const => self.parse_lexical_declaration().map(Statement::LexicalDeclaration),
+            Token::Var => self
+                .parse_variable_statement()
+                .map(Statement::VariableStatement),
+            Token::Const => self
+                .parse_lexical_declaration()
+                .map(Statement::LexicalDeclaration),
             Token::Continue => self.parse_continue_statement(),
             Token::Break => self.parse_break_statement(),
             Token::Return => self.parse_break_statement(),
@@ -61,7 +65,9 @@ impl<'a> Parser<'a> {
             Token::Switch => self.parse_switch_statement(),
             Token::With => self.parse_with_statement(),
             Token::Function => self.parse_function_declaration(),
-            _ => self.parse_expression_statement().map(Statement::ExpressionStatement),
+            _ => self
+                .parse_expression_statement()
+                .map(Statement::ExpressionStatement),
         }
     }
 
@@ -312,11 +318,15 @@ impl<'a> Parser<'a> {
     fn parse_prefix(&mut self) -> ParserError<Expression> {
         match self.lexer.token {
             Token::Number => self.parse_numeric_literal().map(Expression::NumericLiteral),
-            Token::OpenBracket => self.parse_array_expression().map(Expression::ArrayExpression),
+            Token::OpenBracket => self
+                .parse_array_expression()
+                .map(Expression::ArrayExpression),
             Token::OpenParen => self.parse_paren_expression(),
             Token::Slash => self.parse_regexp_literal().map(Expression::RegexpLiteral),
             Token::String => self.parse_string_literal().map(Expression::StringLiteral),
-            Token::True | Token::False => self.parse_boolean_literal().map(Expression::BooleanLiteral),
+            Token::True | Token::False => {
+                self.parse_boolean_literal().map(Expression::BooleanLiteral)
+            }
             _ => todo!(),
         }
     }
@@ -353,7 +363,9 @@ impl<'a> Parser<'a> {
                 }
                 // [...expression]
                 Token::DotDotDot => {
-                    let element = self.parse_spread_expression().map(ArrayExpressionElement::Spread)?;
+                    let element = self
+                        .parse_spread_expression()
+                        .map(ArrayExpressionElement::Spread)?;
                     elements.push(element);
                     if self.lexer.token == Token::Comma {
                         self.lexer.next()?;
@@ -361,7 +373,9 @@ impl<'a> Parser<'a> {
                 }
                 // Anything else
                 _ => {
-                    let element = self.parse_expression().map(ArrayExpressionElement::Expression)?;
+                    let element = self
+                        .parse_expression()
+                        .map(ArrayExpressionElement::Expression)?;
                     elements.push(element);
                     if self.lexer.token == Token::Comma {
                         self.lexer.next()?;
