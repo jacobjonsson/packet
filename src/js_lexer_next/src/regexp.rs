@@ -1,4 +1,4 @@
-use crate::{identifier::is_identifier_continue, TokenKind};
+use crate::{identifier::is_identifier_continue, Token};
 use crate::{Lexer, LexerResult};
 use js_error::{JSError, JSErrorKind};
 use span::Span;
@@ -6,15 +6,19 @@ use span::Span;
 impl<'a> Lexer<'a> {
     // Scans the next token as part of a regexp instead of a normal token
     // Calling this function assumes that the leading slash has already been consumed
-    pub fn next_as_regexp(&mut self) -> LexerResult<TokenKind> {
-        let pattern = self.scan_regexp_pattern()?;
+    pub fn next_as_regexp(&mut self) -> LexerResult<()> {
+        self.token_start = self.previous_position(); // Include the leading slash
+        self.scan_regexp_pattern()?;
         self.index += 1; // Skip over the ending slash
-        let flags = self.scan_regexp_flags()?;
+        self.scan_regexp_flags()?;
+        self.token_end = self.current_position();
 
-        Ok(TokenKind::Regexp { flags, pattern })
+        self.token_text = &self.input[self.token_start..self.token_end];
+        self.token = Token::Regexp;
+        Ok(())
     }
 
-    fn scan_regexp_pattern(&mut self) -> LexerResult<String> {
+    fn scan_regexp_pattern(&mut self) -> LexerResult<()> {
         let start = self.current_position();
         // Scan pattern
         loop {
@@ -34,11 +38,10 @@ impl<'a> Lexer<'a> {
 
             self.index += 1;
         }
-        let end = self.current_position();
-        Ok(self.input[start..end].into())
+        Ok(())
     }
 
-    fn scan_regexp_flags(&mut self) -> LexerResult<Option<String>> {
+    fn scan_regexp_flags(&mut self) -> LexerResult<()> {
         let start = self.current_position();
         loop {
             let c = match self.current_character() {
@@ -64,10 +67,10 @@ impl<'a> Lexer<'a> {
 
         let end = self.current_position();
         if start == end {
-            return Ok(None);
+            return Ok(());
         }
 
-        Ok(Some(self.input[start..end].into()))
+        Ok(())
     }
 }
 
@@ -77,21 +80,14 @@ mod tests {
 
     #[test]
     fn test_valid_regexp() {
-        let tests = vec![
-            ("/abc/", "abc", None),
-            ("/abc/g", "abc", Some(String::from("g"))),
-        ];
+        let tests = vec![("/abc/", "/abc/"), ("/abc/g", "/abc/g")];
 
         for test in tests {
             let mut lexer = Lexer::new(test.0);
-            assert_eq!(lexer.next().unwrap().kind, TokenKind::Slash);
-            assert_eq!(
-                lexer.next_as_regexp().unwrap(),
-                TokenKind::Regexp {
-                    pattern: test.1.into(),
-                    flags: test.2
-                }
-            );
+            assert_eq!(lexer.next(), Ok(()));
+            assert_eq!(lexer.token, Token::Slash);
+            assert_eq!(lexer.next_as_regexp(), Ok(()));
+            assert_eq!(lexer.token_text, test.1);
         }
     }
 
@@ -104,7 +100,8 @@ mod tests {
 
         for test in tests {
             let mut lexer = Lexer::new(test.0);
-            assert_eq!(lexer.next().unwrap().kind, TokenKind::Slash);
+            assert_eq!(lexer.next(), Ok(()));
+            assert_eq!(lexer.token, Token::Slash);
             assert_eq!(lexer.next_as_regexp().unwrap_err().kind, test.1);
         }
     }

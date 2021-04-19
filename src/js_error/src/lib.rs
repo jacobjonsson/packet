@@ -23,6 +23,7 @@ pub enum JSErrorKind {
     UnterminatedTemplateLiteral,
     UnterminatedRegexp,
     InvalidRegexpFlag,
+    MissingConstInitializer,
 }
 
 impl fmt::Display for JSErrorKind {
@@ -37,6 +38,7 @@ impl fmt::Display for JSErrorKind {
             JSErrorKind::UnterminatedTemplateLiteral => write!(f, "Unterminated template literal"),
             JSErrorKind::UnterminatedRegexp => write!(f, "Unterminated regexp"),
             JSErrorKind::InvalidRegexpFlag => write!(f, "The regexp flag is invalid"),
+            JSErrorKind::MissingConstInitializer => write!(f, "Missing const initializer"),
         }
     }
 }

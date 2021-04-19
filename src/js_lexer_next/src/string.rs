@@ -1,12 +1,12 @@
 use js_error::{JSError, JSErrorKind};
 use span::Span;
 
-use crate::TokenKind;
+use crate::Token;
 use crate::{whitespace::is_line_terminator, Lexer, LexerResult};
 
 impl<'a> Lexer<'a> {
     /// Scans a string
-    pub(crate) fn scan_string(&mut self, quote: char) -> LexerResult<TokenKind> {
+    pub(crate) fn scan_string(&mut self, quote: char) -> LexerResult<Token> {
         self.index += 1; // Skip over the leading quote
         let start = self.current_position();
 
@@ -46,10 +46,8 @@ impl<'a> Lexer<'a> {
             self.index += 1;
         }
 
-        let value = &self.input[start..end];
-        Ok(TokenKind::String {
-            value: value.into(),
-        })
+        self.token_text = &self.input[start..end];
+        Ok(Token::String)
     }
 }
 
@@ -68,10 +66,9 @@ mod tests {
 
         for test in tests {
             let mut lexer = Lexer::new(test.0);
-            match lexer.next().unwrap().kind {
-                TokenKind::String { value } => assert_eq!(test.1, value),
-                _ => panic!(),
-            }
+            assert_eq!(lexer.next(), Ok(()));
+            assert_eq!(lexer.token, Token::String);
+            assert_eq!(lexer.token_text, test.1);
         }
     }
 

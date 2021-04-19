@@ -1,4 +1,4 @@
-use crate::TokenKind;
+use crate::Token;
 use crate::{Lexer, LexerResult};
 
 /// Implementations of scanning functions for the punctuators used in JavaScript.
@@ -6,259 +6,259 @@ use crate::{Lexer, LexerResult};
 /// See [spec](https://tc39.es/ecma262/#sec-punctuators)
 impl<'a> Lexer<'a> {
     /// ~
-    pub(crate) fn scan_tilde(&mut self) -> TokenKind {
+    pub(crate) fn scan_tilde(&mut self) -> Token {
         self.index += 1;
-        TokenKind::Tilde
+        Token::Tilde
     }
 
     /// (
-    pub(crate) fn scan_open_paren(&mut self) -> TokenKind {
+    pub(crate) fn scan_open_paren(&mut self) -> Token {
         self.index += 1;
-        TokenKind::OpenParen
+        Token::OpenParen
     }
 
     /// )
-    pub(crate) fn scan_close_paren(&mut self) -> TokenKind {
+    pub(crate) fn scan_close_paren(&mut self) -> Token {
         self.index += 1;
-        TokenKind::CloseParen
+        Token::CloseParen
     }
 
     /// {
-    pub(crate) fn scan_open_brace(&mut self) -> TokenKind {
+    pub(crate) fn scan_open_brace(&mut self) -> Token {
         self.index += 1;
-        TokenKind::OpenBrace
+        Token::OpenBrace
     }
 
     /// }
-    pub(crate) fn scan_close_brace(&mut self) -> TokenKind {
+    pub(crate) fn scan_close_brace(&mut self) -> Token {
         self.index += 1;
-        TokenKind::CloseBrace
+        Token::CloseBrace
     }
 
     /// [
-    pub(crate) fn scan_open_bracket(&mut self) -> TokenKind {
+    pub(crate) fn scan_open_bracket(&mut self) -> Token {
         self.index += 1;
-        TokenKind::OpenBracket
+        Token::OpenBracket
     }
 
     /// ]
-    pub(crate) fn scan_close_bracket(&mut self) -> TokenKind {
+    pub(crate) fn scan_close_bracket(&mut self) -> Token {
         self.index += 1;
-        TokenKind::CloseBracket
+        Token::CloseBracket
     }
 
     /// ;
-    pub(crate) fn scan_semicolon(&mut self) -> TokenKind {
+    pub(crate) fn scan_semicolon(&mut self) -> Token {
         self.index += 1;
-        TokenKind::Semicolon
+        Token::Semicolon
     }
 
     /// :
-    pub(crate) fn scan_colon(&mut self) -> TokenKind {
+    pub(crate) fn scan_colon(&mut self) -> Token {
         self.index += 1;
-        TokenKind::Colon
+        Token::Colon
     }
 
     /// :
-    pub(crate) fn scan_comma(&mut self) -> TokenKind {
+    pub(crate) fn scan_comma(&mut self) -> Token {
         self.index += 1;
-        TokenKind::Comma
+        Token::Comma
     }
 
     /// /, /=
-    pub(crate) fn scan_slash(&mut self) -> TokenKind {
+    pub(crate) fn scan_slash(&mut self) -> Token {
         self.index += 1;
         if self.current_character() == Some('=') {
             self.index += 1;
-            TokenKind::SlashEquals
+            Token::SlashEquals
         } else {
-            TokenKind::Slash
+            Token::Slash
         }
     }
 
     /// &, &=, &&, &&=
-    pub(crate) fn scan_ampersand(&mut self) -> TokenKind {
+    pub(crate) fn scan_ampersand(&mut self) -> Token {
         self.index += 1;
         let character = self.current_character();
         if character == Some('&') {
             self.index += 1;
             if self.current_character() == Some('=') {
                 self.index += 1;
-                TokenKind::AmpersandAmpersandEquals
+                Token::AmpersandAmpersandEquals
             } else {
-                TokenKind::AmpersandAmpersand
+                Token::AmpersandAmpersand
             }
         } else if character == Some('=') {
             self.index += 1;
-            TokenKind::AmpersandEquals
+            Token::AmpersandEquals
         } else {
-            TokenKind::Ampersand
+            Token::Ampersand
         }
     }
 
     /// -, --, -=
-    pub(crate) fn scan_minus(&mut self) -> TokenKind {
+    pub(crate) fn scan_minus(&mut self) -> Token {
         self.index += 1;
         let character = self.current_character();
         if character == Some('-') {
             self.index += 1;
-            TokenKind::MinusMinus
+            Token::MinusMinus
         } else if character == Some('=') {
             self.index += 1;
-            TokenKind::MinusEquals
+            Token::MinusEquals
         } else {
-            TokenKind::Minus
+            Token::Minus
         }
     }
 
     /// !, !=, !==
-    pub(crate) fn scan_exclamation(&mut self) -> TokenKind {
+    pub(crate) fn scan_exclamation(&mut self) -> Token {
         self.index += 1;
         if self.current_character() == Some('=') {
             self.index += 1;
             if self.current_character() == Some('=') {
                 self.index += 1;
-                TokenKind::ExclamationEqualsEquals
+                Token::ExclamationEqualsEquals
             } else {
-                TokenKind::ExclamationEquals
+                Token::ExclamationEquals
             }
         } else {
-            TokenKind::Exclamation
+            Token::Exclamation
         }
     }
 
     /// ?, ?., ??, ??=
-    pub(crate) fn scan_question_mark(&mut self) -> TokenKind {
+    pub(crate) fn scan_question_mark(&mut self) -> Token {
         self.index += 1;
         let character = self.current_character();
         if character == Some('?') {
             self.index += 1;
             if self.current_character() == Some('=') {
                 self.index += 1;
-                TokenKind::QuestionQuestionEquals
+                Token::QuestionQuestionEquals
             } else {
-                TokenKind::QuestionQuestion
+                Token::QuestionQuestion
             }
         } else if character == Some('.') {
-            TokenKind::QuestionDot
+            Token::QuestionDot
         } else {
-            TokenKind::Question
+            Token::Question
         }
     }
 
     /// ., ..., .123
-    pub(crate) fn scan_dot(&mut self) -> LexerResult<TokenKind> {
+    pub(crate) fn scan_dot(&mut self) -> LexerResult<Token> {
         let next = self.next_character();
         if next >= Some('0') && next <= Some('9') {
             self.scan_floating_point()
         } else if next == Some('.') {
             self.index += 3;
-            Ok(TokenKind::DotDotDot)
+            Ok(Token::DotDotDot)
         } else {
             self.index += 1;
-            Ok(TokenKind::Dot)
+            Ok(Token::Dot)
         }
     }
 
     /// *, *=, **, **=
-    pub(crate) fn scan_asterisk(&mut self) -> TokenKind {
+    pub(crate) fn scan_asterisk(&mut self) -> Token {
         self.index += 1;
         let character = self.current_character();
         if character == Some('*') {
             self.index += 1;
             if self.current_character() == Some('=') {
                 self.index += 1;
-                TokenKind::AsteriskAsteriskEquals
+                Token::AsteriskAsteriskEquals
             } else {
-                TokenKind::AsteriskAsterisk
+                Token::AsteriskAsterisk
             }
         } else if character == Some('=') {
             self.index += 1;
-            TokenKind::AsteriskEquals
+            Token::AsteriskEquals
         } else {
-            TokenKind::Asterisk
+            Token::Asterisk
         }
     }
 
     /// %, %=
-    pub(crate) fn scan_percent(&mut self) -> TokenKind {
+    pub(crate) fn scan_percent(&mut self) -> Token {
         self.index += 1;
         if self.current_character() == Some('=') {
             self.index += 1;
-            TokenKind::PercentEquals
+            Token::PercentEquals
         } else {
-            TokenKind::Percent
+            Token::Percent
         }
     }
 
     /// ^, ^=
-    pub(crate) fn scan_caret(&mut self) -> TokenKind {
+    pub(crate) fn scan_caret(&mut self) -> Token {
         self.index += 1;
         if self.current_character() == Some('=') {
             self.index += 1;
-            TokenKind::CaretEquals
+            Token::CaretEquals
         } else {
-            TokenKind::Caret
+            Token::Caret
         }
     }
 
     /// +, ++, +=
-    pub(crate) fn scan_plus(&mut self) -> TokenKind {
+    pub(crate) fn scan_plus(&mut self) -> Token {
         self.index += 1;
         let character = self.current_character();
         if character == Some('=') {
             self.index += 1;
-            TokenKind::PlusEquals
+            Token::PlusEquals
         } else if character == Some('+') {
             self.index += 1;
-            TokenKind::PlusPlus
+            Token::PlusPlus
         } else {
-            TokenKind::Plus
+            Token::Plus
         }
     }
 
     /// <, <<, <<=, <=
-    pub(crate) fn scan_less_than(&mut self) -> TokenKind {
+    pub(crate) fn scan_less_than(&mut self) -> Token {
         self.index += 1;
         let character = self.current_character();
         if character == Some('<') {
             self.index += 1;
             if self.current_character() == Some('=') {
                 self.index += 1;
-                TokenKind::LessThanLessThanEquals
+                Token::LessThanLessThanEquals
             } else {
-                TokenKind::LessThanLessThan
+                Token::LessThanLessThan
             }
         } else if character == Some('=') {
             self.index += 1;
-            TokenKind::LessThanEquals
+            Token::LessThanEquals
         } else {
-            TokenKind::LessThan
+            Token::LessThan
         }
     }
 
     /// =, ==, ===, =>
-    pub(crate) fn scan_equals(&mut self) -> TokenKind {
+    pub(crate) fn scan_equals(&mut self) -> Token {
         self.index += 1;
         let character = self.current_character();
         if character == Some('=') {
             self.index += 1;
             if self.current_character() == Some('=') {
                 self.index += 1;
-                TokenKind::EqualsEqualsEquals
+                Token::EqualsEqualsEquals
             } else {
-                TokenKind::EqualsEquals
+                Token::EqualsEquals
             }
         } else if character == Some('>') {
             self.index += 1;
-            TokenKind::EqualsGreaterThan
+            Token::EqualsGreaterThan
         } else {
-            TokenKind::Equals
+            Token::Equals
         }
     }
 
     /// >, >=, >>, >>=, >>>, >>>=
-    pub(crate) fn scan_greater_than(&mut self) -> TokenKind {
+    pub(crate) fn scan_greater_than(&mut self) -> Token {
         self.index += 1;
         let mut character = self.current_character();
         if character == Some('>') {
@@ -268,41 +268,41 @@ impl<'a> Lexer<'a> {
                 self.index += 1;
                 if self.current_character() == Some('=') {
                     self.index += 1;
-                    TokenKind::GreaterThanGreaterThanGreaterThanEquals
+                    Token::GreaterThanGreaterThanGreaterThanEquals
                 } else {
-                    TokenKind::GreaterThanGreaterThanGreaterThan
+                    Token::GreaterThanGreaterThanGreaterThan
                 }
             } else if character == Some('=') {
                 self.index += 1;
-                TokenKind::GreaterThanGreaterThanEquals
+                Token::GreaterThanGreaterThanEquals
             } else {
-                TokenKind::GreaterThanGreaterThan
+                Token::GreaterThanGreaterThan
             }
         } else if character == Some('=') {
             self.index += 1;
-            TokenKind::GreaterThanEquals
+            Token::GreaterThanEquals
         } else {
-            TokenKind::GreaterThan
+            Token::GreaterThan
         }
     }
 
     /// |, |=, ||, ||=
-    pub(crate) fn scan_bar(&mut self) -> TokenKind {
+    pub(crate) fn scan_bar(&mut self) -> Token {
         self.index += 1;
         let character = self.current_character();
         if character == Some('|') {
             self.index += 1;
             if self.current_character() == Some('=') {
                 self.index += 1;
-                TokenKind::BarBarEquals
+                Token::BarBarEquals
             } else {
-                TokenKind::BarBar
+                Token::BarBar
             }
         } else if character == Some('=') {
             self.index += 1;
-            TokenKind::BarEquals
+            Token::BarEquals
         } else {
-            TokenKind::Bar
+            Token::Bar
         }
     }
 }
@@ -314,68 +314,69 @@ mod tests {
     #[test]
     fn test_punctuators() {
         let tests = vec![
-            ("--", TokenKind::MinusMinus),
-            ("-", TokenKind::Minus),
-            ("-=", TokenKind::MinusEquals),
-            (",", TokenKind::Comma),
-            (";", TokenKind::Semicolon),
-            (":", TokenKind::Colon),
-            ("!", TokenKind::Exclamation),
-            ("!=", TokenKind::ExclamationEquals),
-            ("!==", TokenKind::ExclamationEqualsEquals),
-            ("??", TokenKind::QuestionQuestion),
-            ("??=", TokenKind::QuestionQuestionEquals),
-            ("?.", TokenKind::QuestionDot),
-            ("?", TokenKind::Question),
-            ("...", TokenKind::DotDotDot),
-            (".", TokenKind::Dot),
-            ("(", TokenKind::OpenParen),
-            (")", TokenKind::CloseParen),
-            ("[", TokenKind::OpenBracket),
-            ("]", TokenKind::CloseBracket),
-            ("{", TokenKind::OpenBrace),
-            ("}", TokenKind::CloseBrace),
-            ("*", TokenKind::Asterisk),
-            ("**", TokenKind::AsteriskAsterisk),
-            ("**=", TokenKind::AsteriskAsteriskEquals),
-            ("*=", TokenKind::AsteriskEquals),
-            ("/", TokenKind::Slash),
-            ("/=", TokenKind::SlashEquals),
-            ("&", TokenKind::Ampersand),
-            ("&&", TokenKind::AmpersandAmpersand),
-            ("&&=", TokenKind::AmpersandAmpersandEquals),
-            ("&=", TokenKind::AmpersandEquals),
-            ("%", TokenKind::Percent),
-            ("%=", TokenKind::PercentEquals),
-            ("^", TokenKind::Caret),
-            ("^=", TokenKind::CaretEquals),
-            ("+", TokenKind::Plus),
-            ("++", TokenKind::PlusPlus),
-            ("+=", TokenKind::PlusEquals),
-            ("<", TokenKind::LessThan),
-            ("<<", TokenKind::LessThanLessThan),
-            ("<<=", TokenKind::LessThanLessThanEquals),
-            ("<=", TokenKind::LessThanEquals),
-            ("=", TokenKind::Equals),
-            ("==", TokenKind::EqualsEquals),
-            ("===", TokenKind::EqualsEqualsEquals),
-            ("=>", TokenKind::EqualsGreaterThan),
-            (">", TokenKind::GreaterThan),
-            (">=", TokenKind::GreaterThanEquals),
-            (">>", TokenKind::GreaterThanGreaterThan),
-            (">>=", TokenKind::GreaterThanGreaterThanEquals),
-            (">>>", TokenKind::GreaterThanGreaterThanGreaterThan),
-            (">>>", TokenKind::GreaterThanGreaterThanGreaterThan),
-            ("|", TokenKind::Bar),
-            ("|=", TokenKind::BarEquals),
-            ("||", TokenKind::BarBar),
-            ("||=", TokenKind::BarBarEquals),
-            ("~", TokenKind::Tilde),
+            ("--", Token::MinusMinus),
+            ("-", Token::Minus),
+            ("-=", Token::MinusEquals),
+            (",", Token::Comma),
+            (";", Token::Semicolon),
+            (":", Token::Colon),
+            ("!", Token::Exclamation),
+            ("!=", Token::ExclamationEquals),
+            ("!==", Token::ExclamationEqualsEquals),
+            ("??", Token::QuestionQuestion),
+            ("??=", Token::QuestionQuestionEquals),
+            ("?.", Token::QuestionDot),
+            ("?", Token::Question),
+            ("...", Token::DotDotDot),
+            (".", Token::Dot),
+            ("(", Token::OpenParen),
+            (")", Token::CloseParen),
+            ("[", Token::OpenBracket),
+            ("]", Token::CloseBracket),
+            ("{", Token::OpenBrace),
+            ("}", Token::CloseBrace),
+            ("*", Token::Asterisk),
+            ("**", Token::AsteriskAsterisk),
+            ("**=", Token::AsteriskAsteriskEquals),
+            ("*=", Token::AsteriskEquals),
+            ("/", Token::Slash),
+            ("/=", Token::SlashEquals),
+            ("&", Token::Ampersand),
+            ("&&", Token::AmpersandAmpersand),
+            ("&&=", Token::AmpersandAmpersandEquals),
+            ("&=", Token::AmpersandEquals),
+            ("%", Token::Percent),
+            ("%=", Token::PercentEquals),
+            ("^", Token::Caret),
+            ("^=", Token::CaretEquals),
+            ("+", Token::Plus),
+            ("++", Token::PlusPlus),
+            ("+=", Token::PlusEquals),
+            ("<", Token::LessThan),
+            ("<<", Token::LessThanLessThan),
+            ("<<=", Token::LessThanLessThanEquals),
+            ("<=", Token::LessThanEquals),
+            ("=", Token::Equals),
+            ("==", Token::EqualsEquals),
+            ("===", Token::EqualsEqualsEquals),
+            ("=>", Token::EqualsGreaterThan),
+            (">", Token::GreaterThan),
+            (">=", Token::GreaterThanEquals),
+            (">>", Token::GreaterThanGreaterThan),
+            (">>=", Token::GreaterThanGreaterThanEquals),
+            (">>>", Token::GreaterThanGreaterThanGreaterThan),
+            (">>>", Token::GreaterThanGreaterThanGreaterThan),
+            ("|", Token::Bar),
+            ("|=", Token::BarEquals),
+            ("||", Token::BarBar),
+            ("||=", Token::BarBarEquals),
+            ("~", Token::Tilde),
         ];
 
         for test in tests {
             let mut lexer = Lexer::new(test.0);
-            assert_eq!(lexer.next().unwrap().kind, test.1);
+            assert_eq!(lexer.next(), Ok(()));
+            assert_eq!(lexer.token, test.1);
         }
     }
 }

@@ -10,7 +10,7 @@ mod whitespace;
 use identifier::is_identifier_start;
 use js_error::JSError;
 use span::Span;
-use token::{Token, TokenKind};
+pub use token::Token;
 
 pub type LexerResult<T> = Result<T, JSError>;
 
@@ -23,36 +23,55 @@ pub struct Lexer<'a> {
     index: usize,
     /// The last position
     last_position: usize,
+
+    /// The current token
+    pub token: Token,
+    /// The start position of the token
+    pub token_start: usize,
+    /// The end position of the token,
+    pub token_end: usize,
+    /// The string value of the token
+    pub token_text: &'a str,
+    /// The numeric value of the token
+    pub token_number: f64,
 }
 
 impl<'a> Lexer<'a> {
     /// Creates a new lexer
     pub fn new(input: &'a str) -> Lexer {
         let characters: Vec<(usize, char)> = input.char_indices().collect();
-        let last_character: usize = characters
+        let last_position: usize = characters
             .last()
             .map(|(idx, char)| idx + char.len_utf8())
-            .expect("Failed to extract the last character");
+            .expect("Failed to extract the position of the last character");
 
         Lexer {
             input,
             characters: input.char_indices().collect(),
             index: 0,
-            last_position: last_character,
+            last_position,
+            token: Token::Eof,
+            token_start: 0,
+            token_end: 0,
+            token_text: "",
+            token_number: 0.,
         }
     }
 
     /// Scans the next token and advances the lexer
-    pub fn next(&mut self) -> LexerResult<Token> {
+    pub fn next(&mut self) -> LexerResult<()> {
         self.skip_whitespace()?;
 
+        self.token_start = self.current_position();
         let character = match self.current_character() {
             Some(c) => c,
-            None => return Ok(Token::new(TokenKind::Eof, Span::new(0, 0))),
+            None => {
+                self.token = Token::Eof;
+                return Ok(());
+            }
         };
 
-        let start = self.current_position();
-        let kind = match character {
+        self.token = match character {
             c if is_identifier_start(c) => self.scan_identifier()?,
             '0' => self.scan_zero()?,
             '1'..='9' => self.scan_decimal_number()?,
@@ -82,10 +101,30 @@ impl<'a> Lexer<'a> {
             '>' => self.scan_greater_than(),
             '|' => self.scan_bar(),
             '~' => self.scan_tilde(),
-            _ => TokenKind::Illegal,
+            _ => Token::Illegal,
         };
+        self.token_end = self.current_position();
 
-        Ok(Token::new(kind, Span::new(start, self.current_position())))
+        Ok(())
+    }
+
+    /// Asserts the the current token matches given kind and increments the next token
+    pub fn consume(&mut self, kind: Token) -> LexerResult<()> {
+        if self.token != kind {
+            return Err(JSError::new(
+                js_error::JSErrorKind::SyntaxError,
+                Span::new(self.token_start, self.token_end),
+            ));
+        }
+
+        self.next()
+    }
+
+    pub fn consume_optional(&mut self, kind: Token) -> LexerResult<()> {
+        if self.token == kind {
+            self.next()?;
+        }
+        Ok(())
     }
 
     /// Returns the current character
@@ -118,6 +157,16 @@ impl<'a> Lexer<'a> {
     /// previous character.
     fn previous_position(&self) -> usize {
         match self.characters.get(self.index - 1) {
+            Some(v) => v.0,
+            None => self.last_position,
+        }
+    }
+
+    /// Returns the position in the source of the
+    /// next character.
+    #[allow(dead_code)]
+    fn next_position(&self) -> usize {
+        match self.characters.get(self.index + 1) {
             Some(v) => v.0,
             None => self.last_position,
         }

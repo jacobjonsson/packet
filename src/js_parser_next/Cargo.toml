@@ -1,0 +1,16 @@
+[package]
+name = "js_parser_next"
+version = "0.1.0"
+authors = ["Jacob Jonsson <jacobjjonsson@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+js_lexer_next = { path = "../js_lexer_next" }
+js_ast_next = { path = "../js_ast_next" }
+js_error = { path = "../js_error" }
+span = { path = "../span" }
+
+[dev-dependencies]
+js_codegen = { path = "../js_codegen" }

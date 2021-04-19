@@ -1,11 +1,11 @@
 use crate::Lexer;
-use crate::TokenKind;
+use crate::Token;
 use crate::{identifier::is_identifier_start, LexerResult};
 
 impl<'a> Lexer<'a> {
     /// Scans a floating point
     /// .123
-    pub(crate) fn scan_floating_point(&mut self) -> LexerResult<TokenKind> {
+    pub(crate) fn scan_floating_point(&mut self) -> LexerResult<Token> {
         let start = self.current_position();
         self.index += 1; // .
         loop {
@@ -44,12 +44,12 @@ impl<'a> Lexer<'a> {
         }
         let end = self.current_position();
         let text = &self.input[start..end];
-        let value = format!("0{}", text).parse::<f64>().unwrap();
-        Ok(TokenKind::Number { value })
+        self.token_number = format!("0{}", text).parse::<f64>().unwrap();
+        Ok(Token::Number)
     }
 
     /// Scans a number staring with a zero
-    pub(crate) fn scan_zero(&mut self) -> LexerResult<TokenKind> {
+    pub(crate) fn scan_zero(&mut self) -> LexerResult<Token> {
         match self.next_character() {
             Some('b') => self.scan_binary_number(),
             Some('o') => self.scan_octal_number(),
@@ -60,7 +60,7 @@ impl<'a> Lexer<'a> {
 
     /// Scans a binary number
     /// 0b101
-    pub(crate) fn scan_binary_number(&mut self) -> LexerResult<TokenKind> {
+    pub(crate) fn scan_binary_number(&mut self) -> LexerResult<Token> {
         self.index += 2; // 0b
         let start = self.current_position();
         loop {
@@ -93,22 +93,20 @@ impl<'a> Lexer<'a> {
         let c = self.current_character();
         if c == Some('n') {
             let end = self.current_position();
-            let text = &self.input[start..end];
+            self.token_text = &self.input[start - 2..end];
             self.index += 1;
-            return Ok(TokenKind::BigInt {
-                value: format!("0b{}", text),
-            });
+            return Ok(Token::BigInt);
         }
 
         let end = self.current_position();
         let text = &self.input[start..end];
-        let value = i64::from_str_radix(text, 2).unwrap() as f64;
-        Ok(TokenKind::Number { value })
+        self.token_number = i64::from_str_radix(&text.replace('_', ""), 2).unwrap() as f64;
+        Ok(Token::Number)
     }
 
     /// Scans an octal number
     /// 0o123
-    pub(crate) fn scan_octal_number(&mut self) -> LexerResult<TokenKind> {
+    pub(crate) fn scan_octal_number(&mut self) -> LexerResult<Token> {
         self.index += 2; // 0o
         let start = self.current_position();
         loop {
@@ -141,22 +139,20 @@ impl<'a> Lexer<'a> {
         let c = self.current_character();
         if c == Some('n') {
             let end = self.current_position();
-            let text = &self.input[start..end];
+            self.token_text = &self.input[start - 2..end];
             self.index += 1;
-            return Ok(TokenKind::BigInt {
-                value: format!("0o{}", text),
-            });
+            return Ok(Token::BigInt);
         }
 
         let end = self.current_position();
         let text = &self.input[start..end];
-        let value = i64::from_str_radix(text, 8).unwrap() as f64;
-        Ok(TokenKind::Number { value })
+        self.token_number = i64::from_str_radix(&text.replace('_', ""), 8).unwrap() as f64;
+        Ok(Token::Number)
     }
 
     /// Scans a decimal number
     /// 123
-    pub(crate) fn scan_decimal_number(&mut self) -> LexerResult<TokenKind> {
+    pub(crate) fn scan_decimal_number(&mut self) -> LexerResult<Token> {
         let start = self.index;
         loop {
             let c = match self.current_character() {
@@ -198,20 +194,20 @@ impl<'a> Lexer<'a> {
 
         if c == Some('n') {
             let end = self.current_position();
+            self.token_text = &self.input[start..end];
             self.index += 1;
-            let text = &self.input[start..end];
-            return Ok(TokenKind::BigInt { value: text.into() });
+            return Ok(Token::BigInt);
         }
 
         let end = self.current_position();
         let text = &self.input[start..end];
-        let value = text.parse::<f64>().unwrap();
-        Ok(TokenKind::Number { value })
+        self.token_number = text.replace('_', "").parse::<f64>().unwrap();
+        Ok(Token::Number)
     }
 
     /// Scans a hexadecimal number
     /// 0x1af
-    pub(crate) fn scan_hexadecimal_number(&mut self) -> LexerResult<TokenKind> {
+    pub(crate) fn scan_hexadecimal_number(&mut self) -> LexerResult<Token> {
         self.index += 2; // 0x
         let start = self.current_position();
         loop {
@@ -244,17 +240,15 @@ impl<'a> Lexer<'a> {
         let c = self.current_character();
         if c == Some('n') {
             let end = self.current_position();
-            let text = &self.input[start..end];
+            self.token_text = &self.input[start - 2..end];
             self.index += 1;
-            return Ok(TokenKind::BigInt {
-                value: format!("0x{}", text),
-            });
+            return Ok(Token::BigInt);
         }
 
         let end = self.current_position();
         let text = &self.input[start..end];
-        let value = i64::from_str_radix(text, 16).unwrap() as f64;
-        Ok(TokenKind::Number { value })
+        self.token_number = i64::from_str_radix(&text.replace('_', ""), 16).unwrap() as f64;
+        Ok(Token::Number)
     }
 }
 
@@ -268,10 +262,9 @@ mod tests {
 
         for test in tests {
             let mut lexer = Lexer::new(test.0);
-            assert_eq!(
-                TokenKind::Number { value: test.1 },
-                lexer.next().unwrap().kind
-            );
+            assert_eq!(lexer.next(), Ok(()));
+            assert_eq!(Token::Number, lexer.token);
+            assert_eq!(lexer.token_number, test.1);
         }
     }
 
@@ -290,10 +283,9 @@ mod tests {
 
         for test in tests {
             let mut lexer = Lexer::new(test.0);
-            assert_eq!(
-                TokenKind::Number { value: test.1 },
-                lexer.next().unwrap().kind
-            );
+            assert_eq!(lexer.next(), Ok(()));
+            assert_eq!(Token::Number, lexer.token);
+            assert_eq!(lexer.token_number, test.1);
         }
     }
 
@@ -309,12 +301,9 @@ mod tests {
 
         for test in tests {
             let mut lexer = Lexer::new(test.0);
-            assert_eq!(
-                TokenKind::BigInt {
-                    value: test.1.into()
-                },
-                lexer.next().unwrap().kind
-            );
+            assert_eq!(lexer.next(), Ok(()));
+            assert_eq!(Token::BigInt, lexer.token);
+            assert_eq!(test.1, lexer.token_text);
         }
     }
 }
