@@ -142,19 +142,22 @@ pub enum Token {
     /// "~"
     Tilde,
 
-    // Reserved words
+    // Variable declarations
+    Var,
+    Let,
+    Const,
+
+    // Keywords
     Break,
     Case,
     Catch,
     Class,
-    Const,
     Continue,
     Debugger,
     Default,
     Delete,
     Do,
     Else,
-    Enum,
     Export,
     Extends,
     False,
@@ -175,10 +178,30 @@ pub enum Token {
     True,
     Try,
     Typeof,
-    Var,
     Void,
     While,
     With,
+
+    // Strict mode keywords
+    Implements,
+    Interface,
+    Package,
+    Private,
+    Protected,
+    Public,
+    Static,
+    Yield,
+
+    // Contextual keywords
+    As,
+    Async,
+    Await,
+    Constructor,
+    Get,
+    Set,
+    From,
+    Of,
+    Enum,
 }
 
 impl Token {
@@ -186,11 +209,15 @@ impl Token {
     /// is a keyword and if so returns the keyword, otherwise returns an identifier
     pub fn from_potential_keyword(identifier: &str) -> Token {
         match identifier {
+            "as" => Token::As,
+            "async" => Token::Async,
+            "await" => Token::Await,
             "break" => Token::Break,
             "case" => Token::Case,
             "catch" => Token::Catch,
             "class" => Token::Class,
             "const" => Token::Const,
+            "constructor" => Token::Constructor,
             "continue" => Token::Continue,
             "debugger" => Token::Debugger,
             "default" => Token::Default,
@@ -203,14 +230,26 @@ impl Token {
             "false" => Token::False,
             "finally" => Token::Finally,
             "for" => Token::For,
+            "from" => Token::From,
             "function" => Token::Function,
+            "get" => Token::Get,
             "if" => Token::If,
+            "implements" => Token::Implements,
             "import" => Token::Import,
             "in" => Token::In,
             "instanceof" => Token::Instanceof,
+            "interface" => Token::Interface,
+            "let" => Token::Let,
             "new" => Token::New,
             "null" => Token::Null,
+            "of" => Token::Of,
+            "package" => Token::Package,
+            "private" => Token::Private,
+            "protected" => Token::Protected,
+            "public" => Token::Public,
             "return" => Token::Return,
+            "set" => Token::Set,
+            "static" => Token::Static,
             "super" => Token::Super,
             "switch" => Token::Switch,
             "this" => Token::This,
@@ -222,6 +261,8 @@ impl Token {
             "void" => Token::Void,
             "while" => Token::While,
             "with" => Token::With,
+            "yield" => Token::Yield,
+
             _ => Token::Identifier,
         }
     }
@@ -249,7 +290,69 @@ impl Token {
 
     pub fn is_identifier(&self) -> bool {
         match self {
-            Token::Identifier => true,
+            Token::Identifier
+            | Token::As
+            | Token::Async
+            | Token::Await
+            | Token::Constructor
+            | Token::Get
+            | Token::Set
+            | Token::From
+            | Token::Of => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_keyword(&self) -> bool {
+        match self {
+            Token::Break
+            | Token::Case
+            | Token::Catch
+            | Token::Class
+            | Token::Continue
+            | Token::Debugger
+            | Token::Default
+            | Token::Delete
+            | Token::Do
+            | Token::Else
+            | Token::Export
+            | Token::Extends
+            | Token::False
+            | Token::Finally
+            | Token::For
+            | Token::Function
+            | Token::If
+            | Token::Import
+            | Token::In
+            | Token::Instanceof
+            | Token::New
+            | Token::Null
+            | Token::Return
+            | Token::Super
+            | Token::Switch
+            | Token::This
+            | Token::Throw
+            | Token::True
+            | Token::Try
+            | Token::Typeof
+            | Token::Void
+            | Token::While
+            | Token::With => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_future_reserved(&self) -> bool {
+        match self {
+            Token::Implements
+            | Token::Interface
+            | Token::Package
+            | Token::Private
+            | Token::Protected
+            | Token::Public
+            | Token::Static
+            | Token::Yield
+            | Token::Let => true,
             _ => false,
         }
     }

@@ -57,13 +57,7 @@ mod tests {
 
     #[test]
     fn test_valid_identifiers() {
-        let tests = vec![
-            ("a;", "a"),
-            ("_a", "_a"),
-            ("$a", "$a"),
-            ("a_b", "a_b"),
-            ("let", "let"),
-        ];
+        let tests = vec![("a;", "a"), ("_a", "_a"), ("$a", "$a"), ("a_b", "a_b")];
 
         for test in tests {
             let mut lexer = Lexer::new(test.0);

@@ -22,11 +22,19 @@ pub type ParserError<T> = Result<T, JSError>;
 
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
+    /// Are we in strict mode
+    strict: bool,
+    /// Are we in a module
+    module: bool,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(lexer: Lexer<'a>) -> Parser {
-        Parser { lexer }
+        Parser {
+            lexer,
+            strict: true,
+            module: true,
+        }
     }
 
     pub fn parse(&mut self) -> ParserError<AST> {
@@ -53,7 +61,7 @@ impl<'a> Parser<'a> {
             Token::Var => self
                 .parse_variable_statement()
                 .map(Statement::VariableStatement),
-            Token::Const => self
+            Token::Const | Token::Let => self
                 .parse_lexical_declaration()
                 .map(Statement::LexicalDeclaration),
             Token::Continue => self.parse_continue_statement(),
@@ -182,10 +190,15 @@ impl<'a> Parser<'a> {
     ///     VariableDeclarationList `,` VariableDeclaration
     fn parse_variable_declaration_list(&mut self) -> ParserError<Vec<VariableDeclaration>> {
         let mut declarations: Vec<VariableDeclaration> = Vec::new();
-        while self.lexer.token.is_identifier_or_pattern() {
+
+        loop {
             declarations.push(self.parse_variable_declaration()?);
-            self.lexer.consume_optional(Token::Comma)?;
+            if self.lexer.token != Token::Comma {
+                break;
+            }
+            self.lexer.next()?;
         }
+
         Ok(declarations)
     }
 
@@ -194,9 +207,9 @@ impl<'a> Parser<'a> {
     ///     BindingPattern Option<Initializer>
     fn parse_variable_declaration(&mut self) -> ParserError<VariableDeclaration> {
         let start = self.lexer.token_start;
-        let binding = match self.lexer.token {
-            Token::OpenBrace | Token::OpenBracket => todo!(),
-            _ => self
+        let binding = match self.lexer.token.is_keyword() {
+            true => todo!(),
+            false => self
                 .parse_binding_identifier()
                 .map(TargetBindingPattern::BindingIdentifier)?,
         };
@@ -217,8 +230,37 @@ impl<'a> Parser<'a> {
 
     /// Parses a binding identifier
     fn parse_binding_identifier(&mut self) -> ParserError<BindingIdentifier> {
-        let start = self.lexer.token_start;
         let name = self.lexer.token_text.to_string();
+
+        if self.strict && self.lexer.token == Token::Yield {
+            return Err(JSError::new(
+                JSErrorKind::UnexpectedYieldAsBindingIdentifier,
+                Span::new(self.lexer.token_start, self.lexer.token_end),
+            ));
+        }
+
+        if self.module && self.lexer.token == Token::Await {
+            return Err(JSError::new(
+                JSErrorKind::UnexpectedAwaitAsBindingIdentifier,
+                Span::new(self.lexer.token_start, self.lexer.token_end),
+            ));
+        }
+
+        if self.lexer.token.is_keyword() {
+            return Err(JSError::new(
+                JSErrorKind::ExpectedBindingIdentifier,
+                Span::new(self.lexer.token_start, self.lexer.token_end),
+            ));
+        }
+
+        if self.strict && self.lexer.token.is_future_reserved() {
+            return Err(JSError::new(
+                JSErrorKind::StrictModeReserved,
+                Span::new(self.lexer.token_start, self.lexer.token_end),
+            ));
+        }
+
+        let start = self.lexer.token_start;
         self.lexer.next()?;
         let end = self.lexer.token_start;
         Ok(BindingIdentifier {
@@ -250,9 +292,12 @@ impl<'a> Parser<'a> {
     /// Parses a lexical binding list
     fn parse_lexical_binding_list(&mut self, is_const: bool) -> ParserError<Vec<LexicalBinding>> {
         let mut declarations: Vec<LexicalBinding> = Vec::new();
-        while self.lexer.token.is_identifier_or_pattern() {
+        loop {
             declarations.push(self.parse_lexical_binding(is_const)?);
-            self.lexer.consume_optional(Token::Comma)?;
+            if self.lexer.token != Token::Comma {
+                break;
+            }
+            self.lexer.next()?;
         }
         Ok(declarations)
     }

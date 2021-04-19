@@ -65,10 +65,25 @@ fn test_regexp() {
 #[test]
 fn test_variable_statements() {
     expect_printed("var a;", "var a;\n");
-    expect_printed("var let;", "var let;\n");
     expect_printed("var async;", "var async;\n");
     expect_printed("var a = 1;", "var a = 1;\n");
     expect_printed("var a = \"b\";", "var a = \"b\";\n");
+
+    expect_error(
+        "var yield;",
+        JSErrorKind::UnexpectedYieldAsBindingIdentifier,
+    );
+    expect_error(
+        "var await;",
+        JSErrorKind::UnexpectedAwaitAsBindingIdentifier,
+    );
+    expect_error("var let;", JSErrorKind::StrictModeReserved);
+    expect_error("var implements;", JSErrorKind::StrictModeReserved);
+    expect_error("var package;", JSErrorKind::StrictModeReserved);
+    expect_error("var private;", JSErrorKind::StrictModeReserved);
+    expect_error("var protected;", JSErrorKind::StrictModeReserved);
+    expect_error("var public;", JSErrorKind::StrictModeReserved);
+    expect_error("var static;", JSErrorKind::StrictModeReserved);
 }
 
 #[test]
@@ -76,5 +91,24 @@ fn test_lexical_bindings() {
     expect_printed("const a = 1;", "const a = 1;\n");
     expect_printed("const a = \"b\";", "const a = \"b\";\n");
 
+    expect_printed("let a;", "let a;\n");
+    expect_printed("let a = 1;", "let a = 1;\n");
+    expect_printed("let a = \"b\";", "let a = \"b\";\n");
+
     expect_error("const a;", JSErrorKind::MissingConstInitializer);
+    expect_error("const let;", JSErrorKind::StrictModeReserved);
+    expect_error("const implements;", JSErrorKind::StrictModeReserved);
+    expect_error("const package;", JSErrorKind::StrictModeReserved);
+    expect_error("const private;", JSErrorKind::StrictModeReserved);
+    expect_error("const protected;", JSErrorKind::StrictModeReserved);
+    expect_error("const public;", JSErrorKind::StrictModeReserved);
+    expect_error("const static;", JSErrorKind::StrictModeReserved);
+
+    expect_error("let let;", JSErrorKind::StrictModeReserved);
+    expect_error("let implements;", JSErrorKind::StrictModeReserved);
+    expect_error("let package;", JSErrorKind::StrictModeReserved);
+    expect_error("let private;", JSErrorKind::StrictModeReserved);
+    expect_error("let protected;", JSErrorKind::StrictModeReserved);
+    expect_error("let public;", JSErrorKind::StrictModeReserved);
+    expect_error("let static;", JSErrorKind::StrictModeReserved);
 }
