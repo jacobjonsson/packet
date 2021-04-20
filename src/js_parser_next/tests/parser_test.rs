@@ -68,10 +68,6 @@ fn test_variable_statements() {
     expect_printed("var async;", "var async;\n");
     expect_printed("var a = 1;", "var a = 1;\n");
     expect_printed("var a = \"b\";", "var a = \"b\";\n");
-    expect_printed("var [a] = \"b\";", "var [a] = \"b\";\n");
-    expect_printed("var [...a] = \"b\";", "var [...a] = \"b\";\n");
-    expect_printed("var [a = 1] = \"b\";", "var [a = 1] = \"b\";\n");
-    expect_printed("var [[[[a]]]] = \"b\";", "var [[[[a]]]] = \"b\";\n");
 
     expect_error(
         "var yield;",
@@ -88,6 +84,30 @@ fn test_variable_statements() {
     expect_error("var protected;", JSErrorKind::StrictModeReserved);
     expect_error("var public;", JSErrorKind::StrictModeReserved);
     expect_error("var static;", JSErrorKind::StrictModeReserved);
+
+    // Patterns
+    expect_printed("var [a] = \"b\";", "var [a] = \"b\";\n");
+    expect_printed("var [...a] = \"b\";", "var [...a] = \"b\";\n");
+    expect_printed("var [a = 1] = \"b\";", "var [a = 1] = \"b\";\n");
+    expect_printed("var [[[[a]]]] = \"b\";", "var [[[[a]]]] = \"b\";\n");
+    expect_printed(
+        "var [{a: [b], ...c} = 1] = \"b\";",
+        "var [{a: [b], ...c} = 1] = \"b\";\n",
+    );
+    expect_printed("var {a} = 1;", "var {a} = 1;\n");
+    expect_printed("var {async} = 1;", "var {async} = 1;\n");
+    expect_printed("var {null: a} = 1;", "var {null: a} = 1;\n");
+    expect_printed("var {null: a = 2} = 1;", "var {null: a = 2} = 1;\n");
+    expect_printed("var {\"c\": a = 2} = 1;", "var {\"c\": a = 2} = 1;\n");
+
+    expect_error("var {\"a\"} = 1;", JSErrorKind::InvalidShorthandPropertyKey);
+    expect_error("var {1} = 1;", JSErrorKind::InvalidShorthandPropertyKey);
+    expect_error("var {...a, c} = 1;", JSErrorKind::RestElementMustBeLast);
+    expect_error("var {...a,} = 1;", JSErrorKind::RestElementMustBeLast);
+    expect_error("var [...a, c] = 1;", JSErrorKind::RestElementMustBeLast);
+    expect_error("var [...a,] = 1;", JSErrorKind::RestElementMustBeLast);
+    // expect_error("var {null} = 1;", JSErrorKind::UnexpectedKeyword);
+    // expect_error("var {default} = 1;", JSErrorKind::UnexpectedKeyword);
 }
 
 #[test]
@@ -97,7 +117,13 @@ fn test_lexical_bindings() {
     expect_printed("const [a] = \"b\";", "const [a] = \"b\";\n");
     expect_printed("const [...a] = \"b\";", "const [...a] = \"b\";\n");
     expect_printed("const [a = 1] = \"b\";", "const [a = 1] = \"b\";\n");
+    expect_printed(
+        "const [{a: [b], ...c} = 1] = \"b\";",
+        "const [{a: [b], ...c} = 1] = \"b\";\n",
+    );
     expect_printed("const [[[[a]]]] = \"b\";", "const [[[[a]]]] = \"b\";\n");
+    expect_printed("const {a} = 1;", "const {a} = 1;\n");
+    expect_printed("const {null: a} = 1;", "const {null: a} = 1;\n");
 
     expect_printed("let a;", "let a;\n");
     expect_printed("let a = 1;", "let a = 1;\n");
@@ -106,6 +132,8 @@ fn test_lexical_bindings() {
     expect_printed("let [...a] = \"b\";", "let [...a] = \"b\";\n");
     expect_printed("let [a = 1] = \"b\";", "let [a = 1] = \"b\";\n");
     expect_printed("let [[[[a]]]] = \"b\";", "let [[[[a]]]] = \"b\";\n");
+    expect_printed("let {a} = 1;", "let {a} = 1;\n");
+    expect_printed("let {null: a} = 1;", "let {null: a} = 1;\n");
 
     expect_error("const a;", JSErrorKind::MissingConstInitializer);
     expect_error("const let;", JSErrorKind::StrictModeReserved);
@@ -115,6 +143,11 @@ fn test_lexical_bindings() {
     expect_error("const protected;", JSErrorKind::StrictModeReserved);
     expect_error("const public;", JSErrorKind::StrictModeReserved);
     expect_error("const static;", JSErrorKind::StrictModeReserved);
+    expect_error(
+        "const {\"a\"} = 1;",
+        JSErrorKind::InvalidShorthandPropertyKey,
+    );
+    expect_error("const {1} = 1;", JSErrorKind::InvalidShorthandPropertyKey);
 
     expect_error("let let;", JSErrorKind::StrictModeReserved);
     expect_error("let implements;", JSErrorKind::StrictModeReserved);
@@ -123,4 +156,6 @@ fn test_lexical_bindings() {
     expect_error("let protected;", JSErrorKind::StrictModeReserved);
     expect_error("let public;", JSErrorKind::StrictModeReserved);
     expect_error("let static;", JSErrorKind::StrictModeReserved);
+    expect_error("let {\"a\"} = 1;", JSErrorKind::InvalidShorthandPropertyKey);
+    expect_error("let {1} = 1;", JSErrorKind::InvalidShorthandPropertyKey);
 }

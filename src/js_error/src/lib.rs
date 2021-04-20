@@ -28,6 +28,9 @@ pub enum JSErrorKind {
     UnexpectedYieldAsBindingIdentifier,
     UnexpectedAwaitAsBindingIdentifier,
     ExpectedBindingIdentifier,
+    InvalidShorthandPropertyKey,
+    RestElementMustBeLast,
+    TrailingCommaAfterRestElement,
 }
 
 impl fmt::Display for JSErrorKind {
@@ -51,6 +54,13 @@ impl fmt::Display for JSErrorKind {
                 write!(f, "Unexpected await as binding identifier in this context")
             }
             JSErrorKind::ExpectedBindingIdentifier => write!(f, "Expected binding identifier"),
+            JSErrorKind::InvalidShorthandPropertyKey => write!(f, "Invalid shorthand property key"),
+            JSErrorKind::RestElementMustBeLast => {
+                write!(f, "Rest element must be the last element")
+            }
+            JSErrorKind::TrailingCommaAfterRestElement => {
+                write!(f, "Unexpected trailing comma after rest element")
+            }
         }
     }
 }

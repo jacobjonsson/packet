@@ -3,14 +3,17 @@ use js_ast_next::{
     array_expression::{ArrayExpression, ArrayExpressionElement},
     binding_identifier::BindingIdentifier,
     boolean_literal::BooleanLiteral,
+    computed_property_name::ComputedPropertyName,
     expression_statement::ExpressionStatement,
     lexical_declaration::LexicalDeclaration,
     numeric_literal::NumericLiteral,
-    object_binding_pattern::BindingObjectPattern,
+    object_binding_pattern::{
+        ObjectBindingPattern, ObjectBindingProperty, ObjectBindingPropertyKind, SingleNameBinding,
+    },
     regexp_literal::RegexpLiteral,
     string_literal::StringLiteral,
     variable_statement::VariableStatement,
-    Expression, Statement, TargetBindingPattern, AST,
+    Expression, LiteralPropertyName, ObjectPropertyKey, Statement, TargetBindingPattern, AST,
 };
 
 pub struct Codegen {
@@ -162,8 +165,76 @@ impl Codegen {
     }
 
     /// Prints an object binding pattern
-    fn print_object_binding_pattern(&mut self, _: &BindingObjectPattern) {
-        todo!()
+    fn print_object_binding_pattern(&mut self, obp: &ObjectBindingPattern) {
+        self.print("{");
+        for (idx, property) in obp.properties.iter().enumerate() {
+            if idx != 0 {
+                self.print(",");
+                self.print_space();
+            }
+
+            match property {
+                ObjectBindingPropertyKind::ObjectBindingProperty(o) => {
+                    self.print_object_binding_property(o)
+                }
+                ObjectBindingPropertyKind::SingleNameBinding(s) => {
+                    self.print_single_name_binding(s)
+                }
+            }
+        }
+        if let Some(rest) = &obp.rest {
+            if obp.properties.len() > 0 {
+                self.print(",");
+                self.print_space();
+            }
+            self.print("...");
+            self.print_binding_identifier(rest);
+        }
+        self.print("}");
+    }
+
+    fn print_single_name_binding(&mut self, snb: &SingleNameBinding) {
+        self.print_binding_identifier(&snb.identifier);
+        if let Some(initializer) = &snb.initializer {
+            self.print_space();
+            self.print("=");
+            self.print_space();
+            self.print_expression(initializer);
+        }
+    }
+
+    fn print_object_binding_property(&mut self, obp: &ObjectBindingProperty) {
+        self.print_property_key(&obp.key);
+        self.print(":");
+        self.print_space();
+        self.print_target_binding_pattern(&obp.value);
+        if let Some(initializer) = &obp.initializer {
+            self.print_space();
+            self.print("=");
+            self.print_space();
+            self.print_expression(initializer);
+        }
+    }
+
+    fn print_property_key(&mut self, key: &ObjectPropertyKey) {
+        match key {
+            ObjectPropertyKey::LiteralPropertyName(n) => self.print_literal_property_name(n),
+            ObjectPropertyKey::ComputedPropertyName(n) => self.print_computed_property_name(n),
+        }
+    }
+
+    fn print_literal_property_name(&mut self, name: &LiteralPropertyName) {
+        match name {
+            LiteralPropertyName::IdentifierName(i) => self.print(&i.name),
+            LiteralPropertyName::NumericLiteral(n) => self.print_numeric_expression(n),
+            LiteralPropertyName::StringLiteral(s) => self.print_string_literal(s),
+        }
+    }
+
+    fn print_computed_property_name(&mut self, name: &ComputedPropertyName) {
+        self.print("[");
+        self.print_expression(&name.name);
+        self.print("]");
     }
 
     /// Prints an expression

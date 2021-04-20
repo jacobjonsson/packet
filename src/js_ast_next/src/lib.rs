@@ -36,13 +36,14 @@ use binding_identifier::BindingIdentifier;
 use block_statement::BlockStatement;
 use boolean_literal::BooleanLiteral;
 use break_statement::BreakStatement;
+use computed_property_name::ComputedPropertyName;
 use empty_statement::EmptyStatement;
 use expression_statement::ExpressionStatement;
 use identifier_name::IdentifierName;
 use lexical_declaration::LexicalDeclaration;
 use null_literal::NullLiteral;
 use numeric_literal::NumericLiteral;
-use object_binding_pattern::BindingObjectPattern;
+use object_binding_pattern::ObjectBindingPattern;
 use regexp_literal::RegexpLiteral;
 use span::Span;
 use string_literal::StringLiteral;
@@ -79,7 +80,10 @@ pub enum LiteralPropertyName {
 }
 
 #[derive(Debug, Clone)]
-pub enum ObjectPropertyKey {}
+pub enum ObjectPropertyKey {
+    LiteralPropertyName(LiteralPropertyName),
+    ComputedPropertyName(ComputedPropertyName),
+}
 
 /// The top level statement union
 #[derive(Debug, Clone)]
@@ -96,5 +100,5 @@ pub enum Statement {
 pub enum TargetBindingPattern {
     BindingIdentifier(BindingIdentifier),
     BindingArrayPattern(ArrayBindingPattern),
-    BindingObjectPattern(BindingObjectPattern),
+    BindingObjectPattern(ObjectBindingPattern),
 }

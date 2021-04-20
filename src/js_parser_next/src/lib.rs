@@ -1,9 +1,9 @@
 use js_ast_next::{
     array_expression::{ArrayExpression, ArrayExpressionElement},
     array_hole::ArrayHole,
-    binding_identifier::BindingIdentifier,
     boolean_literal::BooleanLiteral,
     expression_statement::ExpressionStatement,
+    identifier_name::IdentifierName,
     lexical_binding::LexicalBinding,
     lexical_declaration::LexicalDeclaration,
     numeric_literal::NumericLiteral,
@@ -12,7 +12,7 @@ use js_ast_next::{
     string_literal::StringLiteral,
     variable_declaration::VariableDeclaration,
     variable_statement::VariableStatement,
-    Expression, Statement, TargetBindingPattern, AST,
+    Expression, LiteralPropertyName, Statement, TargetBindingPattern, AST,
 };
 use js_error::{JSError, JSErrorKind};
 use js_lexer_next::{Lexer, Token};
@@ -337,7 +337,7 @@ impl<'a> Parser<'a> {
             Token::OpenBracket => self
                 .parse_array_expression()
                 .map(Expression::ArrayExpression),
-            Token::OpenParen => self.parse_paren_expression(),
+            Token::OpenParen => self.parse_parenthesized_expression(),
             Token::Slash => self.parse_regexp_literal().map(Expression::RegexpLiteral),
             Token::String => self.parse_string_literal().map(Expression::StringLiteral),
             Token::True | Token::False => {
@@ -347,8 +347,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parses an paren expression
-    fn parse_paren_expression(&mut self) -> ParserError<Expression> {
+    /// Parses a parenthesized expression
+    fn parse_parenthesized_expression(&mut self) -> ParserError<Expression> {
         self.lexer.next()?;
         let mut elements: Vec<Expression> = Vec::new();
         while self.lexer.token != Token::CloseParen {
@@ -360,6 +360,10 @@ impl<'a> Parser<'a> {
             elements.push(element);
         }
         self.lexer.consume(Token::CloseParen)?;
+
+        if elements.len() == 1 {
+            return Ok(elements[0].clone());
+        }
 
         // TODO: Parse arrow functions
         Ok(elements[0].clone())
@@ -425,6 +429,33 @@ impl<'a> Parser<'a> {
         let end = self.lexer.token_start;
         Ok(SpreadElement {
             argument,
+            span: Span::new(start, end),
+        })
+    }
+
+    /// Parses a literal property name
+    fn parse_literal_property_name(&mut self) -> ParserError<LiteralPropertyName> {
+        match self.lexer.token {
+            Token::String => self
+                .parse_string_literal()
+                .map(LiteralPropertyName::StringLiteral),
+            Token::Number => self
+                .parse_numeric_literal()
+                .map(LiteralPropertyName::NumericLiteral),
+            _ => self
+                .parse_identifier_name()
+                .map(LiteralPropertyName::IdentifierName),
+        }
+    }
+
+    /// Parses an identifier name
+    fn parse_identifier_name(&mut self) -> ParserError<IdentifierName> {
+        let start = self.lexer.token_start;
+        let name = self.lexer.token_text.to_string();
+        self.lexer.next()?;
+        let end = self.lexer.token_start;
+        Ok(IdentifierName {
+            name,
             span: Span::new(start, end),
         })
     }
