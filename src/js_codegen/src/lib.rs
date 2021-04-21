@@ -1,6 +1,7 @@
 use js_ast_next::{
     array_binding_pattern::{ArrayBindingElementKind, ArrayBindingPattern},
     array_expression::{ArrayExpression, ArrayExpressionElement},
+    binary_expression::BinaryExpression,
     binding_identifier::BindingIdentifier,
     boolean_literal::BooleanLiteral,
     computed_property_name::ComputedPropertyName,
@@ -10,6 +11,7 @@ use js_ast_next::{
     object_binding_pattern::{
         ObjectBindingPattern, ObjectBindingProperty, ObjectBindingPropertyKind, SingleNameBinding,
     },
+    precedence::Precedence,
     regexp_literal::RegexpLiteral,
     string_literal::StringLiteral,
     variable_statement::VariableStatement,
@@ -73,7 +75,7 @@ impl Codegen {
     /// Prints an expression statement
     fn print_expression_statement(&mut self, expression_statement: &ExpressionStatement) {
         self.statement_start = self.source.len();
-        self.print_expression(&expression_statement.expression);
+        self.print_expression(&expression_statement.expression, &Precedence::Comma);
         self.print_semicolon_after_statement();
     }
 
@@ -90,7 +92,7 @@ impl Codegen {
                 self.print_space();
                 self.print("=");
                 self.print_space();
-                self.print_expression(initializer);
+                self.print_expression(initializer, &Precedence::Comma);
             }
         }
         self.print_semicolon_after_statement();
@@ -113,7 +115,7 @@ impl Codegen {
                 self.print_space();
                 self.print("=");
                 self.print_space();
-                self.print_expression(initializer);
+                self.print_expression(initializer, &Precedence::Comma);
             }
         }
         self.print_semicolon_after_statement();
@@ -149,7 +151,7 @@ impl Codegen {
                         self.print_space();
                         self.print("=");
                         self.print_space();
-                        self.print_expression(initializer);
+                        self.print_expression(initializer, &Precedence::Comma);
                     }
                     if !is_last_element {
                         self.print(",");
@@ -199,7 +201,7 @@ impl Codegen {
             self.print_space();
             self.print("=");
             self.print_space();
-            self.print_expression(initializer);
+            self.print_expression(initializer, &Precedence::Comma);
         }
     }
 
@@ -212,7 +214,7 @@ impl Codegen {
             self.print_space();
             self.print("=");
             self.print_space();
-            self.print_expression(initializer);
+            self.print_expression(initializer, &Precedence::Comma);
         }
     }
 
@@ -233,19 +235,50 @@ impl Codegen {
 
     fn print_computed_property_name(&mut self, name: &ComputedPropertyName) {
         self.print("[");
-        self.print_expression(&name.name);
+        self.print_expression(&name.name, &Precedence::Comma);
         self.print("]");
     }
 
     /// Prints an expression
-    fn print_expression(&mut self, expression: &Expression) {
+    fn print_expression(&mut self, expression: &Expression, precedence: &Precedence) {
         match expression {
             Expression::ArrayExpression(a) => self.print_array_expression(a),
             Expression::NumericLiteral(n) => self.print_numeric_expression(n),
             Expression::StringLiteral(s) => self.print_string_literal(s),
             Expression::RegexpLiteral(r) => self.print_regexp_literal(r),
             Expression::BooleanLiteral(b) => self.print_boolean_literal(b),
+            Expression::BinaryExpression(b) => self.print_binary_expression(b, precedence),
             _ => todo!(),
+        }
+    }
+
+    /// Prints a binary expression
+    fn print_binary_expression(
+        &mut self,
+        binary_expression: &BinaryExpression,
+        precedence: &Precedence,
+    ) {
+        let wrap = precedence >= &binary_expression.operator.precedence();
+        if wrap {
+            self.print("(");
+        }
+
+        self.print_expression(binary_expression.left.as_ref(), precedence);
+
+        if binary_expression.operator.is_keyword() {
+            self.print(" ");
+            self.print(binary_expression.operator.to_str());
+            self.print(" ");
+        } else {
+            self.print_space();
+            self.print(binary_expression.operator.to_str());
+            self.print_space();
+        }
+
+        self.print_expression(binary_expression.right.as_ref(), precedence);
+
+        if wrap {
+            self.print(")");
         }
     }
 
@@ -261,13 +294,13 @@ impl Codegen {
                 }
                 ArrayExpressionElement::Spread(s) => {
                     self.print("...");
-                    self.print_expression(&s.argument);
+                    self.print_expression(&s.argument, &Precedence::Comma);
                     if !is_last_element {
                         self.print(",");
                     }
                 }
                 ArrayExpressionElement::Expression(e) => {
-                    self.print_expression(e);
+                    self.print_expression(e, &Precedence::Comma);
                     if !is_last_element {
                         self.print(",");
                     }

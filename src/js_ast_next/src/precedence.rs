@@ -1,6 +1,6 @@
 /// See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_Precedence
 /// Make sure to keep the values in sync with the raise and lower methods below.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Precedence {
     Comma = 1,
     Yield = 2,

@@ -1,12 +1,14 @@
 use js_ast_next::{
     array_expression::{ArrayExpression, ArrayExpressionElement},
     array_hole::ArrayHole,
+    binary_expression::{BinaryExpression, BinaryExpressionOperator},
     boolean_literal::BooleanLiteral,
     expression_statement::ExpressionStatement,
     identifier_name::IdentifierName,
     lexical_binding::LexicalBinding,
     lexical_declaration::LexicalDeclaration,
     numeric_literal::NumericLiteral,
+    precedence::Precedence,
     regexp_literal::RegexpLiteral,
     spread_element::SpreadElement,
     string_literal::StringLiteral,
@@ -223,7 +225,7 @@ impl<'a> Parser<'a> {
         let initializer = match self.lexer.token {
             Token::Equals => {
                 self.lexer.next()?;
-                self.parse_expression().map(Some)?
+                self.parse_expression(&Precedence::Comma).map(Some)?
             }
             _ => None,
         };
@@ -286,7 +288,7 @@ impl<'a> Parser<'a> {
         let initializer = match self.lexer.token {
             Token::Equals => {
                 self.lexer.next()?;
-                self.parse_expression().map(Some)?
+                self.parse_expression(&Precedence::Comma).map(Some)?
             }
             _ => {
                 if is_const {
@@ -312,7 +314,7 @@ impl<'a> Parser<'a> {
     /// See [spec](https://tc39.es/ecma262/#sec-expression-statement)
     fn parse_expression_statement(&mut self) -> ParserError<ExpressionStatement> {
         let start = self.lexer.token_start;
-        let expression = self.parse_expression()?;
+        let expression = self.parse_expression(&Precedence::Comma)?;
         let end = self.lexer.token_start;
         Ok(ExpressionStatement {
             expression,
@@ -325,13 +327,13 @@ impl<'a> Parser<'a> {
     /// Expression parsing in packet is based the ideas brought
     /// forward by [Vaughan Pratt](https://tdop.github.io), so called
     /// pratt parser or top down operator precedence parsing.
-    fn parse_expression(&mut self) -> ParserError<Expression> {
-        let expr = self.parse_prefix()?;
-        self.parse_suffix(expr)
+    fn parse_expression(&mut self, precedence: &Precedence) -> ParserError<Expression> {
+        let expr = self.parse_prefix(precedence)?;
+        self.parse_suffix(expr, precedence)
     }
 
     /// Parses an expression in a prefix position
-    fn parse_prefix(&mut self) -> ParserError<Expression> {
+    fn parse_prefix(&mut self, precedence: &Precedence) -> ParserError<Expression> {
         match self.lexer.token {
             Token::Number => self.parse_numeric_literal().map(Expression::NumericLiteral),
             Token::OpenBracket => self
@@ -356,7 +358,7 @@ impl<'a> Parser<'a> {
                 todo!()
             }
 
-            let element = self.parse_expression()?;
+            let element = self.parse_expression(&Precedence::Comma)?;
             elements.push(element);
         }
         self.lexer.consume(Token::CloseParen)?;
@@ -394,7 +396,7 @@ impl<'a> Parser<'a> {
                 // Anything else
                 _ => {
                     let element = self
-                        .parse_expression()
+                        .parse_expression(&Precedence::Comma)
                         .map(ArrayExpressionElement::Expression)?;
                     elements.push(element);
                     if self.lexer.token == Token::Comma {
@@ -425,7 +427,7 @@ impl<'a> Parser<'a> {
     fn parse_spread_expression(&mut self) -> ParserError<SpreadElement> {
         let start = self.lexer.token_start;
         self.lexer.next()?;
-        let argument = self.parse_expression()?;
+        let argument = self.parse_expression(&Precedence::Comma)?;
         let end = self.lexer.token_start;
         Ok(SpreadElement {
             argument,
@@ -514,7 +516,87 @@ impl<'a> Parser<'a> {
     }
 
     /// Parses an expression in an infix or suffix position
-    fn parse_suffix(&mut self, expr: Expression) -> ParserError<Expression> {
-        Ok(expr)
+    fn parse_suffix(
+        &mut self,
+        left: Expression,
+        precedence: &Precedence,
+    ) -> ParserError<Expression> {
+        let mut expression = left;
+
+        loop {
+            match self.lexer.token {
+                // a + b
+                Token::Plus => {
+                    if precedence >= &Precedence::Sum {
+                        return Ok(expression);
+                    }
+                    self.lexer.next()?;
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        span: Span::new(0, 0),
+                        left: Box::new(expression),
+                        operator: BinaryExpressionOperator::Addition,
+                        right: self.parse_expression(&Precedence::Sum).map(Box::new)?,
+                    })
+                }
+
+                // a - b
+                Token::Minus => {
+                    if precedence >= &Precedence::Sum {
+                        return Ok(expression);
+                    }
+                    self.lexer.next()?;
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        span: Span::new(0, 0),
+                        left: Box::new(expression),
+                        operator: BinaryExpressionOperator::Substitution,
+                        right: self.parse_expression(&Precedence::Sum).map(Box::new)?,
+                    })
+                }
+
+                // a * b
+                Token::Asterisk => {
+                    if precedence >= &Precedence::Product {
+                        return Ok(expression);
+                    }
+                    self.lexer.next()?;
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        span: Span::new(0, 0),
+                        left: Box::new(expression),
+                        operator: BinaryExpressionOperator::Multiplication,
+                        right: self.parse_expression(&Precedence::Product).map(Box::new)?,
+                    })
+                }
+
+                // a / b
+                Token::Slash => {
+                    if precedence >= &Precedence::Product {
+                        return Ok(expression);
+                    }
+                    self.lexer.next()?;
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        span: Span::new(0, 0),
+                        left: Box::new(expression),
+                        operator: BinaryExpressionOperator::Division,
+                        right: self.parse_expression(&Precedence::Product).map(Box::new)?,
+                    })
+                }
+
+                // a ** b
+                Token::AsteriskAsterisk => {
+                    if precedence >= &Precedence::Product {
+                        return Ok(expression);
+                    }
+                    self.lexer.next()?;
+                    expression = Expression::BinaryExpression(BinaryExpression {
+                        span: Span::new(0, 0),
+                        left: Box::new(expression),
+                        operator: BinaryExpressionOperator::Exponentiation,
+                        right: self.parse_expression(&Precedence::Product).map(Box::new)?,
+                    })
+                }
+
+                _ => return Ok(expression),
+            }
+        }
     }
 }

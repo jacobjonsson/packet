@@ -159,3 +159,30 @@ fn test_lexical_bindings() {
     expect_error("let {\"a\"} = 1;", JSErrorKind::InvalidShorthandPropertyKey);
     expect_error("let {1} = 1;", JSErrorKind::InvalidShorthandPropertyKey);
 }
+
+#[test]
+fn test_binary_expressions() {
+    expect_printed("5 + 5", "5 + 5;\n");
+    expect_printed("5 - 5", "5 - 5;\n");
+    expect_printed("5 * 5", "5 * 5;\n");
+    expect_printed("5 / 5", "5 / 5;\n");
+    // expect_printed("5 % 5", "5 % 5;\n");
+    // expect_printed("5 ** 5", "5 ** 5;\n");
+    // expect_printed("5 < 5", "5 < 5;\n");
+    // expect_printed("5 <= 5", "5 <= 5;\n");
+    // expect_printed("5 > 5", "5 > 5;\n");
+    // expect_printed("5 >= 5", "5 >= 5;\n");
+    // expect_printed("5 in 5", "5 in 5;\n");
+    // expect_printed("5 instanceof 5", "5 instanceof 5;\n");
+    // expect_printed("5 << 5", "5 << 5;\n");
+    // expect_printed("5 >> 5", "5 >> 5;\n");
+    // expect_printed("5 >>> 5", "5 >>> 5;\n");
+    // expect_printed("5 == 5", "5 == 5;\n");
+    // expect_printed("5 != 5", "5 != 5;\n");
+    // expect_printed("5 === 5", "5 === 5;\n");
+    // expect_printed("5 !== 5", "5 !== 5;\n");
+    // expect_printed("5 ?? 5", "5 ?? 5;\n");
+    // expect_printed("5 | 5", "5 | 5;\n");
+    // expect_printed("5 & 5", "5 & 5;\n");
+    // expect_printed("5 ^ 5", "5 ^ 5;\n");
+}

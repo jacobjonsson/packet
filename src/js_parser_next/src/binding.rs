@@ -6,6 +6,7 @@ use js_ast_next::{
     object_binding_pattern::{
         ObjectBindingPattern, ObjectBindingProperty, ObjectBindingPropertyKind, SingleNameBinding,
     },
+    precedence::Precedence,
     LiteralPropertyName, ObjectPropertyKey, TargetBindingPattern,
 };
 use js_error::{JSError, JSErrorKind};
@@ -104,7 +105,7 @@ impl<'a> Parser<'a> {
             let initializer = match self.lexer.token {
                 Token::Equals => {
                     self.lexer.next()?;
-                    self.parse_expression().map(Some)?
+                    self.parse_expression(&Precedence::Comma).map(Some)?
                 }
                 _ => None,
             };
@@ -156,7 +157,7 @@ impl<'a> Parser<'a> {
                 Token::OpenBracket => {
                     let start = self.lexer.token_start;
                     self.lexer.next()?;
-                    let expression = self.parse_expression()?;
+                    let expression = self.parse_expression(&Precedence::Comma)?;
                     self.lexer.consume(Token::CloseBracket)?;
                     let end = self.lexer.token_start;
                     ObjectPropertyKey::ComputedPropertyName(ComputedPropertyName {
@@ -203,7 +204,7 @@ impl<'a> Parser<'a> {
                 let initializer = match self.lexer.token {
                     Token::Equals => {
                         self.lexer.next()?;
-                        self.parse_expression().map(Some)?
+                        self.parse_expression(&Precedence::Comma).map(Some)?
                     }
                     _ => None,
                 };
@@ -233,7 +234,7 @@ impl<'a> Parser<'a> {
                 let initializer = match self.lexer.token {
                     Token::Equals => {
                         self.lexer.next()?;
-                        self.parse_expression().map(Some)?
+                        self.parse_expression(&Precedence::Comma).map(Some)?
                     }
                     _ => None,
                 };
